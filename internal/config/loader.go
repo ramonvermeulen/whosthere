@@ -36,11 +36,13 @@ func Load(pathOverride string) (*Config, string, error) {
 		return cfg, "", fmt.Errorf("read config: %w", err)
 	}
 
-	var fc fileConfig
-	if err := yaml.Unmarshal(raw, &fc); err != nil {
+	if err := yaml.Unmarshal(raw, cfg); err != nil {
 		return cfg, "", fmt.Errorf("parse config: %w", err)
 	}
-	cfg.applyFileOverrides(fc)
+
+	if cfg.Splash.Delay < 0 {
+		cfg.Splash.Delay = DefaultSplashDelay
+	}
 
 	return cfg, resolvedPath, nil
 }

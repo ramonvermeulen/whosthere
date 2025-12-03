@@ -1,12 +1,14 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/ramonvermeulen/whosthere/internal/config"
+	"github.com/ramonvermeulen/whosthere/internal/logging"
 	"github.com/ramonvermeulen/whosthere/internal/ui"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -44,20 +46,23 @@ func Execute() {
 }
 
 func run(*cobra.Command, []string) error {
-	fmt.Println("Welcome to whosthere!")
+	level := logging.LevelFromEnv(zapcore.InfoLevel)
+	logger, logPath, err := logging.Init(appName, level)
+	if err != nil {
+		return err
+	} else {
+		logger.Info("logger initialized", zap.String("path", logPath), zap.String("level", level.String()))
+	}
 
 	cfg, _, err := config.Load(whosthereFlags.ConfigFile)
 	if err != nil {
-		fmt.Println("Error loading config:", err)
-		fmt.Println("Falling-back to default configuration.")
-	}
-
-	app := ui.NewApp(cfg)
-	if err := app.Init(); err != nil {
+		zap.L().Error("failed to load or create config", zap.Error(err))
 		return err
 	}
 
+	app := ui.NewApp(cfg)
 	if err := app.Run(); err != nil {
+		zap.L().Error("ui run failed", zap.Error(err))
 		return err
 	}
 
