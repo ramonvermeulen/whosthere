@@ -40,6 +40,18 @@ func DefaultConfig() *Config {
 			Enabled: DefaultSplashEnabled,
 			Delay:   DefaultSplashDelay,
 		},
-		Theme: ThemeConfig{},
+		Theme: ThemeConfig{
+			PrimitiveBackgroundColor:    "#000a1a",
+			ContrastBackgroundColor:     "#001a33",
+			MoreContrastBackgroundColor: "#003366",
+			BorderColor:                 "#0088ff",
+			TitleColor:                  "#00ffff",
+			GraphicsColor:               "#00ffaa",
+			PrimaryTextColor:            "#cceeff",
+			SecondaryTextColor:          "#6699ff",
+			TertiaryTextColor:           "#ffaa00",
+			InverseTextColor:            "#000a1a",
+			ContrastSecondaryTextColor:  "#88ddff",
+		},
 	}
 }

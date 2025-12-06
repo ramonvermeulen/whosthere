@@ -19,7 +19,11 @@ type DeviceTable struct {
 
 func NewDeviceTable() *DeviceTable {
 	t := &DeviceTable{Table: tview.NewTable(), devices: map[string]discovery.Device{}}
-	t.SetBorder(true).SetTitle("Devices")
+	t.
+		SetBorder(true).
+		SetTitle("Devices").
+		SetBorderColor(tview.Styles.BorderColor).
+		SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 	t.SetSelectable(true, false)
 	t.Select(0, 0)
 	t.refresh()
