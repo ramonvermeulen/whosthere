@@ -103,7 +103,7 @@ func (dt *DeviceTable) buildRows() []tableRow {
 	for _, d := range dt.devices {
 		rows = append(rows, tableRow{
 			ip:           d.IP.String(),
-			hostname:     d.Hostname,
+			hostname:     d.DisplayName,
 			mac:          d.MAC,
 			manufacturer: d.Manufacturer,
 			model:        d.Model,
@@ -118,7 +118,7 @@ func (dt *DeviceTable) refresh() {
 	dt.Clear()
 	const maxColWidth = 30
 
-	headers := []string{"IP", "Hostname", "MAC", "Manufacturer", "Model", "Last Seen"}
+	headers := []string{"IP", "DisplayName", "MAC", "Manufacturer", "Model", "Last Seen"}
 
 	for i, h := range headers {
 		text := truncate(h, maxColWidth)

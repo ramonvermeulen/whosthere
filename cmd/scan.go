@@ -83,7 +83,7 @@ Examples:
 		for _, d := range devices {
 			zap.L().Info("device",
 				zap.String("ip", d.IP.String()),
-				zap.String("hostname", d.Hostname),
+				zap.String("hostname", d.DisplayName),
 				zap.String("mac", d.MAC),
 				zap.String("manufacturer", d.Manufacturer),
 			)

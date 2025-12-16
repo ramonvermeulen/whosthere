@@ -109,7 +109,7 @@ func handlePacket(out chan<- discovery.Device, src *net.UDPAddr, payload []byte,
 		return
 	}
 	dd := discovery.NewDevice(ip)
-	dd.Hostname = server
+	dd.DisplayName = server
 	dd.Services["upnp"] = 0
 	dd.Sources["ssdp"] = struct{}{}
 	out <- dd

@@ -16,11 +16,12 @@ import (
 var _ discovery.Scanner = (*Scanner)(nil)
 
 const (
-	discoveryQueryUdp    = "_services._dns-sd._udp.local."
-	mdnsMulticastAddress = "224.0.0.251"
-	mdnsPort             = 5353
-	queryTimeout         = 2 * time.Second
-	discoveryTimeout     = 5 * time.Second
+	serviceDiscoveryQuery = "_services._dns-sd._udp.local."
+	mdnsMulticastAddress  = "224.0.0.251"
+	mdnsPort              = 5353
+	// TODO(ramon): think of solution for all time-outs
+	scanTimeout   = 3 * time.Second
+	maxBufferSize = 16384
 )
 
 type Scanner struct{}
@@ -30,247 +31,286 @@ func (s *Scanner) Name() string {
 }
 
 func (s *Scanner) Scan(ctx context.Context, out chan<- discovery.Device) error {
-	log := zap.L()
-
-	conn, mAddr, err := s.setupConnection()
-	if err != nil {
-		return err
+	session := &scanSession{
+		log: zap.L().Named("mdns"),
 	}
-	defer conn.Close()
-
-	if err := s.sendQuery(conn, mAddr, discoveryQueryUdp); err != nil {
-		return fmt.Errorf("send discovery query: %w", err)
-	}
-
-	if err := conn.SetReadDeadline(time.Now().Add(queryTimeout)); err != nil {
-		return fmt.Errorf("set initial deadline: %w", err)
-	}
-
-	discoveredServices := make(map[string]bool)
-	buf := make([]byte, 8192)
-	initialPhase := true
-	initialDeadline := time.Now().Add(queryTimeout)
-
-	for {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-
-		n, src, err := conn.ReadFromUDP(buf)
-		if err != nil {
-			if s.isTimeout(err) {
-				if initialPhase && time.Now().After(initialDeadline) {
-					// Initial discovery phase done, now query discovered services
-					initialPhase = false
-					for service := range discoveredServices {
-						s.sendQuery(conn, mAddr, service)
-					}
-					// Set final deadline
-					if err := conn.SetReadDeadline(time.Now().Add(queryTimeout)); err != nil {
-						return fmt.Errorf("set final deadline: %w", err)
-					}
-					continue
-				}
-				return nil
-			}
-			return fmt.Errorf("read mdns: %w", err)
-		}
-
-		device := s.processPacket(buf[:n], src, log)
-		if device != nil {
-			out <- *device
-		}
-
-		// Collect new services from initial discovery phase
-		if initialPhase {
-			for _, ans := range s.parseAnswers(buf[:n], log) {
-				if ptr, ok := ans.Body.(*dnsmessage.PTRResource); ok {
-					if ans.Header.Name.String() == discoveryQueryUdp {
-						ptrValue := ptr.PTR.String()
-						if !discoveredServices[ptrValue] {
-							discoveredServices[ptrValue] = true
-							log.Debug("mdns discovered service type",
-								zap.String("service", ptrValue))
-						}
-					}
-				}
-			}
-		}
-	}
+	return session.run(ctx, out)
 }
 
-func (s *Scanner) setupConnection() (*net.UDPConn, *net.UDPAddr, error) {
-	mAddr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", mdnsMulticastAddress, mdnsPort))
+// scanSession manages state for one mDNS scan
+type scanSession struct {
+	log                 *zap.Logger
+	conn                *net.UDPConn
+	multicastAddr       *net.UDPAddr
+	queriedServiceTypes map[string]bool
+	reportedDevices     map[string]bool
+}
+
+func (ss *scanSession) setupConnection() error {
+	addr, err := net.ResolveUDPAddr("udp4",
+		fmt.Sprintf("%s:%d", mdnsMulticastAddress, mdnsPort))
 	if err != nil {
-		return nil, nil, fmt.Errorf("resolve mdns addr: %w", err)
+		return fmt.Errorf("resolve multicast address: %w", err)
 	}
 
 	conn, err := net.ListenUDP("udp4", nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("listen udp: %w", err)
+		return fmt.Errorf("create UDP socket: %w", err)
 	}
 
-	return conn, mAddr, nil
-}
-
-func (s *Scanner) sendQuery(conn *net.UDPConn, addr *net.UDPAddr, name string) error {
-	msg := dnsmessage.Message{
-		Header: dnsmessage.Header{
-			ID:               0,
-			RecursionDesired: false,
-		},
-		Questions: []dnsmessage.Question{
-			{
-				Name:  dnsmessage.MustNewName(name),
-				Type:  dnsmessage.TypePTR,
-				Class: dnsmessage.ClassINET,
-			},
-		},
-	}
-
-	buf, err := msg.Pack()
-	if err != nil {
-		return fmt.Errorf("pack query: %w", err)
-	}
-
-	_, err = conn.WriteToUDP(buf, addr)
-	return err
-}
-
-func (s *Scanner) isTimeout(err error) bool {
-	var ne net.Error
-	return errors.As(err, &ne) && ne.Timeout()
-}
-
-func (s *Scanner) parseAnswers(packet []byte, log *zap.Logger) []dnsmessage.Resource {
-	msg, err := s.parseDNSMessage(packet)
-	if err != nil {
-		log.Debug("failed to parse mdns response", zap.Error(err))
-		return nil
-	}
-
-	if !msg.Header.Response {
-		return nil
-	}
-
-	return msg.Answers
-}
-
-func (s *Scanner) parseDNSMessage(packet []byte) (*dnsmessage.Message, error) {
-	var msg dnsmessage.Message
-	err := msg.Unpack(packet)
-	return &msg, err
-}
-
-func (s *Scanner) processPacket(packet []byte, src *net.UDPAddr, log *zap.Logger) *discovery.Device {
-	answers := s.parseAnswers(packet, log)
-	if answers == nil {
-		return nil
-	}
-
-	device := &discovery.Device{
-		IP:       src.IP,
-		Services: make(map[string]int),
-		Sources:  map[string]struct{}{"mdns": {}},
-		LastSeen: time.Now(),
-	}
-
-	for _, ans := range answers {
-		log.Debug("mdns answer",
-			zap.String("name", ans.Header.Name.String()),
-			zap.String("type", ans.Header.Type.String()))
-
-		if ptr, ok := ans.Body.(*dnsmessage.PTRResource); ok {
-			ptrValue := ptr.PTR.String()
-			// Log all PTR records
-			log.Debug("mdns ptr answer",
-				zap.String("name", ans.Header.Name.String()),
-				zap.String("ptr", ptrValue))
-
-			if ans.Header.Name.String() != discoveryQueryUdp {
-				s.processServicePTR(ptrValue, device)
-			}
-		} else if srv, ok := ans.Body.(*dnsmessage.SRVResource); ok {
-			s.processSRV(srv, device, log)
-		} else if txt, ok := ans.Body.(*dnsmessage.TXTResource); ok {
-			s.processTXT(txt, device)
-		} else {
-			log.Debug("unhandled mdns answer type",
-				zap.String("name", ans.Header.Name.String()),
-				zap.String("type", ans.Header.Type.String()))
-		}
-	}
-
-	if len(device.Services) > 0 || device.Hostname != "" {
-		return device
-	}
+	ss.conn = conn
+	ss.multicastAddr = addr
 	return nil
 }
 
-func (s *Scanner) processServicePTR(ptr string, device *discovery.Device) {
-	if device.Hostname == "" {
-		device.Hostname = strings.TrimSuffix(ptr, ".local.")
-		device.Hostname = strings.TrimSuffix(device.Hostname, ".")
+func (ss *scanSession) queryService(serviceName string) error {
+	msg := dnsmessage.Message{
+		Header: dnsmessage.Header{ID: 0, RecursionDesired: false},
+		Questions: []dnsmessage.Question{{
+			Name:  dnsmessage.MustNewName(serviceName),
+			Type:  dnsmessage.TypePTR,
+			Class: dnsmessage.ClassINET,
+		}},
 	}
 
-	serviceName := s.extractServiceName(ptr)
-	if serviceName != "" {
-		device.Services[serviceName] = 0
+	packet, err := msg.Pack()
+	if err != nil {
+		return fmt.Errorf("pack DNS query: %w", err)
 	}
+
+	_, err = ss.conn.WriteToUDP(packet, ss.multicastAddr)
+	return err
 }
 
-func (s *Scanner) processSRV(srv *dnsmessage.SRVResource, device *discovery.Device, log *zap.Logger) {
-	port := int(srv.Port)
-	target := srv.Target.String()
+func (ss *scanSession) run(ctx context.Context, out chan<- discovery.Device) error {
+	if err := ss.setupConnection(); err != nil {
+		return fmt.Errorf("setup connection: %w", err)
+	}
+	defer ss.conn.Close()
 
-	log.Debug("mdns srv answer",
-		zap.String("target", target),
-		zap.Uint16("port", srv.Port))
+	ss.queriedServiceTypes = make(map[string]bool)
+	ss.reportedDevices = make(map[string]bool)
 
-	if device.Hostname == "" {
-		device.Hostname = strings.TrimSuffix(target, ".local.")
-		device.Hostname = strings.TrimSuffix(device.Hostname, ".")
+	// Sends the initial service discovery query (multicast)
+	// See https://datatracker.ietf.org/doc/html/rfc6763#section-9
+	if err := ss.queryService(serviceDiscoveryQuery); err != nil {
+		return fmt.Errorf("initial service discovery: %w", err)
 	}
 
-	serviceName := s.extractServiceNameFromTarget(target)
-	if serviceName != "" {
-		device.Services[serviceName] = port
-	}
+	// Listens for the mDNS responses until the timeout has reached
+	return ss.listenForResponses(ctx, out)
 }
 
-func (s *Scanner) processTXT(txt *dnsmessage.TXTResource, device *discovery.Device) {
-	for _, t := range txt.TXT {
-		text := string(t)
-		if strings.HasPrefix(text, "model=") {
-			device.Model = strings.TrimPrefix(text, "model=")
-		} else if strings.HasPrefix(text, "manufacturer=") {
-			device.Manufacturer = strings.TrimPrefix(text, "manufacturer=")
+func (ss *scanSession) listenForResponses(ctx context.Context, out chan<- discovery.Device) error {
+	if err := ss.conn.SetReadDeadline(time.Now().Add(scanTimeout)); err != nil {
+		return fmt.Errorf("set read deadline: %w", err)
+	}
+
+	buffer := make([]byte, maxBufferSize)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			shouldExit, err := ss.readAndProcessPacket(buffer, out)
+			if err != nil || shouldExit {
+				return err
+			}
 		}
 	}
 }
 
-func (s *Scanner) extractServiceName(ptr string) string {
-	parts := strings.Split(ptr, ".")
-	if len(parts) < 2 {
-		return ""
+// readAndProcessPacket handles ONE complete mDNS response packet
+func (ss *scanSession) readAndProcessPacket(buffer []byte, out chan<- discovery.Device) (bool, error) {
+	packetSize, sender, err := ss.conn.ReadFromUDP(buffer)
+	if err != nil {
+		if isTimeout(err) {
+			return true, nil
+		}
+		return false, fmt.Errorf("read UDP packet: %w", err)
 	}
 
-	serviceType := parts[0]
-	if strings.HasPrefix(serviceType, "_") {
-		return strings.TrimPrefix(serviceType, "_")
+	dnsMsg, err := parseDNSMessage(buffer[:packetSize])
+	if err != nil {
+		ss.log.Debug("Failed to parse DNS", zap.Error(err))
+		return false, nil
 	}
-	return serviceType
+
+	if !dnsMsg.Header.Response {
+		return false, nil
+	}
+
+	ss.processDNSResponse(dnsMsg, sender, out)
+	return false, nil
 }
 
-func (s *Scanner) extractServiceNameFromTarget(target string) string {
+// processDNSResponse handles all records in one DNS message
+func (ss *scanSession) processDNSResponse(msg *dnsmessage.Message, sender *net.UDPAddr, out chan<- discovery.Device) {
+	for _, answer := range msg.Answers {
+		if ptr, ok := answer.Body.(*dnsmessage.PTRResource); ok {
+			serviceName := answer.Header.Name.String()
+			ptrValue := ptr.PTR.String()
+
+			ss.log.Debug("Got PTR record",
+				zap.String("question", serviceName),
+				zap.String("points_to", ptrValue))
+
+			if serviceName == serviceDiscoveryQuery {
+				// This is a service type announcement (e.g., "_http._tcp.local")
+				ss.handleDiscoveredServiceType(ptrValue)
+			} else {
+				// This is a device announcement (e.g., "My Device._http._tcp.local")
+				ss.handleDiscoveredDevice(answer, ptrValue, sender, out)
+			}
+		}
+	}
+
+	ss.extractDeviceDetails(msg.Additionals, sender, out)
+}
+
+func (ss *scanSession) handleDiscoveredServiceType(serviceType string) {
+	if ss.queriedServiceTypes[serviceType] {
+		return
+	}
+
+	ss.queriedServiceTypes[serviceType] = true
+	ss.log.Info("Discovered new service type", zap.String("type", serviceType))
+
+	if err := ss.queryService(serviceType); err != nil {
+		ss.log.Warn("Failed to query service",
+			zap.String("service", serviceType),
+			zap.Error(err))
+	}
+}
+
+func (ss *scanSession) handleDiscoveredDevice(
+	answer dnsmessage.Resource,
+	ptrValue string,
+	sender *net.UDPAddr,
+	out chan<- discovery.Device,
+) {
+	deviceID := fmt.Sprintf("%s-%s", sender.IP.String(), ptrValue)
+
+	if ss.reportedDevices[deviceID] {
+		return
+	}
+
+	device := &discovery.Device{
+		IP:          sender.IP,
+		DisplayName: cleanDisplayName(ptrValue),
+		Services:    make(map[string]int),
+		Sources:     map[string]struct{}{"mdns": {}},
+		LastSeen:    time.Now(),
+	}
+
+	if service := extractServiceName(answer.Header.Name.String()); service != "" {
+		device.Services[service] = 0
+	}
+
+	out <- *device
+	ss.reportedDevices[deviceID] = true
+}
+
+func (ss *scanSession) extractDeviceDetails(
+	records []dnsmessage.Resource,
+	sender *net.UDPAddr,
+	out chan<- discovery.Device,
+) {
+	if len(records) == 0 {
+		return
+	}
+
+	device := discovery.NewDevice(sender.IP)
+	device.Sources["mdns"] = struct{}{}
+
+	for _, record := range records {
+		switch r := record.Body.(type) {
+		case *dnsmessage.SRVResource:
+			device.DisplayName = cleanDisplayName(r.Target.String())
+			if service := extractServiceNameFromTarget(r.Target.String()); service != "" {
+				device.Services[service] = int(r.Port)
+			}
+		case *dnsmessage.TXTResource:
+			ss.parseTXTRecords(r, &device)
+		}
+	}
+
+	if len(device.Services) > 0 || device.DisplayName != "" {
+		out <- device
+	}
+}
+
+// parseTXTRecords extracts device details from TXT records
+// see https://datatracker.ietf.org/doc/html/rfc6763#section-6.3
+// it implements common keys used by various devices
+func (ss *scanSession) parseTXTRecords(txt *dnsmessage.TXTResource, device *discovery.Device) {
+	for _, text := range txt.TXT {
+		// Split key=value
+		if idx := strings.IndexByte(text, '='); idx > 0 {
+			key := strings.ToLower(text[:idx])
+			value := text[idx+1:]
+
+			switch key {
+			case "model":
+				device.Model = value
+			case "manufacturer":
+				device.Manufacturer = value
+			case "ty":
+				if device.Model == "" {
+					device.Model = value
+				}
+			case "product":
+				if device.Model == "" {
+					device.Model = cleanProductName(value)
+				}
+			case "mac":
+				device.MAC = value
+			default:
+				device.Extras[key] = value
+			}
+		} else {
+			device.Extras[text] = "true"
+		}
+	}
+}
+
+// utils
+// todo(ramon): after multiple scanner implementations look for overlap and move to common package
+func parseDNSMessage(data []byte) (*dnsmessage.Message, error) {
+	var msg dnsmessage.Message
+	err := msg.Unpack(data)
+	return &msg, err
+}
+
+func isTimeout(err error) bool {
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
+}
+
+func cleanDisplayName(name string) string {
+	name = strings.TrimSuffix(name, ".local.")
+	return strings.TrimSuffix(name, ".")
+}
+
+func cleanProductName(name string) string {
+	name = strings.TrimPrefix(name, "(")
+	name = strings.TrimSuffix(name, ")")
+	return name
+}
+
+func extractServiceName(dnsName string) string {
+	parts := strings.Split(dnsName, ".")
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.TrimPrefix(parts[0], "_")
+}
+
+func extractServiceNameFromTarget(target string) string {
 	parts := strings.Split(target, ".")
 	if len(parts) < 2 {
 		return ""
 	}
-
-	serviceType := parts[0]
-	if strings.HasPrefix(serviceType, "_") {
-		return strings.TrimPrefix(serviceType, "_")
-	}
-	return serviceType
+	return strings.TrimPrefix(parts[0], "_")
 }

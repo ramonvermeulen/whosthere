@@ -74,7 +74,7 @@ func (p *DetailPage) Refresh() {
 	valueColor := colorToHexTag(tview.Styles.PrimaryTextColor)
 
 	_, _ = fmt.Fprintf(p.info, "[%s::b]IP:[-::-] [%s::]%s[-::-]\n", labelColor, valueColor, d.IP)
-	_, _ = fmt.Fprintf(p.info, "[%s::b]Hostname:[-::-] [%s::]%s[-::-]\n", labelColor, valueColor, d.Hostname)
+	_, _ = fmt.Fprintf(p.info, "[%s::b]DisplayName:[-::-] [%s::]%s[-::-]\n", labelColor, valueColor, d.DisplayName)
 	_, _ = fmt.Fprintf(p.info, "[%s::b]MAC:[-::-] [%s::]%s[-::-]\n", labelColor, valueColor, d.MAC)
 	_, _ = fmt.Fprintf(p.info, "[%s::b]Manufacturer:[-::-] [%s::]%s[-::-]\n", labelColor, valueColor, d.Manufacturer)
 	_, _ = fmt.Fprintf(p.info, "[%s::b]Model:[-::-] [%s::]%s[-::-]\n\n", labelColor, valueColor, d.Model)

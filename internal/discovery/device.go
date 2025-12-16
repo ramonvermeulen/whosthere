@@ -22,17 +22,18 @@ import (
 type Device struct {
 	IP           net.IP              // Primary IP address (identity key)
 	MAC          string              // MAC if known
-	Hostname     string              // Reverse DNS or reported name
+	DisplayName  string              // Reverse DNS or reported name
 	Manufacturer string              // Vendor from OUI or protocol metadata
 	Model        string              // Reported model
 	Services     map[string]int      // service name -> port (or 0 if unknown)
 	Sources      map[string]struct{} // scanners that contributed info
 	LastSeen     time.Time           // last time any scanner saw the device
+	Extras       map[string]string   // additional key/value metadata discovered from protocols (TXT, SSDP, etc.)
 }
 
-// NewDevice builds a Device with initialized maps and current timestamp.
+// NewDevice builds a Device with initialized maps and current timestamp as last seen.
 func NewDevice(ip net.IP) Device {
-	return Device{IP: ip, Services: map[string]int{}, Sources: map[string]struct{}{}, LastSeen: time.Now()}
+	return Device{IP: ip, Services: map[string]int{}, Sources: map[string]struct{}{}, LastSeen: time.Now(), Extras: map[string]string{}}
 }
 
 // Merge merges fields from 'other' into d, preferring non-empty/newer data and unioning maps.
@@ -43,8 +44,8 @@ func (d *Device) Merge(other Device) {
 	if d.MAC == "" && other.MAC != "" {
 		d.MAC = other.MAC
 	}
-	if d.Hostname == "" && other.Hostname != "" {
-		d.Hostname = other.Hostname
+	if d.DisplayName == "" && other.DisplayName != "" {
+		d.DisplayName = other.DisplayName
 	}
 	if d.Manufacturer == "" && other.Manufacturer != "" {
 		d.Manufacturer = other.Manufacturer
@@ -67,6 +68,15 @@ func (d *Device) Merge(other Device) {
 	}
 	for src := range other.Sources {
 		d.Sources[src] = struct{}{}
+	}
+	if d.Extras == nil {
+		d.Extras = map[string]string{}
+	}
+	for k, v := range other.Extras {
+		// prefer existing value; only set if missing
+		if _, ok := d.Extras[k]; !ok {
+			d.Extras[k] = v
+		}
 	}
 	if other.LastSeen.After(d.LastSeen) {
 		d.LastSeen = other.LastSeen
