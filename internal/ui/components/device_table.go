@@ -2,7 +2,9 @@ package components
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/derailed/tview"
@@ -13,7 +15,9 @@ import (
 // DeviceTable wraps a tview.Table for displaying discovered devices.
 type DeviceTable struct {
 	*tview.Table
-	devices map[string]discovery.Device
+	devices       map[string]discovery.Device
+	filterPattern string
+	filterRE      *regexp.Regexp
 }
 
 func NewDeviceTable() *DeviceTable {
@@ -30,6 +34,30 @@ func NewDeviceTable() *DeviceTable {
 	t.refresh()
 	return t
 }
+
+// SetFilter compiles and applies a regex filter across visible columns (case-insensitive).
+func (dt *DeviceTable) SetFilter(pattern string) error {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" {
+		dt.filterPattern = ""
+		dt.filterRE = nil
+		dt.refresh()
+		dt.SelectFirst()
+		return nil
+	}
+	re, err := regexp.Compile("(?i)" + pattern)
+	if err != nil {
+		return err
+	}
+	dt.filterPattern = pattern
+	dt.filterRE = re
+	dt.refresh()
+	dt.SelectFirst()
+	return nil
+}
+
+// FilterPattern returns the current filter pattern, if any.
+func (dt *DeviceTable) FilterPattern() string { return dt.filterPattern }
 
 // Upsert merges device and refreshes table UI.
 func (dt *DeviceTable) Upsert(d *discovery.Device) {
@@ -103,13 +131,17 @@ type tableRow struct {
 func (dt *DeviceTable) buildRows() []tableRow {
 	rows := make([]tableRow, 0, len(dt.devices))
 	for _, d := range dt.devices {
-		rows = append(rows, tableRow{
+		row := tableRow{
 			ip:           d.IP.String(),
 			hostname:     d.DisplayName,
 			mac:          d.MAC,
 			manufacturer: d.Manufacturer,
 			lastSeen:     fmtDuration(time.Since(d.LastSeen)),
-		})
+		}
+		if dt.filterRE != nil && !dt.rowMatches(row) {
+			continue
+		}
+		rows = append(rows, row)
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].ip < rows[j].ip })
 	return rows
@@ -146,6 +178,24 @@ func (dt *DeviceTable) refresh() {
 		dt.SetCell(r, 3, tview.NewTableCell(manuText).SetExpansion(1))
 		dt.SetCell(r, 4, tview.NewTableCell(seenText).SetExpansion(1))
 	}
+	// Ensure selection remains within bounds after filtering.
+	if dt.GetRowCount() > 1 {
+		row, _ := dt.GetSelection()
+		if row <= 0 || row >= dt.GetRowCount() {
+			dt.Select(1, 0)
+		}
+	}
+}
+
+func (dt *DeviceTable) rowMatches(r tableRow) bool {
+	if dt.filterRE == nil {
+		return true
+	}
+	return dt.filterRE.MatchString(r.ip) ||
+		dt.filterRE.MatchString(r.hostname) ||
+		dt.filterRE.MatchString(r.mac) ||
+		dt.filterRE.MatchString(r.manufacturer) ||
+		dt.filterRE.MatchString(r.lastSeen)
 }
 
 func fmtDuration(d time.Duration) string {
