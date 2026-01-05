@@ -77,7 +77,7 @@ func (dt *DeviceTable) handleSearchKey(ev *tcell.EventKey) *tcell.EventKey {
 		dt.searching = false
 		return nil
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
-		if len(dt.searchInput) > 0 {
+		if dt.searchInput != "" {
 			dt.searchInput = dt.searchInput[:len(dt.searchInput)-1]
 			dt.applySearch(dt.searchInput)
 			return nil
@@ -256,7 +256,7 @@ func (dt *DeviceTable) buildRows() []tableRow {
 			manufacturer: d.Manufacturer,
 			lastSeen:     fmtDuration(time.Since(d.LastSeen)),
 		}
-		if dt.filterRE != nil && !dt.rowMatches(row) {
+		if dt.filterRE != nil && !dt.rowMatches(&row) {
 			continue
 		}
 		rows = append(rows, row)
@@ -336,7 +336,7 @@ func (dt *DeviceTable) emitStatusWith(input string) {
 	dt.onSearchStatus(status)
 }
 
-func (dt *DeviceTable) rowMatches(r tableRow) bool {
+func (dt *DeviceTable) rowMatches(r *tableRow) bool {
 	if dt.filterRE == nil {
 		return true
 	}

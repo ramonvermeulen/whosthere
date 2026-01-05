@@ -56,14 +56,10 @@ func NewDashboardPage(s *state.AppState, navigate func(route string)) *Dashboard
 		statusRow:   status,
 		helpText:    helpText,
 	}
-
-	// Base layout: header + table already added; footer managed dynamically.
 	dp.updateFooter(false)
 
-	// Wire search status callbacks and input handling to the table component.
 	t.OnSearchStatus(dp.handleSearchStatus)
 	t.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey { return t.HandleInput(ev) })
-
 	t.SetSelectedFunc(func(row, col int) {
 		ip := t.SelectedIP()
 		if ip == "" {
@@ -99,12 +95,12 @@ func (p *DashboardPage) updateFooter(showFilter bool) {
 	if p.Flex == nil || p.statusRow == nil || p.filterView == nil {
 		return
 	}
-	p.Flex.RemoveItem(p.filterView)
-	p.Flex.RemoveItem(p.statusRow)
+	p.RemoveItem(p.filterView)
+	p.RemoveItem(p.statusRow)
 	if showFilter {
-		p.Flex.AddItem(p.filterView, 1, 0, false)
+		p.AddItem(p.filterView, 1, 0, false)
 	}
-	p.Flex.AddItem(p.statusRow, 1, 0, false)
+	p.AddItem(p.statusRow, 1, 0, false)
 }
 
 // handleSearchStatus updates footer visibility and help text based on table search state.
