@@ -1,0 +1,21 @@
+github-actions:
+  - changed-files:
+      - any-glob-to-any-file:
+        - '.github/**'
+        - '.goreleaser.yaml'
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+        - 'go.mod'
+        - 'go.sum'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+        - 'README.md'
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+        - '**/*_test.go'

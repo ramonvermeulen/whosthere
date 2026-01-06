@@ -39,7 +39,9 @@ func parseProcNetARP(ctx context.Context, path string) ([]Entry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	scanner := bufio.NewScanner(f)
 	if !scanner.Scan() {
