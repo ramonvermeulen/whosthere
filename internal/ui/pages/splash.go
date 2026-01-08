@@ -79,5 +79,3 @@ func (p *SplashPage) GetName() string { return navigation.RouteSplash }
 func (p *SplashPage) GetPrimitive() tview.Primitive { return p.root }
 
 func (p *SplashPage) FocusTarget() tview.Primitive { return p.root }
-
-func (p *SplashPage) RefreshFromState() {}

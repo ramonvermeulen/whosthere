@@ -21,21 +21,28 @@ type Manager struct {
 }
 
 var (
-	globalManager *Manager
-	once          sync.Once
+	manager     *Manager
+	managerOnce sync.Once
 )
 
-// NewManager creates or returns the singleton theme manager.
-// This ensures only one manager instance exists throughout the application lifecycle.
-func NewManager(app *tview.Application, cfg *config.Config) *Manager {
-	once.Do(func() {
-		globalManager = &Manager{
+// Init initializes the singleton theme manager with the given app and config.
+// This must be called once during application startup before any other theme operations.
+// Subsequent calls to Init are ignored (idempotent).
+func Init(app *tview.Application, cfg *config.Config) *Manager {
+	managerOnce.Do(func() {
+		manager = &Manager{
 			app:        app,
 			cfg:        cfg,
 			primitives: make([]tview.Primitive, 0),
 		}
 	})
-	return globalManager
+	return manager
+}
+
+// Instance returns the singleton theme manager instance.
+// Must be called after Init, otherwise returns nil.
+func Instance() *Manager {
+	return manager
 }
 
 // Register adds a primitive to be theme-aware. When themes change, it will be updated.
@@ -97,8 +104,8 @@ func (m *Manager) SaveThemeToConfig(themeName string) error {
 
 // RegisterPrimitive is a convenience function to register a primitive with the global manager.
 func RegisterPrimitive(p tview.Primitive) {
-	if globalManager != nil {
-		globalManager.Register(p)
+	if manager != nil {
+		manager.Register(p)
 	}
 }
 

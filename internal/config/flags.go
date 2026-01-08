@@ -4,9 +4,3 @@ package config
 type Flags struct {
 	ConfigFile string
 }
-
-func NewFlags() *Flags {
-	return &Flags{
-		ConfigFile: "",
-	}
-}

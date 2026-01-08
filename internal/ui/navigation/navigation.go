@@ -1,6 +1,9 @@
 package navigation
 
-import "github.com/rivo/tview"
+import (
+	"github.com/ramonvermeulen/whosthere/internal/state"
+	"github.com/rivo/tview"
+)
 
 // Page is a UI page that can be registered with the Router.
 type Page interface {
@@ -20,14 +23,15 @@ const (
 // Router is both the visual pages container and the logical router.
 type Router struct {
 	*tview.Pages
-	pages       map[string]Page
-	currentPage string
+	pages map[string]Page
+	state *state.AppState
 }
 
-func NewRouter() *Router {
+func NewRouter(s *state.AppState) *Router {
 	return &Router{
 		Pages: tview.NewPages(),
 		pages: make(map[string]Page),
+		state: s,
 	}
 }
 
@@ -41,8 +45,8 @@ func (r *Router) NavigateTo(name string) {
 	if _, ok := r.pages[name]; !ok {
 		return
 	}
-	r.currentPage = name
-	r.SwitchToPage(name) // SwitchToPage hides all others and shows this one
+	r.state.SetCurrentPage(name)
+	r.SwitchToPage(name)
 	r.pages[name].Refresh()
 }
 
@@ -53,7 +57,7 @@ func (r *Router) ShowOverlay(name string) {
 	if !ok {
 		return
 	}
-	r.ShowPage(name) // ShowPage makes it visible without hiding others
+	r.ShowPage(name)
 	page.Refresh()
 }
 
@@ -66,7 +70,8 @@ func (r *Router) FocusCurrent(app *tview.Application) {
 	if app == nil {
 		return
 	}
-	p, ok := r.pages[r.currentPage]
+	currentPage := r.state.CurrentPage()
+	p, ok := r.pages[currentPage]
 	if !ok || p == nil {
 		app.SetFocus(r)
 		return
@@ -78,7 +83,9 @@ func (r *Router) FocusCurrent(app *tview.Application) {
 	app.SetFocus(p.GetPrimitive())
 }
 
-func (r *Router) Current() string { return r.currentPage }
+func (r *Router) Current() string {
+	return r.state.CurrentPage()
+}
 
 func (r *Router) Page(name string) Page {
 	return r.pages[name]

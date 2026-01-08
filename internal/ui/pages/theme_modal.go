@@ -12,16 +12,16 @@ var _ navigation.Page = &ThemeModalPage{}
 // ThemeModalPage is a modal overlay page for selecting themes.
 // It uses a centered flex layout to create a modal-like appearance.
 type ThemeModalPage struct {
-	root         *tview.Flex
-	picker       *components.ThemePicker
-	footer       *tview.TextView
-	router       *navigation.Router
-	app          *tview.Application
-	themeManager *theme.Manager
+	root   *tview.Flex
+	picker *components.ThemePicker
+	footer *tview.TextView
+	router *navigation.Router
 }
 
 // NewThemePickerModalPage creates a new theme picker modal page.
-func NewThemePickerModalPage(tm *theme.Manager, router *navigation.Router, app *tview.Application) *ThemeModalPage {
+// It uses the singleton theme manager, so no need to pass it in.
+func NewThemePickerModalPage(router *navigation.Router) *ThemeModalPage {
+	tm := theme.Instance()
 	picker := components.NewThemePicker(tm)
 
 	footer := tview.NewTextView()
@@ -46,12 +46,10 @@ func NewThemePickerModalPage(tm *theme.Manager, router *navigation.Router, app *
 		AddItem(nil, 0, 1, false)
 
 	p := &ThemeModalPage{
-		root:         root,
-		picker:       picker,
-		footer:       footer,
-		router:       router,
-		app:          app,
-		themeManager: tm,
+		root:   root,
+		picker: picker,
+		footer: footer,
+		router: router,
 	}
 
 	theme.RegisterPrimitive(content)
@@ -59,18 +57,17 @@ func NewThemePickerModalPage(tm *theme.Manager, router *navigation.Router, app *
 
 	picker.OnSelect(func(themeName string) {
 		p.router.HideOverlay(navigation.RouteThemePicker)
-		p.router.FocusCurrent(p.app)
 	})
 
 	picker.OnSave(func(themeName string) {
-		_ = p.themeManager.SaveThemeToConfig(themeName)
+		if tm != nil {
+			_ = tm.SaveThemeToConfig(themeName)
+		}
 		p.router.HideOverlay(navigation.RouteThemePicker)
-		p.router.FocusCurrent(p.app)
 	})
 
 	picker.OnCancel(func() {
 		p.router.HideOverlay(navigation.RouteThemePicker)
-		p.router.FocusCurrent(p.app)
 	})
 
 	return p

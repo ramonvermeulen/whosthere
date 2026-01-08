@@ -60,11 +60,6 @@ type ScannerToggle struct {
 	Enabled bool `yaml:"enabled"`
 }
 
-// DefaultThemeConfig returns the built-in default theme selection.
-func DefaultThemeConfig() ThemeConfig {
-	return ThemeConfig{Name: DefaultThemeName}
-}
-
 // DefaultConfig builds a Config pre-populated with baked-in defaults.
 func DefaultConfig() *Config {
 	return &Config{
@@ -74,7 +69,7 @@ func DefaultConfig() *Config {
 			Enabled: DefaultSplashEnabled,
 			Delay:   DefaultSplashDelay,
 		},
-		Theme:    DefaultThemeConfig(),
+		Theme:    ThemeConfig{Name: DefaultThemeName},
 		Scanners: ScannerConfig{MDNS: ScannerToggle{Enabled: true}, SSDP: ScannerToggle{Enabled: true}, ARP: ScannerToggle{Enabled: true}},
 	}
 }

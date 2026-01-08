@@ -20,13 +20,12 @@ type DetailPage struct {
 	*tview.Flex
 	info      *tview.TextView
 	state     *state.AppState
+	router    *navigation.Router
 	header    *components.Header
 	statusBar *components.StatusBar
-
-	navigate func(route string)
 }
 
-func NewDetailPage(s *state.AppState, navigate func(route string), version string) *DetailPage {
+func NewDetailPage(s *state.AppState, router *navigation.Router, version string) *DetailPage {
 	main := tview.NewFlex().SetDirection(tview.FlexRow)
 	header := components.NewHeader(version)
 
@@ -47,10 +46,10 @@ func NewDetailPage(s *state.AppState, navigate func(route string), version strin
 	p := &DetailPage{
 		Flex:      main,
 		state:     s,
+		router:    router,
 		info:      info,
 		header:    header,
 		statusBar: statusBar,
-		navigate:  navigate,
 	}
 
 	info.SetInputCapture(handleInput(p))
@@ -69,8 +68,8 @@ func handleInput(p *DetailPage) func(ev *tcell.EventKey) *tcell.EventKey {
 		}
 		switch {
 		case ev.Key() == tcell.KeyEsc || ev.Rune() == 'q':
-			if p.navigate != nil {
-				p.navigate(navigation.RouteDashboard)
+			if p.router != nil {
+				p.router.NavigateTo(navigation.RouteDashboard)
 			}
 			return nil
 		default:

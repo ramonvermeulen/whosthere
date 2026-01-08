@@ -41,6 +41,3 @@ func (s *StatusBar) SetHelp(text string) {
 	}
 	s.help.SetText(text)
 }
-
-// HelpText exposes the underlying help TextView for callers that need direct access.
-func (s *StatusBar) HelpText() *tview.TextView { return s.help }

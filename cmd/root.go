@@ -34,20 +34,11 @@ var (
 		RunE: run,
 	}
 
-	versionCmd = &cobra.Command{
-		Use:   "version",
-		Short: "Print the version and exit",
-		Run: func(cmd *cobra.Command, args []string) {
-			version.Fprint(cmd.OutOrStdout())
-		},
-	}
-
-	whosthereFlags = config.NewFlags()
+	whosthereFlags = &config.Flags{}
 )
 
 func init() {
 	initWhosthereFlags()
-	rootCmd.AddCommand(versionCmd)
 }
 
 // Execute is the entrypoint for the CLI application

@@ -17,8 +17,7 @@ type DashboardPage struct {
 	deviceTable *components.DeviceTable
 	spinner     *components.Spinner
 	state       *state.AppState
-
-	navigate func(route string)
+	router      *navigation.Router
 
 	header    *components.Header
 	filterBar *components.FilterBar
@@ -26,7 +25,7 @@ type DashboardPage struct {
 	version   string
 }
 
-func NewDashboardPage(s *state.AppState, navigate func(route string), version string) *DashboardPage {
+func NewDashboardPage(s *state.AppState, router *navigation.Router, version string) *DashboardPage {
 	header := components.NewHeader(version)
 	t := components.NewDeviceTable()
 
@@ -45,7 +44,7 @@ func NewDashboardPage(s *state.AppState, navigate func(route string), version st
 		deviceTable: t,
 		spinner:     statusBar.Spinner(),
 		state:       s,
-		navigate:    navigate,
+		router:      router,
 		header:      header,
 		filterBar:   filterBar,
 		statusBar:   statusBar,
@@ -63,8 +62,8 @@ func NewDashboardPage(s *state.AppState, navigate func(route string), version st
 			return
 		}
 		s.SetSelectedIP(ip)
-		if dp.navigate != nil {
-			dp.navigate(navigation.RouteDetail)
+		if dp.router != nil {
+			dp.router.NavigateTo(navigation.RouteDetail)
 		}
 	})
 

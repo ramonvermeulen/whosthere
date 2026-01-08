@@ -43,13 +43,15 @@ type tui struct {
 func NewApp(cfg *config.Config, ouiDB *oui.Registry, version string) App {
 	app := tview.NewApplication()
 
+	appState := state.NewAppState()
+
 	t := &tui{
 		app:          app,
 		cfg:          cfg,
 		version:      version,
-		themeManager: theme.NewManager(app, cfg),
-		state:        state.NewAppState(),
-		router:       navigation.NewRouter(),
+		themeManager: theme.Init(app, cfg),
+		state:        appState,
+		router:       navigation.NewRouter(appState),
 	}
 
 	themeName := config.DefaultThemeName
@@ -79,10 +81,11 @@ func NewApp(cfg *config.Config, ouiDB *oui.Registry, version string) App {
 			discovery.WithSubnetHook(sweeper.Trigger),
 		)
 	}
-	dashboardPage := pages.NewDashboardPage(t.state, t.router.NavigateTo, version)
-	detailPage := pages.NewDetailPage(t.state, t.router.NavigateTo, version)
+
+	dashboardPage := pages.NewDashboardPage(appState, t.router, version)
+	detailPage := pages.NewDetailPage(appState, t.router, version)
 	splashPage := pages.NewSplashPage(version)
-	themePickerPage := pages.NewThemePickerModalPage(t.themeManager, t.router, app)
+	themePickerPage := pages.NewThemePickerModalPage(t.router)
 
 	t.router.Register(dashboardPage)
 	t.router.Register(detailPage)

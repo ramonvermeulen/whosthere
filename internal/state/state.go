@@ -11,8 +11,9 @@ import (
 type AppState struct {
 	mu sync.RWMutex
 
-	devices    map[string]discovery.Device
-	selectedIP string
+	devices     map[string]discovery.Device
+	selectedIP  string
+	currentPage string
 }
 
 func NewAppState() *AppState {
@@ -78,4 +79,18 @@ func (s *AppState) SelectedIP() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.selectedIP
+}
+
+// SetCurrentPage sets the current page name.
+func (s *AppState) SetCurrentPage(page string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.currentPage = page
+}
+
+// CurrentPage returns the current page name.
+func (s *AppState) CurrentPage() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.currentPage
 }
