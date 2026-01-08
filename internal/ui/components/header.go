@@ -23,8 +23,6 @@ func NewHeader(version string) *Header {
 		SetText(text).
 		SetTextAlign(tview.AlignCenter)
 
-	// Register with theme manager
 	theme.RegisterPrimitive(tv)
-
 	return &Header{TextView: tv}
 }

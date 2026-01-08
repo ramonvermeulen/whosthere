@@ -15,7 +15,7 @@ func NewFilterBar() *FilterBar {
 	fv := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	theme.RegisterPrimitive(fv) // Register with theme manager
+	theme.RegisterPrimitive(fv)
 	return &FilterBar{TextView: fv}
 }
 

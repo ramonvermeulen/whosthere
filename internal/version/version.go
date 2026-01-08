@@ -20,6 +20,8 @@ func Fprint(w io.Writer) {
 	if w == nil {
 		w = os.Stdout
 	}
-	_, _ = fmt.Fprintf(w, "whosthere version %s (%s)\n", Version, Commit)
+	_, _ = fmt.Fprintf(w, "whosthere version: %s\n", Version)
+	_, _ = fmt.Fprintf(w, "Git commit:        %s\n", Commit)
+	_, _ = fmt.Fprintf(w, "Build date:       %s\n", Date)
 	_, _ = fmt.Fprintf(w, "%s/%s\n", runtime.GOOS, runtime.GOARCH)
 }

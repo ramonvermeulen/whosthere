@@ -11,9 +11,10 @@ type Page interface {
 }
 
 const (
-	RouteDashboard = "dashboard"
-	RouteSplash    = "splash"
-	RouteDetail    = "detail"
+	RouteDashboard   = "dashboard"
+	RouteSplash      = "splash"
+	RouteDetail      = "detail"
+	RouteThemePicker = "theme-picker"
 )
 
 // Router is both the visual pages container and the logical router.
@@ -41,8 +42,24 @@ func (r *Router) NavigateTo(name string) {
 		return
 	}
 	r.currentPage = name
-	r.SwitchToPage(name)
+	r.SwitchToPage(name) // SwitchToPage hides all others and shows this one
 	r.pages[name].Refresh()
+}
+
+// ShowOverlay shows a page as an overlay on top of the current page.
+// Use this for modals/dialogs that should not hide the underlying page.
+func (r *Router) ShowOverlay(name string) {
+	page, ok := r.pages[name]
+	if !ok {
+		return
+	}
+	r.ShowPage(name) // ShowPage makes it visible without hiding others
+	page.Refresh()
+}
+
+// HideOverlay hides an overlay page, revealing the page underneath.
+func (r *Router) HideOverlay(name string) {
+	r.HidePage(name)
 }
 
 func (r *Router) FocusCurrent(app *tview.Application) {

@@ -16,15 +16,13 @@ func NewStatusBar() *StatusBar {
 	sp := NewSpinner()
 	help := tview.NewTextView().
 		SetTextAlign(tview.AlignRight)
-
-	theme.RegisterPrimitive(help) // Register help text with theme manager
-
 	row := tview.NewFlex().
 		SetDirection(tview.FlexColumn).
 		AddItem(sp.View(), 0, 1, false).
 		AddItem(help, 0, 2, false)
 
-	theme.RegisterPrimitive(row) // Register flex container with theme manager
+	theme.RegisterPrimitive(help)
+	theme.RegisterPrimitive(row)
 
 	return &StatusBar{
 		root:    row,

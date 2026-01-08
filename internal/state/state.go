@@ -13,23 +13,12 @@ type AppState struct {
 
 	devices    map[string]discovery.Device
 	selectedIP string
-	listeners  []func(discovery.Device)
 }
 
 func NewAppState() *AppState {
 	return &AppState{
 		devices: make(map[string]discovery.Device),
 	}
-}
-
-// AddListener registers a callback invoked when a device is upserted.
-func (s *AppState) AddListener(fn func(discovery.Device)) {
-	if fn == nil {
-		return
-	}
-	s.mu.Lock()
-	s.listeners = append(s.listeners, fn)
-	s.mu.Unlock()
 }
 
 // UpsertDevice merges a device into the canonical device map.
@@ -43,18 +32,13 @@ func (s *AppState) UpsertDevice(d *discovery.Device) {
 	}
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if existing, ok := s.devices[key]; ok {
 		existing.Merge(d)
 		s.devices[key] = existing
 	} else {
 		s.devices[key] = *d
-	}
-	updated := s.devices[key]
-	listeners := append([]func(discovery.Device){}, s.listeners...)
-	s.mu.Unlock()
-
-	for _, fn := range listeners {
-		fn(updated)
 	}
 }
 

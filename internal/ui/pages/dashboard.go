@@ -27,17 +27,16 @@ type DashboardPage struct {
 }
 
 func NewDashboardPage(s *state.AppState, navigate func(route string), version string) *DashboardPage {
+	header := components.NewHeader(version)
 	t := components.NewDeviceTable()
-	statusBar := components.NewStatusBar()
-	statusBar.Spinner().SetSuffix(" Scanning...")
-	statusBar.SetHelp("j/k: up/down - g/G: top/bottom - Enter: details - t: theme")
 
 	main := tview.NewFlex().SetDirection(tview.FlexRow)
-	theme.RegisterPrimitive(main) // Register main flex
-
-	header := components.NewHeader(version)
 	main.AddItem(header, 1, 0, false)
 	main.AddItem(t, 0, 1, true)
+
+	statusBar := components.NewStatusBar()
+	statusBar.Spinner().SetSuffix(" Scanning...")
+	statusBar.SetHelp("j/k: up/down - g/G: top/bottom - Enter: details - Ctrl+T: theme")
 
 	filterBar := components.NewFilterBar()
 
@@ -52,8 +51,10 @@ func NewDashboardPage(s *state.AppState, navigate func(route string), version st
 		statusBar:   statusBar,
 		version:     version,
 	}
-	dp.updateFooter(false)
 
+	theme.RegisterPrimitive(dp)
+
+	dp.updateFooter(false)
 	t.OnSearchStatus(dp.handleSearchStatus)
 	t.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey { return t.HandleInput(ev) })
 	t.SetSelectedFunc(func(row, col int) {
@@ -78,13 +79,9 @@ func (p *DashboardPage) FocusTarget() tview.Primitive { return p.deviceTable }
 
 func (p *DashboardPage) Spinner() *components.Spinner { return p.spinner }
 
-func (p *DashboardPage) RefreshFromState() {
+func (p *DashboardPage) Refresh() {
 	devices := p.state.DevicesSnapshot()
 	p.deviceTable.ReplaceAll(devices)
-}
-
-func (p *DashboardPage) Refresh() {
-	p.RefreshFromState()
 }
 
 func (p *DashboardPage) updateFooter(showFilter bool) {

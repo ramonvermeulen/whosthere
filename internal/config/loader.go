@@ -55,17 +55,7 @@ func ensureConfigFile(path string, defaults *Config) error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create config dir: %w", err)
-	}
-
-	data := renderDefaultConfigFile(defaults)
-
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("write default config: %w", err)
-	}
-
-	return nil
+	return writeConfigFile(path, defaults)
 }
 
 // resolveConfigPath returns the path using precedence: flag override > env var > XDG default.
@@ -94,22 +84,52 @@ func validateAndNormalize(cfg *Config) error {
 	return cfg.validateAndNormalize()
 }
 
-func renderDefaultConfigFile(cfg *Config) []byte {
+// writeConfigFile marshals the config to YAML and writes it to the specified path,
+// ensuring the parent directory exists.
+func writeConfigFile(path string, cfg *Config) error {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
 
-	themeCfg := cfg.Theme
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
+	}
 
-	return []byte(fmt.Sprintf(`scan_interval: %s
+	data, err := marshalConfigWithComments(cfg)
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("write config file: %w", err)
+	}
+
+	return nil
+}
+
+// marshalConfigWithComments creates a YAML representation with helpful comments.
+func marshalConfigWithComments(cfg *Config) ([]byte, error) {
+	commented := fmt.Sprintf(`# whosthere configuration file
+# For more information, visit: https://github.com/ramonvermeulen/whosthere
+
+# How often to run discovery scans
+scan_interval: %s
+
+# Maximum duration for each scan
 scan_duration: %s
+
+# Splash screen configuration
 splash:
   enabled: %t
   delay: %s
+
+# Theme configuration
 theme:
-  # pick a built-in theme by name; unknown names fall back to "default"
+  # Built-in themes: default, dracula, nord, solarized-dark, solarized-light, monokai, gruvbox
+  # Set name to "custom" to use custom colors below
   name: %s
-  # default palette (uncomment and set name: custom to tweak)
+  
+  # Custom theme colors (uncomment and set name: custom to use)
   # primitive_background_color: "#000a1a"
   # contrast_background_color: "#001a33"
   # more_contrast_background_color: "#003366"
@@ -121,6 +141,8 @@ theme:
   # tertiary_text_color: "#ffaa00"
   # inverse_text_color: "#000a1a"
   # contrast_secondary_text_color: "#88ddff"
+
+# Scanner configuration
 scanners:
   mdns:
     enabled: %t
@@ -133,11 +155,13 @@ scanners:
 		cfg.ScanDuration,
 		cfg.Splash.Enabled,
 		cfg.Splash.Delay,
-		themeCfg.Name,
+		cfg.Theme.Name,
 		cfg.Scanners.MDNS.Enabled,
 		cfg.Scanners.SSDP.Enabled,
 		cfg.Scanners.ARP.Enabled,
-	))
+	)
+
+	return []byte(commented), nil
 }
 
 // Save writes the config to the specified path (or resolves the default path if empty).
@@ -151,11 +175,5 @@ func Save(cfg *Config, pathOverride string) error {
 		return fmt.Errorf("resolve config path: %w", err)
 	}
 
-	data := renderDefaultConfigFile(cfg)
-
-	if err := os.WriteFile(resolvedPath, data, 0o644); err != nil {
-		return fmt.Errorf("write config: %w", err)
-	}
-
-	return nil
+	return writeConfigFile(resolvedPath, cfg)
 }

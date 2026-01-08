@@ -16,7 +16,7 @@ type Spinner struct {
 
 func NewSpinner() *Spinner {
 	tv := tview.NewTextView().SetText(" ").SetTextAlign(tview.AlignLeft)
-	theme.RegisterPrimitive(tv) // Register with theme manager
+	theme.RegisterPrimitive(tv)
 	return &Spinner{view: tv, stop: make(chan struct{}, 1), suffix: ""}
 }
 

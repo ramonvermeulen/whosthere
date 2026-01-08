@@ -48,11 +48,12 @@ func NewDeviceTable() *DeviceTable {
 		SetBorderColor(tview.Styles.BorderColor).
 		SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 
-	theme.RegisterPrimitive(t.Table) // Register with theme manager
-
 	t.SetFixed(1, 0)
 	t.SetSelectable(true, false)
 	t.Select(0, 0)
+
+	theme.RegisterPrimitive(t)
+
 	t.refresh()
 	return t
 }

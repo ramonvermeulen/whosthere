@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/ramonvermeulen/whosthere/internal/discovery"
 	"github.com/ramonvermeulen/whosthere/internal/state"
 	"github.com/ramonvermeulen/whosthere/internal/ui/components"
 	"github.com/ramonvermeulen/whosthere/internal/ui/navigation"
@@ -27,12 +26,9 @@ type DetailPage struct {
 	navigate func(route string)
 }
 
-func NewDetailPage(s *state.AppState, navigate func(route string), uiQueue func(func()), version string) *DetailPage {
+func NewDetailPage(s *state.AppState, navigate func(route string), version string) *DetailPage {
 	main := tview.NewFlex().SetDirection(tview.FlexRow)
-	theme.RegisterPrimitive(main) // Register main flex
-
 	header := components.NewHeader(version)
-	main.AddItem(header, 0, 1, false)
 
 	info := tview.NewTextView().SetDynamicColors(true).SetWrap(true)
 	info.SetBorder(true).
@@ -40,11 +36,12 @@ func NewDetailPage(s *state.AppState, navigate func(route string), uiQueue func(
 		SetTitleColor(tview.Styles.TitleColor).
 		SetBorderColor(tview.Styles.BorderColor).
 		SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-	theme.RegisterPrimitive(info) // Register info view
-	main.AddItem(info, 0, 18, true)
 
 	statusBar := components.NewStatusBar()
 	statusBar.SetHelp("Esc/q: Back")
+
+	main.AddItem(header, 0, 1, false)
+	main.AddItem(info, 0, 18, true)
 	main.AddItem(statusBar.Primitive(), 1, 0, false)
 
 	p := &DetailPage{
@@ -57,11 +54,9 @@ func NewDetailPage(s *state.AppState, navigate func(route string), uiQueue func(
 	}
 
 	info.SetInputCapture(handleInput(p))
-	s.AddListener(func(d discovery.Device) {
-		if p.state.SelectedIP() == d.IP.String() {
-			uiQueue(p.Refresh)
-		}
-	})
+
+	theme.RegisterPrimitive(p)
+	theme.RegisterPrimitive(p.info)
 
 	p.Refresh()
 	return p
@@ -146,5 +141,4 @@ func sortedKeys[T any](m map[string]T) []string {
 	}
 	sort.Strings(keys)
 	return keys
-
 }

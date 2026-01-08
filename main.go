@@ -21,6 +21,7 @@ func main() {
 	// used consistently across the CLI, TUI header, and logs.
 	version.Version = versionStr
 	version.Commit = commitStr
+	version.Date = dateStr
 
 	cmd.Execute()
 }
