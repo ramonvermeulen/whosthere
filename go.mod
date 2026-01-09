@@ -3,13 +3,13 @@ module github.com/ramonvermeulen/whosthere
 go 1.25.4
 
 require (
-	github.com/gdamore/tcell/v2 v2.13.5
+	github.com/gdamore/tcell/v2 v2.13.6
 	github.com/goccy/go-yaml v1.19.2
 	github.com/rivo/tview v0.42.0
 	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.27.1
 	golang.org/x/net v0.48.0
-	golang.org/x/sys v0.39.0
+	golang.org/x/sys v0.40.0
 )
 
 require (
