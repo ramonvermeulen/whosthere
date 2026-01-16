@@ -16,6 +16,7 @@ type ReadOnly interface {
 	PreviousTheme() string
 	Version() string
 	FilterPattern() string
+	IsDiscovering() bool
 }
 
 // AppState holds application-level state shared across views and
@@ -29,6 +30,7 @@ type AppState struct {
 	previousTheme string
 	version       string
 	filterPattern string
+	isDiscovering bool
 }
 
 func NewAppState() *AppState {
@@ -150,6 +152,20 @@ func (s *AppState) FilterPattern() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.filterPattern
+}
+
+// SetIsDiscovering sets the discovering state.
+func (s *AppState) SetIsDiscovering(discovering bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.isDiscovering = discovering
+}
+
+// IsDiscovering returns the discovering state.
+func (s *AppState) IsDiscovering() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.isDiscovering
 }
 
 // ReadOnly returns a read-only interface to the state.

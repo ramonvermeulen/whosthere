@@ -20,10 +20,11 @@ type DashboardView struct {
 	filterBar   *components.FilterBar
 	statusBar   *components.StatusBar
 
-	emit func(e events.Event)
+	emit  func(e events.Event)
+	queue func(f func())
 }
 
-func NewDashboardView(emit func(events.Event)) *DashboardView {
+func NewDashboardView(emit func(events.Event), queue func(f func())) *DashboardView {
 	header := components.NewHeader()
 	t := components.NewDeviceTable(emit)
 
@@ -44,6 +45,7 @@ func NewDashboardView(emit func(events.Event)) *DashboardView {
 		filterBar:   filterBar,
 		statusBar:   statusBar,
 		emit:        emit,
+		queue:       queue,
 	}
 
 	theme.RegisterPrimitive(d)
@@ -65,13 +67,17 @@ func NewDashboardView(emit func(events.Event)) *DashboardView {
 
 func (d *DashboardView) FocusTarget() tview.Primitive { return d.deviceTable }
 
-func (d *DashboardView) Spinner() *components.Spinner { return d.statusBar.Spinner() }
-
 func (d *DashboardView) Render(s state.ReadOnly) {
 	d.deviceTable.Render(s)
 	d.header.Render(s)
 	d.filterBar.Render(s)
 	d.statusBar.Render(s)
+
+	if s.IsDiscovering() {
+		d.statusBar.Spinner().Start(d.queue)
+	} else {
+		d.statusBar.Spinner().Stop(d.queue)
+	}
 }
 
 func (d *DashboardView) updateFooter(showFilter bool) {

@@ -105,7 +105,7 @@ func (a *App) Run() error {
 }
 
 func (a *App) setupPages(cfg *config.Config) {
-	dashboardPage := views.NewDashboardView(a.emit)
+	dashboardPage := views.NewDashboardView(a.emit, a.QueueUpdateDraw)
 	detailPage := views.NewDetailView(a.emit)
 	splashPage := views.NewSplashView(a.emit)
 	themePickerModal := views.NewThemeModalView(a.emit)
@@ -161,11 +161,6 @@ func (a *App) startUIRefreshLoop() {
 	a.refreshTicker = time.NewTicker(refreshInterval)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				zap.L().Error("Panic in UI refresh loop", zap.Any("panic", r))
-			}
-		}()
 		for range a.refreshTicker.C {
 			a.rerenderVisibleViews()
 		}
@@ -180,11 +175,6 @@ func (a *App) startDiscoveryScanLoop() {
 	a.scanTicker = time.NewTicker(a.cfg.ScanInterval)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				zap.L().Error("Panic in discovery scan loop", zap.Any("panic", r))
-			}
-		}()
 		a.performScan()
 
 		for range a.scanTicker.C {
@@ -207,24 +197,15 @@ func (a *App) performScan() {
 		return
 	}
 
-	if dashboard := a.pages.GetPage(routes.RouteDashboard); dashboard != nil {
-		if dashboardView, ok := dashboard.(*views.DashboardView); ok {
-			a.Application.QueueUpdateDraw(func() {
-				dashboardView.Spinner().Start(a.QueueUpdateDraw)
-			})
+	a.emit(events.DiscoveryStarted{})
 
-			ctx, cancel := context.WithTimeout(context.Background(), a.cfg.ScanDuration)
-			_, _ = a.engine.Stream(ctx, func(d discovery.Device) {
-				a.state.UpsertDevice(&d)
-			})
-			cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), a.cfg.ScanDuration)
+	_, _ = a.engine.Stream(ctx, func(d discovery.Device) {
+		a.state.UpsertDevice(&d)
+	})
+	cancel()
 
-			a.Application.QueueUpdateDraw(func() {
-				dashboardView.Spinner().Stop(a.QueueUpdateDraw)
-				dashboardView.Render(a.state.ReadOnly())
-			})
-		}
-	}
+	a.emit(events.DiscoveryStopped{})
 }
 
 // RegisterPrimitive registers a primitive for theme updates.
@@ -258,11 +239,6 @@ func (a *App) resetFocus() {
 
 func (a *App) rerenderVisibleViews() {
 	a.QueueUpdateDraw(func() {
-		defer func() {
-			if r := recover(); r != nil {
-				zap.L().Error("Panic in rerenderVisibleViews", zap.Any("panic", r))
-			}
-		}()
 		for _, name := range a.pages.GetPageNames(true) {
 			if pageItem := a.pages.GetPage(name); pageItem != nil {
 				if view, ok := pageItem.(views.View); ok {
@@ -279,10 +255,8 @@ func (a *App) handleEvents() {
 		switch event := e.(type) {
 		case events.DeviceSelected:
 			a.state.SetSelectedIP(event.IP)
-			a.rerenderVisibleViews()
 		case events.FilterChanged:
 			a.state.SetFilterPattern(event.Pattern)
-			a.rerenderVisibleViews()
 		case events.NavigateTo:
 			if event.Overlay {
 				a.pages.SendToFront(event.Route)
@@ -291,7 +265,6 @@ func (a *App) handleEvents() {
 				a.pages.SwitchToPage(event.Route)
 			}
 			a.resetFocus()
-			a.rerenderVisibleViews()
 		case events.ThemeSelected:
 			a.state.SetCurrentTheme(event.Name)
 			a.applyTheme(event.Name)
@@ -303,7 +276,12 @@ func (a *App) handleEvents() {
 			front, _ := a.pages.GetFrontPage()
 			a.pages.HidePage(front)
 			a.resetFocus()
-			a.rerenderVisibleViews()
+		case events.DiscoveryStarted:
+			a.state.SetIsDiscovering(true)
+		case events.DiscoveryStopped:
+			a.state.SetIsDiscovering(false)
 		}
+
+		a.rerenderVisibleViews()
 	}
 }

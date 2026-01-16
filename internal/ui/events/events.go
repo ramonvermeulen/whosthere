@@ -34,3 +34,9 @@ type ThemeSaved struct {
 
 // HideView is emitted to hide the current modal.
 type HideView struct{}
+
+// DiscoveryStarted is emitted when discovery starts.
+type DiscoveryStarted struct{}
+
+// DiscoveryStopped is emitted when discovery stops.
+type DiscoveryStopped struct{}
