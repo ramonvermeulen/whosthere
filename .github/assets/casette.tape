@@ -2,13 +2,16 @@
 # See https://github.com/charmbracelet/vhs
 # Do not forget to mask sensitive information before running this script (E.g. MAC addresses, extra data etc.)
 
-Set Padding 0
+Set Padding 30
 Set Shell zsh
 Output demo.gif
-Set FontSize 18
+Set FontSize 19
 Set Width 1920
 Set Height 1080
 Set CursorBlink false
+Set WindowBar Colorful
+Set Margin 0
+Set BorderRadius 10
 
 
 Sleep 500ms

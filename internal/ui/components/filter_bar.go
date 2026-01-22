@@ -22,24 +22,16 @@ func NewFilterBar() *FilterBar {
 	return &FilterBar{TextView: fv}
 }
 
-// Show updates the filter bar text and color.
-func (f *FilterBar) Show(text string, color tcell.Color) {
-	if f == nil {
-		return
-	}
-	f.SetTextColor(color)
-	f.SetText(text)
-}
-
-// Clear removes any text from the filter bar.
-func (f *FilterBar) Clear() {
-	if f == nil {
-		return
-	}
-	f.SetText("")
-}
-
 // Render implements UIComponent.
 func (f *FilterBar) Render(s state.ReadOnly) {
-	// FilterBar is updated via Show/Clear, no state update needed.
+	if s.SearchActive() {
+		color := tview.Styles.PrimaryTextColor
+		if s.SearchError() {
+			color = tcell.ColorRed
+		}
+		f.SetTextColor(color)
+		f.SetText("Regex search: /" + s.SearchText())
+	} else {
+		f.SetText("")
+	}
 }

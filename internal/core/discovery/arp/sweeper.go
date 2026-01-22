@@ -132,17 +132,24 @@ func (s *Sweeper) runSweep(ctx context.Context, subnet *net.IPNet, localIP net.I
 func triggerSubnetSweep(ctx context.Context, ips []net.IP) {
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, maxConcurrentTriggers)
+	total := len(ips)
+	triggered := 0
 
 	for _, ip := range ips {
 		zap.L().Debug("Triggering ARP for IP", zap.String("ip", ip.String()))
 		select {
 		case <-ctx.Done():
+			zap.L().Warn("ARP sweep interrupted by context cancellation, this can indicate you have a short scan duration configured",
+				zap.Int("triggered", triggered),
+				zap.Int("total", total),
+				zap.Int("remaining", total-triggered))
 			return
 		default:
 		}
 
 		wg.Add(1)
 		sem <- struct{}{}
+		triggered++
 
 		go func(targetIP net.IP) {
 			defer wg.Done()

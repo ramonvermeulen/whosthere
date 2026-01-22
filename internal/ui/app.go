@@ -17,6 +17,7 @@ import (
 	"github.com/ramonvermeulen/whosthere/internal/ui/views"
 	"github.com/rivo/tview"
 	"go.uber.org/zap"
+	"golang.design/x/clipboard"
 )
 
 const (
@@ -71,6 +72,11 @@ func NewApp(cfg *config.Config, ouiDB *oui.Registry, version string) (*App, erro
 	app.SetRoot(a.pages, true)
 	app.SetInputCapture(a.handleGlobalKeys)
 	app.EnableMouse(true)
+
+	err = clipboard.Init()
+	if err != nil {
+		return nil, fmt.Errorf("failed to init clipboard: %w", err)
+	}
 
 	return a, nil
 }
@@ -283,8 +289,26 @@ func (a *App) handleEvents() {
 			go a.startPortscan()
 		case events.PortScanStopped:
 			a.state.SetIsPortscanning(false)
+		case events.SearchStarted:
+			a.state.SetSearchActive(true)
+		case events.SearchError:
+			a.state.SetSearchError(event.Error)
+		case events.SearchFinished:
+			a.state.SetSearchActive(false)
+		case events.CopyIP:
+			var ip string
+			if event.IP != "" {
+				ip = event.IP
+			} else {
+				device, ok := a.state.Selected()
+				if ok {
+					ip = device.IP.String()
+				}
+			}
+			if ip != "" {
+				clipboard.Write(clipboard.FmtText, []byte(ip))
+			}
 		}
-
 		a.rerenderVisibleViews()
 	}
 }

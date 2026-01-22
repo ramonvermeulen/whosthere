@@ -162,6 +162,7 @@ scanners:
 # Port scanner configuration
 port_scanner:
   timeout: %s
+  # List of TCP ports to scan on discovered devices
   tcp: [%s]
 
 # Uncomment the next line to configure a specific network interface - uses OS default if not set

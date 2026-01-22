@@ -34,7 +34,7 @@ func NewDashboardView(emit func(events.Event), queue func(f func())) *DashboardV
 
 	statusBar := components.NewStatusBar()
 	statusBar.Spinner().SetSuffix(" Discovering Devices...")
-	statusBar.SetHelp("j/k: up/down" + components.Divider + "g/G: top/bottom" + components.Divider + "Enter: details" + components.Divider + "Ctrl+T: theme")
+	statusBar.SetHelp("j/k: up/down" + components.Divider + "g/G: top/bottom" + components.Divider + "y: Copy IP" + components.Divider + "Enter: details" + components.Divider + "Ctrl+T: theme")
 
 	filterBar := components.NewFilterBar()
 
@@ -51,7 +51,6 @@ func NewDashboardView(emit func(events.Event), queue func(f func())) *DashboardV
 	theme.RegisterPrimitive(d)
 
 	d.updateFooter(false)
-	t.OnSearchStatus(d.handleSearchStatus)
 	t.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey { return t.HandleInput(ev) })
 	t.SetSelectedFunc(func(row, col int) {
 		ip := t.SelectedIP()
@@ -73,6 +72,8 @@ func (d *DashboardView) Render(s state.ReadOnly) {
 	d.filterBar.Render(s)
 	d.statusBar.Render(s)
 
+	d.updateFooter(s.SearchActive())
+
 	if s.IsDiscovering() {
 		d.statusBar.Spinner().Start(d.queue)
 	} else {
@@ -90,16 +91,4 @@ func (d *DashboardView) updateFooter(showFilter bool) {
 		d.AddItem(d.filterBar, 1, 0, false)
 	}
 	d.AddItem(d.statusBar, 1, 0, false)
-}
-
-// handleSearchStatus updates footer visibility and filter bar based on table search state.
-func (d *DashboardView) handleSearchStatus(status components.SearchStatus) {
-	if d.filterBar != nil {
-		if status.Showing {
-			d.filterBar.Show(status.Text, status.Color)
-		} else {
-			d.filterBar.Clear()
-		}
-	}
-	d.updateFooter(status.Showing)
 }

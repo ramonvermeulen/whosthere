@@ -40,7 +40,7 @@ func NewDetailView(emit func(events.Event), queue func(f func())) *DetailView {
 		SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 
 	statusBar := components.NewStatusBar()
-	statusBar.SetHelp("Esc/q: Back" + components.Divider + "p: Port Scan")
+	statusBar.SetHelp("Esc/q: Back" + components.Divider + "y: Copy IP" + components.Divider + "p: Port Scan")
 
 	main.AddItem(header, 1, 0, false)
 	main.AddItem(info, 0, 1, true)
@@ -74,6 +74,9 @@ func handleInput(p *DetailView) func(ev *tcell.EventKey) *tcell.EventKey {
 			return nil
 		case ev.Rune() == 'p':
 			p.emit(events.NavigateTo{Route: routes.RoutePortScan, Overlay: true})
+			return nil
+		case ev.Rune() == 'y':
+			p.emit(events.CopyIP{})
 			return nil
 		default:
 			return ev

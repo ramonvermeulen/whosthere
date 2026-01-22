@@ -120,9 +120,6 @@ func L() *zap.Logger {
 	return logger
 }
 
-// LogPath returns the current log file path.
-func LogPath() string { return cachedPath }
-
 func resolveLogPath() (string, error) {
 	dir, err := paths.StateDir()
 	if err != nil {

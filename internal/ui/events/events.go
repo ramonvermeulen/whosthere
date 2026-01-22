@@ -46,3 +46,19 @@ type PortScanStarted struct{}
 
 // PortScanStopped is emitted when port scan stops.
 type PortScanStopped struct{}
+
+// SearchStarted is emitted when search mode starts.
+type SearchStarted struct{}
+
+// SearchError is emitted when search input is invalid.
+type SearchError struct {
+	Error bool
+}
+
+// SearchFinished is emitted when search mode ends.
+type SearchFinished struct{}
+
+// CopyIP is emitted to copy the IP to clipboard.
+type CopyIP struct {
+	IP string
+}

@@ -22,6 +22,9 @@ type ReadOnly interface {
 	IsPortscanning() bool
 	Config() config.Config
 	GetDevice(ip string) (discovery.Device, bool)
+	SearchActive() bool
+	SearchText() string
+	SearchError() bool
 }
 
 // AppState holds application-level state shared across views and
@@ -37,6 +40,8 @@ type AppState struct {
 	isDiscovering  bool
 	isPortscanning bool
 	cfg            *config.Config
+	searchError    bool
+	searchActive   bool
 }
 
 func NewAppState(cfg *config.Config, version string) *AppState {
@@ -218,4 +223,39 @@ func (s *AppState) GetDevice(ip string) (discovery.Device, bool) {
 
 	device, ok := s.devices[ip]
 	return device, ok
+}
+
+// SearchActive returns the search active state.
+func (s *AppState) SearchActive() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.searchActive
+}
+
+// SearchText returns the current search text.
+func (s *AppState) SearchText() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.filterPattern
+}
+
+// SearchError returns if there is an error in the search.
+func (s *AppState) SearchError() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.searchError
+}
+
+// SetSearchError sets the search error state.
+func (s *AppState) SetSearchError(err bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.searchError = err
+}
+
+// SetSearchActive sets the search active state.
+func (s *AppState) SetSearchActive(active bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.searchActive = active
 }

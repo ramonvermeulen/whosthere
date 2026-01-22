@@ -20,9 +20,7 @@ const (
 	serviceDiscoveryQuery = "_services._dns-sd._udp.local."
 	mdnsMulticastAddress  = "224.0.0.251"
 	mdnsPort              = 5353
-	// TODO(ramon): think of solution for all time-outs
-	scanTimeout   = 3 * time.Second
-	maxBufferSize = 16384
+	maxBufferSize         = 16384
 )
 
 type Scanner struct {
@@ -119,7 +117,12 @@ func (ss *scanSession) run(ctx context.Context, out chan<- discovery.Device) err
 }
 
 func (ss *scanSession) listenForResponses(ctx context.Context, out chan<- discovery.Device) error {
-	if err := ss.conn.SetReadDeadline(time.Now().Add(scanTimeout)); err != nil {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return fmt.Errorf("context has no deadline")
+	}
+	timeout := time.Until(deadline)
+	if err := ss.conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 		return fmt.Errorf("set read deadline: %w", err)
 	}
 
