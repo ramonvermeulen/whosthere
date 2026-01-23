@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/dece2183/go-clipboard"
 	"github.com/gdamore/tcell/v2"
 	"github.com/ramonvermeulen/whosthere/internal/core"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
@@ -17,7 +18,6 @@ import (
 	"github.com/ramonvermeulen/whosthere/internal/ui/views"
 	"github.com/rivo/tview"
 	"go.uber.org/zap"
-	"golang.design/x/clipboard"
 )
 
 const (
@@ -37,6 +37,7 @@ type App struct {
 	emit          func(events.Event)
 	portScanner   *discovery.PortScanner
 	isReady       bool
+	clipboard     *clipboard.Clipboard
 }
 
 func NewApp(cfg *config.Config, ouiDB *oui.Registry, version string) (*App, error) {
@@ -52,6 +53,7 @@ func NewApp(cfg *config.Config, ouiDB *oui.Registry, version string) (*App, erro
 		state:       appState,
 		cfg:         cfg,
 		events:      make(chan events.Event, 100),
+		clipboard:   clipboard.New(clipboard.ClipboardOptions{Primary: false}),
 	}
 
 	a.emit = func(e events.Event) {
@@ -69,11 +71,6 @@ func NewApp(cfg *config.Config, ouiDB *oui.Registry, version string) (*App, erro
 	app.SetRoot(a.pages, true)
 	app.SetInputCapture(a.handleGlobalKeys)
 	app.EnableMouse(true)
-
-	err = clipboard.Init()
-	if err != nil {
-		zap.L().Warn("failed to initialize clipboard; copy to clipboard will not work; on linux libx11-dev or xorg-dev or libX11-devel are required;", zap.Error(err))
-	}
 
 	return a, nil
 }
@@ -296,7 +293,9 @@ func (a *App) handleEvents() {
 				}
 			}
 			if ip != "" {
-				clipboard.Write(clipboard.FmtText, []byte(ip))
+				if err := a.clipboard.CopyText(ip); err != nil {
+					zap.L().Warn("failed to copy to clipboard", zap.Error(err))
+				}
 			}
 		}
 		a.rerenderVisibleViews()

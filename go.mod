@@ -3,12 +3,12 @@ module github.com/ramonvermeulen/whosthere
 go 1.25.4
 
 require (
+	github.com/dece2183/go-clipboard v1.0.0
 	github.com/gdamore/tcell/v2 v2.13.7
 	github.com/goccy/go-yaml v1.19.2
 	github.com/rivo/tview v0.42.0
 	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.27.1
-	golang.design/x/clipboard v0.7.1
 	golang.org/x/net v0.49.0
 	golang.org/x/sys v0.40.0
 )
@@ -20,9 +20,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/exp/shiny v0.0.0-20250606033433-dcc06ee1d476 // indirect
-	golang.org/x/image v0.28.0 // indirect
-	golang.org/x/mobile v0.0.0-20250606033058-a2a15c67f36f // indirect
 	golang.org/x/term v0.39.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 )

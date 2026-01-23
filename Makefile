@@ -22,10 +22,10 @@ deps:
 default: deps fmt lint install test
 
 build:
-	CGO_ENABLED=1 go build -ldflags '$(LDFLAGS)' -o $(APP_NAME) .
+	CGO_ENABLED=0 go build -ldflags '$(LDFLAGS)' -o $(APP_NAME) .
 
 install: build
-	CGO_ENABLED=1 go install -v ./...
+	CGO_ENABLED=0 go install -v ./...
 
 lint:
 	golangci-lint run
