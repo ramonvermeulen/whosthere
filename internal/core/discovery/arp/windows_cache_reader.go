@@ -12,6 +12,7 @@ import (
 
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
 	"go.uber.org/zap"
+	"golang.org/x/sys/windows"
 )
 
 // Windows API definitions for GetIpNetTable
@@ -30,6 +31,12 @@ type MIB_IPNETROW struct {
 	PhysAddr    [MAXLEN_PHYSADDR]byte
 	Addr        uint32
 	Type        uint32
+}
+
+// MIB_IPNETTABLE structure contains the table of ARP entries.
+type MIB_IPNETTABLE struct {
+	NumEntries uint32
+	Table      [1]MIB_IPNETROW // Variable length array
 }
 
 var (
@@ -54,14 +61,16 @@ func (s *Scanner) readWindowsARPCache(ctx context.Context, out chan<- discovery.
 func (s *Scanner) getIpNetTable(ctx context.Context) ([]Entry, error) {
 	// First call to determine size
 	var size uint32
-	// Return value 122 (ERROR_INSUFFICIENT_BUFFER) is expected
-	_, _, _ = procGetIpNetTable.Call(
+	// Use syscall to call the procedure
+	r1, _, _ := procGetIpNetTable.Call(
 		0,
 		uintptr(unsafe.Pointer(&size)),
 		0,
 	)
 
-	// If it's not ERROR_INSUFFICIENT_BUFFER (122) and not NO_ERROR (0), something is wrong.
+	if r1 != 0 && syscall.Errno(r1) != windows.ERROR_INSUFFICIENT_BUFFER {
+		return nil, fmt.Errorf("GetIpNetTable failed obtaining size: %d", r1)
+	}
 
 	// Just to be safe, if size is 0, give it some room (e.g. 15kb)
 	if size == 0 {
@@ -69,14 +78,14 @@ func (s *Scanner) getIpNetTable(ctx context.Context) ([]Entry, error) {
 	}
 
 	buf := make([]byte, size)
-	r1, _, _ := procGetIpNetTable.Call(
+	r1, _, _ = procGetIpNetTable.Call(
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(unsafe.Pointer(&size)),
 		0, // ensure sorted
 	)
 
 	if r1 != 0 {
-		if r1 == 122 {
+		if syscall.Errno(r1) == windows.ERROR_INSUFFICIENT_BUFFER {
 			// Buffer still too small? Try again with new size.
 			buf = make([]byte, size)
 			r1, _, _ = procGetIpNetTable.Call(
@@ -93,34 +102,15 @@ func (s *Scanner) getIpNetTable(ctx context.Context) ([]Entry, error) {
 	}
 
 	// Parse the buffer
-	// Number of entries is at the beginning
-	numEntries := *(*uint32)(unsafe.Pointer(&buf[0]))
+	// Cast to MIB_IPNETTABLE pointer
+	table := (*MIB_IPNETTABLE)(unsafe.Pointer(&buf[0]))
+	numEntries := table.NumEntries
 
-	// MIB_IPNETROW size:
-	// Index (4) + PhysAddrLen (4) + PhysAddr (8) + Addr (4) + Type (4) = 24 bytes
-	rowSize := uintptr(24) // unsafe.Sizeof(MIB_IPNETROW{}) might have padding - check alignment
-	// In Go, struct alignment might add padding.
-	//
-	// MIB_IPNETROW is:
-	// DWORD dwIndex; (4 bytes)
-	// DWORD dwPhysAddrLen; (4 bytes)
-	// BYTE bPhysAddr[MAXLEN_PHYSADDR]; (8 bytes)
-	// DWORD dwAddr; (4 bytes)
-	// DWORD dwType; (4 bytes)
-	// Total 24 bytes EXACTLY. No padding needed between 4-byte aligned fields.
-
-	// Offset of the first row is after NumEntries (4 bytes).
-	// But we must be careful about alignment. NumEntries is 4 bytes.
-	// Does the first struct start at offset 4?
-	// On 32-bit and 64-bit Windows, alignof(DWORD) is 4.
-	// So offset 4 is valid.
 	var entries []Entry
-	// Calculate the connection between the header and the rows
-	// We handle the offset calculation directly in the unsafe.Pointer conversion expression
-	// to satisfy govet's unsafeptr checking rules.
-	basePtr := unsafe.Pointer(&buf[0])
 
-	for i := uint32(0); i < numEntries; i++ {
+	rows := unsafe.Slice(&table.Table[0], numEntries)
+
+	for _, row := range rows {
 		// Check context
 		select {
 		case <-ctx.Done():
@@ -128,45 +118,34 @@ func (s *Scanner) getIpNetTable(ctx context.Context) ([]Entry, error) {
 		default:
 		}
 
-		// Calculate offset: 4 bytes (NumEntries) + (index * rowSize)
-		// Pattern: func Pointer(ptr uintptr) Pointer
-		// "The conversion of a uintptr back to Pointer is not valid in general."
-		// But: "Conversion of a uintptr back to Pointer is invalid usually, but..."
-		// "   p = unsafe.Pointer(uintptr(p) + offset)" is valid.
-
-		rowPtr := (*MIB_IPNETROW)(unsafe.Pointer(uintptr(basePtr) + 4 + (uintptr(i) * rowSize)))
-
 		// Index must match our interface index
-		if int(rowPtr.Index) != s.iface.Interface.Index {
+		if int(row.Index) != s.iface.Interface.Index {
 			continue
 		}
 
 		// Row Addr is IPv4 address as DWORD (little-endian usually)
 		ipBytes := make([]byte, 4)
-		binary.LittleEndian.PutUint32(ipBytes, rowPtr.Addr)
+		binary.LittleEndian.PutUint32(ipBytes, row.Addr)
 		ip := net.IP(ipBytes)
 
 		// Row PhysAddr
-		if rowPtr.PhysAddrLen > MAXLEN_PHYSADDR {
+		if row.PhysAddrLen > MAXLEN_PHYSADDR {
 			continue // Should not happen
 		}
 
 		// Copy valid bytes of MAC
-		mac := make(net.HardwareAddr, rowPtr.PhysAddrLen)
-		for j := uint32(0); j < rowPtr.PhysAddrLen; j++ {
-			mac[j] = rowPtr.PhysAddr[j]
+		mac := make(net.HardwareAddr, row.PhysAddrLen)
+		for j := uint32(0); j < row.PhysAddrLen; j++ {
+			mac[j] = row.PhysAddr[j]
 		}
 
-		// According to docs:
-		// Type:
+		// Windows MIB_IPNETROW Type constants:
 		// 1 = Other
 		// 2 = Invalid (deleted)
 		// 3 = Dynamic
 		// 4 = Static
-		//
-		// We usually want dynamic and static (except multicast/broadcast which we execute filter logic on later).
 		// Type 2 is invalid.
-		if rowPtr.Type == 2 {
+		if row.Type == 2 {
 			continue
 		}
 
