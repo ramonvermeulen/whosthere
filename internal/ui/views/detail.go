@@ -144,7 +144,7 @@ func (d *DetailView) Render(s state.ReadOnly) {
 		_, _ = fmt.Fprintln(d.info, "  (none)")
 	} else {
 		for _, k := range utils.SortedKeys(device.ExtraData) {
-			_, _ = fmt.Fprintf(d.info, "  %s: %s\n", k, device.ExtraData[k])
+			_, _ = fmt.Fprintf(d.info, "  %s: %s\n", k, utils.SanitizeString(device.ExtraData[k]))
 		}
 	}
 

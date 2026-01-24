@@ -55,6 +55,7 @@ func init() {
 
 // Execute is the entrypoint for the CLI application
 func Execute() {
+	cobra.MousetrapHelpText = ""
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)

@@ -15,6 +15,8 @@ func (s *Scanner) readARPCache(ctx context.Context, out chan<- discovery.Device)
 		return s.readLinuxARPCache(ctx, out)
 	case "darwin", "freebsd", "netbsd", "openbsd":
 		return s.readDarwinARPCache(ctx, out)
+	case "windows":
+		return s.readWindowsARPCache(ctx, out)
 	default:
 		return nil
 	}

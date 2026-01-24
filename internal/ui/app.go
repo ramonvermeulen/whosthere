@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/dece2183/go-clipboard"
@@ -316,7 +317,10 @@ func (a *App) startPortscan() {
 	device.LastPortScan = time.Now()
 
 	// todo(ramon) handle errors properly
+	var mu sync.Mutex
 	_ = a.portScanner.Stream(ctx, ip, a.cfg.PortScanner.TCP, a.cfg.PortScanner.Timeout, func(port int) {
+		mu.Lock()
+		defer mu.Unlock()
 		device.OpenPorts["tcp"] = append(device.OpenPorts["tcp"], port)
 		a.state.UpsertDevice(&device)
 	})
