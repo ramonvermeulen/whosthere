@@ -9,7 +9,7 @@ before:
 builds:
   - main: ./main.go
     binary: whosthere
-    goos: ["linux", "darwin"]
+    goos: ["linux", "darwin", "windows"]
     goarch: ["386", "amd64", "arm64"]
     ldflags:
       - -s -w -X main.versionStr={{.Version}}
