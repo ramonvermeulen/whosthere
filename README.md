@@ -198,9 +198,10 @@ When the `name` is set to `custom`, the other color options can be used to creat
 Logs are written to the application's state directory:
 
 - `$XDG_STATE_HOME/whosthere/app.log` (if `XDG_STATE_HOME` is set)
-- `~/.local/state/whosthere/app.log` (otherwise)
+- `~/.local/state/whosthere/app.log` (fallback Linux/MacOS)
+- `%LOCALAPPDATA%/whosthere/app.log` (fallback Windows)
 
-When not running in TUI mode, logs are also output to the console.
+When not running in TUI mode, logs are also written to the console.
 
 ## Known Issues
 
