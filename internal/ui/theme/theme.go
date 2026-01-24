@@ -2,6 +2,7 @@ package theme
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/rivo/tview"
 	"go.uber.org/zap"
 )
+
+var noColor = os.Getenv("NO_COLOR") != ""
 
 var registry = map[string]tview.Theme{
 	config.DefaultThemeName: {
@@ -937,6 +940,7 @@ func Names() []string {
 
 // RegisterPrimitive registers a primitive for theme updates.
 func RegisterPrimitive(p tview.Primitive) {
+	ApplyToPrimitive(p)
 	primitives = append(primitives, p)
 }
 
@@ -988,7 +992,12 @@ func ApplyToPrimitive(p tview.Primitive) {
 		v.SetBordersColor(tview.Styles.BorderColor)
 		v.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		v.SetBorderColor(tview.Styles.BorderColor)
-		v.SetTitleColor(tview.Styles.TitleColor)
+		if noColor {
+			if tview.Styles.PrimaryTextColor == tcell.ColorDefault {
+				selectedStyle := tcell.StyleDefault.Reverse(true)
+				v.SetSelectedStyle(selectedStyle)
+			}
+		}
 
 	case *tview.TreeView:
 		v.SetGraphicsColor(tview.Styles.GraphicsColor)
@@ -1012,6 +1021,10 @@ func ApplyToPrimitive(p tview.Primitive) {
 		v.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		v.SetBorderColor(tview.Styles.BorderColor)
 		v.SetTitleColor(tview.Styles.TitleColor)
+		if noColor {
+			selectedStyle := tcell.StyleDefault.Reverse(true)
+			v.SetSelectedStyle(selectedStyle)
+		}
 
 	case *tview.InputField:
 		v.SetFieldTextColor(tview.Styles.PrimaryTextColor)
@@ -1068,6 +1081,10 @@ func ApplyToPrimitive(p tview.Primitive) {
 			Foreground(tview.Styles.BorderColor).
 			Background(tview.Styles.PrimitiveBackgroundColor))
 		v.SetTitleColor(tview.Styles.TitleColor)
+		if noColor {
+			selectedStyle := tcell.StyleDefault.Reverse(true)
+			v.SetButtonStyle(selectedStyle)
+		}
 
 	case *tview.Grid:
 		v.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
@@ -1089,11 +1106,36 @@ func ApplyToPrimitive(p tview.Primitive) {
 		if box, ok := p.(interface{ SetBackgroundColor(tcell.Color) *tview.Box }); ok {
 			box.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		}
-		if bordered, ok := p.(interface{ SetBorderColor(tcell.Color) *tview.Box }); ok {
-			bordered.SetBorderColor(tview.Styles.BorderColor)
-		}
-		if titled, ok := p.(interface{ SetTitleColor(tcell.Color) *tview.Box }); ok {
-			titled.SetTitleColor(tview.Styles.TitleColor)
-		}
 	}
+}
+
+// NoColorTheme returns a theme with all colors set to tcell.ColorDefault to disable ANSI colors.
+// so NO_COLOR is supported properly
+// see https://no-color.org/
+// see https://github.com/rivo/tview/issues/859#issuecomment-1848992716
+func NoColorTheme() tview.Theme {
+	return tview.Theme{}
+}
+
+// TviewDefaultTheme returns the default tview theme.
+// in case the users has themes disabled, this will take terminal default ANDI colors.
+func TviewDefaultTheme() tview.Theme {
+	return tview.Theme{
+		PrimitiveBackgroundColor:    tcell.ColorBlack,
+		ContrastBackgroundColor:     tcell.ColorBlue,
+		MoreContrastBackgroundColor: tcell.ColorGreen,
+		BorderColor:                 tcell.ColorWhite,
+		TitleColor:                  tcell.ColorWhite,
+		GraphicsColor:               tcell.ColorWhite,
+		PrimaryTextColor:            tcell.ColorWhite,
+		SecondaryTextColor:          tcell.ColorYellow,
+		TertiaryTextColor:           tcell.ColorGreen,
+		InverseTextColor:            tcell.ColorBlue,
+		ContrastSecondaryTextColor:  tcell.ColorNavy,
+	}
+}
+
+// IsNoColor returns whether NO_COLOR is set.
+func IsNoColor() bool {
+	return noColor
 }

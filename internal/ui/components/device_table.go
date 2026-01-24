@@ -32,15 +32,11 @@ func NewDeviceTable(emit func(events.Event)) *DeviceTable {
 	t := &DeviceTable{Table: tview.NewTable(), devices: []discovery.Device{}, emit: emit}
 	t.
 		SetBorder(true).
-		SetTitle(" Devices ").
-		SetTitleColor(tview.Styles.TitleColor).
-		SetBorderColor(tview.Styles.BorderColor).
-		SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
-
+		SetTitle(" Devices ")
 	t.SetFixed(1, 0)
 	t.SetSelectable(true, false)
 
-	theme.RegisterPrimitive(t)
+	theme.RegisterPrimitive(t.Table)
 
 	return t
 }

@@ -208,7 +208,17 @@ func (a *App) performScan() {
 // applyTheme applies a theme by name, updates state, applies to primitives, and renders all pages.
 func (a *App) applyTheme(name string) {
 	a.cfg.Theme.Name = name
-	th := theme.Resolve(&a.cfg.Theme)
+
+	var th tview.Theme
+	switch {
+	case theme.IsNoColor():
+		th = theme.NoColorTheme()
+	case !a.cfg.Theme.Enabled:
+		th = theme.TviewDefaultTheme()
+	default:
+		th = theme.Resolve(&a.cfg.Theme)
+	}
+
 	tview.Styles = th
 	theme.ApplyThemeToAllRegisteredPrimitives()
 	a.rerenderVisibleViews()

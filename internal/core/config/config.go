@@ -9,6 +9,7 @@ import (
 
 const (
 	DefaultSplashEnabled = true
+	DefaultThemeEnabled  = true
 	DefaultSplashDelay   = 1 * time.Second
 
 	DefaultScanInterval    = 20 * time.Second
@@ -23,6 +24,7 @@ var DefaultTCPPorts = []int{21, 22, 23, 25, 80, 110, 135, 139, 143, 389, 443, 44
 
 // ThemeConfig selects a theme by name and optionally carries custom color overrides.
 type ThemeConfig struct {
+	Enabled                     bool   `yaml:"enabled"`
 	Name                        string `yaml:"name"`
 	PrimitiveBackgroundColor    string `yaml:"primitive_background_color"`
 	ContrastBackgroundColor     string `yaml:"contrast_background_color"`
@@ -81,7 +83,7 @@ func DefaultConfig() *Config {
 			Enabled: DefaultSplashEnabled,
 			Delay:   DefaultSplashDelay,
 		},
-		Theme:       ThemeConfig{Name: DefaultThemeName},
+		Theme:       ThemeConfig{Name: DefaultThemeName, Enabled: DefaultThemeEnabled},
 		Scanners:    ScannerConfig{MDNS: ScannerToggle{Enabled: true}, SSDP: ScannerToggle{Enabled: true}, ARP: ScannerToggle{Enabled: true}},
 		PortScanner: PortScannerConfig{TCP: DefaultTCPPorts, Timeout: DefaultPortScanTimeout},
 	}

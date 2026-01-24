@@ -34,10 +34,7 @@ func NewDetailView(emit func(events.Event), queue func(f func())) *DetailView {
 
 	info := tview.NewTextView().SetDynamicColors(true).SetWrap(true)
 	info.SetBorder(true).
-		SetTitle(" Details ").
-		SetTitleColor(tview.Styles.TitleColor).
-		SetBorderColor(tview.Styles.BorderColor).
-		SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
+		SetTitle(" Details ")
 
 	statusBar := components.NewStatusBar()
 	statusBar.SetHelp("Esc/q: Back" + components.Divider + "y: Copy IP" + components.Divider + "p: Port Scan")

@@ -168,7 +168,10 @@ port_scanner:
 		t.Errorf("tcp ports unexpected: %v", cfg.PortScanner.TCP)
 	}
 	if cfg.PortScanner.Timeout != DefaultPortScanTimeout {
-		t.Errorf("timeout unexpected: got %v, want %v", cfg.PortScanner.Timeout, 3*time.Second)
+		t.Errorf("timeout unexpected: got %v, want %v", cfg.PortScanner.Timeout, DefaultPortScanTimeout)
+	}
+	if cfg.Theme.Enabled != DefaultThemeEnabled {
+		t.Errorf("theme enabled unexpected: got %v, want %v", cfg.Theme.Enabled, DefaultThemeEnabled)
 	}
 }
 

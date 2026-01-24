@@ -6,6 +6,7 @@ import (
 
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
+	"github.com/ramonvermeulen/whosthere/internal/ui/theme"
 )
 
 // ReadOnly provides read-only access to application state.
@@ -25,6 +26,7 @@ type ReadOnly interface {
 	SearchActive() bool
 	SearchText() string
 	SearchError() bool
+	NoColor() bool
 }
 
 // AppState holds application-level state shared across views and
@@ -42,6 +44,7 @@ type AppState struct {
 	cfg            *config.Config
 	searchError    bool
 	searchActive   bool
+	noColor        bool
 }
 
 func NewAppState(cfg *config.Config, version string) *AppState {
@@ -49,6 +52,7 @@ func NewAppState(cfg *config.Config, version string) *AppState {
 		devices: make(map[string]discovery.Device),
 		version: version,
 		cfg:     cfg,
+		noColor: theme.IsNoColor(),
 	}
 
 	themeName := config.DefaultThemeName
@@ -121,10 +125,10 @@ func (s *AppState) SelectedIP() string {
 }
 
 // SetCurrentTheme sets the current theme.
-func (s *AppState) SetCurrentTheme(theme string) {
+func (s *AppState) SetCurrentTheme(t string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.cfg.Theme.Name = theme
+	s.cfg.Theme.Name = t
 }
 
 // CurrentTheme returns the current theme.
@@ -142,10 +146,10 @@ func (s *AppState) PreviousTheme() string {
 }
 
 // SetPreviousTheme sets the previous theme.
-func (s *AppState) SetPreviousTheme(theme string) {
+func (s *AppState) SetPreviousTheme(t string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.previousTheme = theme
+	s.previousTheme = t
 }
 
 // SetVersion sets the current version.
@@ -258,4 +262,11 @@ func (s *AppState) SetSearchActive(active bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.searchActive = active
+}
+
+// NoColor returns the no color state.
+func (s *AppState) NoColor() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.noColor
 }
