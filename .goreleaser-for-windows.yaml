@@ -1,0 +1,33 @@
+project_name: "whosthere"
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate
+
+# generate them ourselves to avoid issues with cross-compilation
+# goreleaser can only upload the checksum once, and within the context it doesn't have the other builds available
+checksum:
+  disable: true
+
+builds:
+  - main: ./main.go
+    binary: whosthere
+    goos: ["windows"]
+    goarch: ["amd64", "arm64"]
+    ldflags:
+      - -s -w -X main.versionStr={{.Version}}
+      - -X main.commitStr={{ .Commit }}
+      - -X main.dateStr={{ .Date }}
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+changelog:
+  sort: "asc"
+  filters:
+    exclude: ["^docs:", "demo", "^hugo:", "Merge pull request", "Merge branch"]

@@ -77,7 +77,7 @@ Whosthere is supported on the following platforms:
 
 - [x] Linux
 - [x] macOS
-- [ ] Windows (maybe in the future, contributions welcome!)
+- [x] Windows
 
 ## Key bindings (TUI)
 

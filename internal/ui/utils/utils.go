@@ -43,3 +43,15 @@ func Truncate(s string, maxLen int) string {
 	}
 	return s[:maxLen-1] + "…"
 }
+
+// SanitizeString returns the string if it contains only printable characters.
+// Otherwise, it returns a hex representation.
+func SanitizeString(s string) string {
+	for _, r := range s {
+		// Check for non-printable ASCII characters.
+		if r < 32 || r > 126 {
+			return fmt.Sprintf("0x%x", []byte(s))
+		}
+	}
+	return s
+}
