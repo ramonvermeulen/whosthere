@@ -81,7 +81,7 @@ func (s *Scanner) getIpNetTable(ctx context.Context) ([]Entry, error) {
 	r1, _, _ = procGetIpNetTable.Call(
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(unsafe.Pointer(&size)),
-		0, // ensure sorted
+		0, // unsorted
 	)
 
 	if r1 != 0 {
