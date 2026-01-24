@@ -1,0 +1,102 @@
+project_name: "whosthere"
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate
+
+builds:
+  - main: ./main.go
+    binary: whosthere
+    goos: ["darwin", "linux"]
+    goarch: ["386", "amd64", "arm64"]
+    ignore:
+      - goos: darwin
+        goarch: "386"
+    ldflags:
+      - -s -w -X main.versionStr={{.Version}}
+      - -X main.commitStr={{ .Commit }}
+      - -X main.dateStr={{ .Date }}
+    env:
+      # CGO_ENABLED=1 is required for clipboard support
+      # see https://github.com/golang-design/clipboard
+      - CGO_ENABLED=1
+    overrides:
+      # Darwin cross-compilers (provided by goreleaser-cross)
+      - goos: darwin
+        goarch: amd64
+        env:
+          - CC=o64-clang
+          - CXX=o64-clang++
+      - goos: darwin
+        goarch: arm64
+        env:
+          - CC=oa64-clang
+          - CXX=oa64-clang++
+      # Linux cross-compilers
+      - goos: linux
+        goarch: arm64
+        env:
+          - CC=aarch64-linux-gnu-gcc
+          - CXX=aarch64-linux-gnu-g++
+      - goos: linux
+        goarch: "386"
+        env:
+          - CC=i686-linux-gnu-gcc
+          - CXX=i686-linux-gnu-g++
+      - goos: linux
+        goarch: amd64
+        env:
+          - CC=x86_64-linux-gnu-gcc
+          - CXX=x86_64-linux-gnu-g++
+
+archives:
+  - formats: ["tar.gz"]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+
+changelog:
+  sort: "asc"
+  filters:
+    exclude: ["^docs:", "demo", "^hugo:", "Merge pull request", "Merge branch"]
+
+# Homebrew Cask for macOS (pre-built binaries)
+homebrew_casks:
+  - name: whosthere
+    binaries:
+      - whosthere
+    homepage: "https://github.com/ramonvermeulen/whosthere"
+    description: "Local network discovery tool with a modern Terminal User Interface (TUI) written in Go."
+    license: "Apache-2.0"
+    commit_author:
+      name: Ramon Vermeulen
+      email: ramonvermeulen98@gmail.com
+    repository:
+      owner: ramonvermeulen
+      name: homebrew-whosthere
+      branch: main
+
+# Homebrew Formula for Linux (pre-built binaries / bottles)
+brews:
+  - name: whosthere
+    homepage: "https://github.com/ramonvermeulen/whosthere"
+    description: "Local network discovery tool with a modern Terminal User Interface (TUI) written in Go."
+    license: "Apache-2.0"
+    commit_author:
+      name: Ramon Vermeulen
+      email: ramonvermeulen98@gmail.com
+    repository:
+      owner: ramonvermeulen
+      name: homebrew-whosthere
+      branch: main
+    directory: Formula
+    # Only include Linux binaries in the formula
+    goamd64: v1
+    skip_upload: auto
+    install: |
+      bin.install "whosthere"
+    test: |
+      system "#{bin}/whosthere", "version"
