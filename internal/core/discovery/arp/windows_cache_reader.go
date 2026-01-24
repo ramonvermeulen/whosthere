@@ -32,13 +32,6 @@ type MIB_IPNETROW struct {
 	Type        uint32
 }
 
-// MIB_IPNETTABLE structure contains a table of ARP entries.
-// The NumEntries field tells us how many rows follow.
-// In C this is `DWORD dwNumEntries; MIB_IPNETROW table[ANY_SIZE];`
-type MIB_IPNETTABLE struct {
-	NumEntries uint32
-}
-
 var (
 	modiphlpapi       = syscall.NewLazyDLL("iphlpapi.dll")
 	procGetIpNetTable = modiphlpapi.NewProc("GetIpNetTable")
@@ -62,7 +55,7 @@ func (s *Scanner) getIpNetTable(ctx context.Context) ([]Entry, error) {
 	// First call to determine size
 	var size uint32
 	// Return value 122 (ERROR_INSUFFICIENT_BUFFER) is expected
-	r1, _, _ := procGetIpNetTable.Call(
+	_, _, _ = procGetIpNetTable.Call(
 		0,
 		uintptr(unsafe.Pointer(&size)),
 		0,
@@ -76,7 +69,7 @@ func (s *Scanner) getIpNetTable(ctx context.Context) ([]Entry, error) {
 	}
 
 	buf := make([]byte, size)
-	r1, _, _ = procGetIpNetTable.Call(
+	r1, _, _ := procGetIpNetTable.Call(
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(unsafe.Pointer(&size)),
 		0, // ensure sorted
