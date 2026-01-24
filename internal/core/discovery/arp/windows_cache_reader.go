@@ -102,12 +102,32 @@ func (s *Scanner) getIpNetTable(ctx context.Context) ([]Entry, error) {
 	}
 
 	// Parse the buffer
+	if len(buf) < 4 {
+		return nil, fmt.Errorf("buffer too small for MIB_IPNETTABLE header: %d", len(buf))
+	}
+
 	// Cast to MIB_IPNETTABLE pointer
 	table := (*MIB_IPNETTABLE)(unsafe.Pointer(&buf[0]))
 	numEntries := table.NumEntries
 
+	if numEntries == 0 {
+		return []Entry{}, nil
+	}
+
+	// Verify buffer size
+	// Offset of Table field is 4 bytes.
+	// Each row is sizeof(MIB_IPNETROW).
+	// We use unsafe.Sizeof to be robust to struct layout.
+	rowSize := unsafe.Sizeof(MIB_IPNETROW{})
+	expectedSize := uintptr(4) + uintptr(numEntries)*rowSize
+
+	if uintptr(len(buf)) < expectedSize {
+		return nil, fmt.Errorf("buffer too small for %d entries: expected %d, got %d", numEntries, expectedSize, len(buf))
+	}
+
 	var entries []Entry
 
+	// Safe to create slice now
 	rows := unsafe.Slice(&table.Table[0], numEntries)
 
 	for _, row := range rows {
