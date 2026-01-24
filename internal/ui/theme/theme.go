@@ -842,6 +842,8 @@ var registry = map[string]tview.Theme{
 	},
 }
 
+var primitives []tview.Primitive
+
 // Resolve returns the theme by name. Unknown names fall back to default; "custom" applies overrides atop default.
 func Resolve(tc *config.ThemeConfig) tview.Theme {
 	name := strings.ToLower(strings.TrimSpace(config.DefaultThemeName))
@@ -933,18 +935,15 @@ func Names() []string {
 	return names
 }
 
-// todo(ramon) this logic is weird, why not just use one place to register in the App?
-var registerFunc func(tview.Primitive)
-
-// SetRegisterFunc sets the function to call for registering primitives for theme updates.
-func SetRegisterFunc(fn func(tview.Primitive)) {
-	registerFunc = fn
-}
-
 // RegisterPrimitive registers a primitive for theme updates.
 func RegisterPrimitive(p tview.Primitive) {
-	if registerFunc != nil {
-		registerFunc(p)
+	primitives = append(primitives, p)
+}
+
+// ApplyThemeToAllRegisteredPrimitives applies the current theme to all registered primitives.
+func ApplyThemeToAllRegisteredPrimitives() {
+	for _, p := range primitives {
+		ApplyToPrimitive(p)
 	}
 }
 

@@ -1,11 +1,12 @@
----
+______________________________________________________________________
+
 name: Feature request
 about: Suggest a new feature or improvement to be added to whosthere
 title: ''
 labels: 'feature-request'
 assignees: ''
 
----
+______________________________________________________________________
 
 **Is your feature request related to a problem? Please describe.**
 A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]

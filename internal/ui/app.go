@@ -33,7 +33,6 @@ type App struct {
 	scanTicker    *time.Ticker
 	refreshTicker *time.Ticker
 	cfg           *config.Config
-	primitives    []tview.Primitive
 	events        chan events.Event
 	emit          func(events.Event)
 	portScanner   *discovery.PortScanner
@@ -59,8 +58,6 @@ func NewApp(cfg *config.Config, ouiDB *oui.Registry, version string) (*App, erro
 		a.events <- e
 	}
 	a.pages = tview.NewPages()
-
-	theme.SetRegisterFunc(a.RegisterThemeAwarePrimitive)
 
 	a.applyTheme(appState.CurrentTheme())
 	a.setupPages(cfg)
@@ -210,19 +207,12 @@ func (a *App) performScan() {
 	a.emit(events.DiscoveryStopped{})
 }
 
-// RegisterThemeAwarePrimitive registers a primitive for theme updates.
-func (a *App) RegisterThemeAwarePrimitive(p tview.Primitive) {
-	a.primitives = append(a.primitives, p)
-}
-
 // applyTheme applies a theme by name, updates state, applies to primitives, and renders all pages.
 func (a *App) applyTheme(name string) {
 	a.cfg.Theme.Name = name
 	th := theme.Resolve(&a.cfg.Theme)
 	tview.Styles = th
-	for _, p := range a.primitives {
-		theme.ApplyToPrimitive(p)
-	}
+	theme.ApplyThemeToAllRegisteredPrimitives()
 	a.rerenderVisibleViews()
 }
 

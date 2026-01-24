@@ -6,14 +6,14 @@
 [![GitHub Release](https://img.shields.io/github/v/release/ramonvermeulen/whosthere)](https://github.com/ramonvermeulen/whosthere/releases)
 [![GitHub Repo stars](https://img.shields.io/github/stars/ramonvermeulen/whosthere)](https://github.com/ramonvermeulen/whosthere)
 
-Local Area Network discovery tool with a modern Terminal User Interface (TUI) written in Go. 
+Local Area Network discovery tool with a modern Terminal User Interface (TUI) written in Go.
 Discover, explore, and understand your LAN in an intuitive way.
 
 Whosthere performs **unprivileged, concurrent scans** using [**mDNS**](https://en.wikipedia.org/wiki/Multicast_DNS)
-and [**SSDP**](https://en.wikipedia.org/wiki/Simple_Service_Discovery_Protocol) scanners. Additionally, it sweeps the 
-local subnet by attempting TCP/UDP connections to trigger ARP resolution, then reads the 
-[**ARP cache**](https://en.wikipedia.org/wiki/Address_Resolution_Protocol) to identify devices on your Local Area Network. 
-This technique populates the ARP cache without requiring elevated privileges. All discovered devices are enhanced with 
+and [**SSDP**](https://en.wikipedia.org/wiki/Simple_Service_Discovery_Protocol) scanners. Additionally, it sweeps the
+local subnet by attempting TCP/UDP connections to trigger ARP resolution, then reads the
+[**ARP cache**](https://en.wikipedia.org/wiki/Address_Resolution_Protocol) to identify devices on your Local Area Network.
+This technique populates the ARP cache without requiring elevated privileges. All discovered devices are enhanced with
 [**OUI**](https://standards-oui.ieee.org/) lookups to display manufacturers when available.
 
 Whosthere provides a friendly, intuitive way to answer the question every network administrator asks: "Who's there on my network?"
@@ -174,7 +174,7 @@ port_scanner:
 When running Whosthere in daemon mode, it exposes an very simplistic HTTP API with the following endpoints:
 
 | Method | Endpoint       | Description                        |
-| ------ |----------------| ---------------------------------- |
+| ------ | -------------- | ---------------------------------- |
 | GET    | `/devices`     | Get list of all discovered devices |
 | GET    | `/device/{ip}` | Get details of a specific device   |
 | GET    | `/health`      | Health check                       |
@@ -203,14 +203,17 @@ Logs are written to the application's state directory:
 When not running in TUI mode, logs are also output to the console.
 
 ## Known Issues
+
 For clipboard functionality to work:
 
 **Runtime requirements:**
+
 - **Linux (X11)**: X11 client library (e.g., `libx11-6` on Ubuntu, `libX11` on Fedora/Arch, often pre-installed).
 - **Linux (Wayland)**: Not natively supported. May require XWayland.
 - **macOS/Windows**: No dependencies.
 
 **Build requirements** (when compiling from source):
+
 - Linux: X11 development package (`libx11-dev`, `libX11-devel`, or `libx11`)
 
 ## Disclaimer

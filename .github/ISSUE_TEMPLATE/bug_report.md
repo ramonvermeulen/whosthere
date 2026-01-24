@@ -1,13 +1,15 @@
----
+______________________________________________________________________
+
 name: Bug report
 about: Bug report to help improve whosthere
 title: ''
 labels: 'bug'
 assignees: ''
 
----
+______________________________________________________________________
 
 **Output of `whosthere version`**
+
 ```
 <please paste the output of `whosthere version` here, this helps with reproducing the issue>
 ```
