@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  goreleaser-darwin:
+  goreleaser:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
