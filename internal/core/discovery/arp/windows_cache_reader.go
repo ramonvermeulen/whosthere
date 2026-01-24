@@ -69,9 +69,6 @@ func (s *Scanner) getIpNetTable(ctx context.Context) ([]Entry, error) {
 	)
 
 	// If it's not ERROR_INSUFFICIENT_BUFFER (122) and not NO_ERROR (0), something is wrong.
-	if r1 != 0 && r1 != 122 {
-		// Just in case it failed catastrophically, but usually it returns 122 or 87 (invalid param) if buffer is needed
-	}
 
 	// Just to be safe, if size is 0, give it some room (e.g. 15kb)
 	if size == 0 {
@@ -125,7 +122,10 @@ func (s *Scanner) getIpNetTable(ctx context.Context) ([]Entry, error) {
 	// On 32-bit and 64-bit Windows, alignof(DWORD) is 4.
 	// So offset 4 is valid.
 	var entries []Entry
-	startPtr := uintptr(unsafe.Pointer(&buf[0])) + 4
+	// Calculate the connection between the header and the rows
+	// We handle the offset calculation directly in the unsafe.Pointer conversion expression
+	// to satisfy govet's unsafeptr checking rules.
+	basePtr := unsafe.Pointer(&buf[0])
 
 	for i := uint32(0); i < numEntries; i++ {
 		// Check context
@@ -135,7 +135,13 @@ func (s *Scanner) getIpNetTable(ctx context.Context) ([]Entry, error) {
 		default:
 		}
 
-		rowPtr := (*MIB_IPNETROW)(unsafe.Pointer(startPtr + (uintptr(i) * rowSize)))
+		// Calculate offset: 4 bytes (NumEntries) + (index * rowSize)
+		// Pattern: func Pointer(ptr uintptr) Pointer
+		// "The conversion of a uintptr back to Pointer is not valid in general."
+		// But: "Conversion of a uintptr back to Pointer is invalid usually, but..."
+		// "   p = unsafe.Pointer(uintptr(p) + offset)" is valid.
+
+		rowPtr := (*MIB_IPNETROW)(unsafe.Pointer(uintptr(basePtr) + 4 + (uintptr(i) * rowSize)))
 
 		// Index must match our interface index
 		if int(rowPtr.Index) != s.iface.Interface.Index {
