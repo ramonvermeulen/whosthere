@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var noColor = os.Getenv("NO_COLOR") == "1" || os.Getenv("NO_COLOR") == "true"
+var noColor = os.Getenv("NO_COLOR") != ""
 
 var registry = map[string]tview.Theme{
 	config.DefaultThemeName: {
