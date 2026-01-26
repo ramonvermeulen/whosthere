@@ -46,7 +46,7 @@ func BuildEngine(iface *discovery.InterfaceInfo, ouiDB *oui.Registry, enabled []
 
 	if ouiDB != nil {
 		return discovery.NewEngine(scanners, discovery.WithTimeout(timeout), discovery.WithOUIRegistry(ouiDB))
-	} else {
-		return discovery.NewEngine(scanners, discovery.WithTimeout(timeout))
 	}
+
+	return discovery.NewEngine(scanners, discovery.WithTimeout(timeout))
 }

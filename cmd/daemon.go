@@ -35,7 +35,7 @@ func runDaemon(cmd *cobra.Command, _ []string) error {
 		zap.L().Info("no port specified, using default port", zap.String("port", port))
 	}
 
-	result, err := InitComponents("", true)
+	result, err := InitComponents("", whosthereFlags.NetworkInterface, true)
 	if err != nil {
 		return err
 	}

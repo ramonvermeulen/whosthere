@@ -19,7 +19,7 @@ type InitResult struct {
 	Interface *discovery.InterfaceInfo
 }
 
-func InitComponents(configFileOverride string, enableStdout bool) (*InitResult, error) {
+func InitComponents(configFileOverride, interfaceOverride string, enableStdout bool) (*InitResult, error) {
 	level := logging.LevelFromEnv(zapcore.InfoLevel)
 	logger, logPath, err := logging.Init(level, enableStdout)
 	if err != nil {
@@ -39,7 +39,12 @@ func InitComponents(configFileOverride string, enableStdout bool) (*InitResult, 
 		ouiDB = nil
 	}
 
-	iface, err := discovery.NewInterfaceInfo(cfg.NetworkInterface)
+	networkInterface := cfg.NetworkInterface
+	if interfaceOverride != "" {
+		networkInterface = interfaceOverride
+	}
+
+	iface, err := discovery.NewInterfaceInfo(networkInterface)
 	if err != nil {
 		return nil, err
 	}

@@ -27,7 +27,7 @@ Examples:
 		timeoutSec, _ := cmd.Flags().GetInt("timeout")
 		scanDuration := time.Duration(timeoutSec) * time.Second
 
-		result, err := InitComponents("", true)
+		result, err := InitComponents("", whosthereFlags.NetworkInterface, true)
 		if err != nil {
 			return err
 		}

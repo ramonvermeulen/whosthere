@@ -24,13 +24,11 @@ var (
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   appName,
-		Short: shortAppDesc,
-		Long:  longAppDesc,
-		CompletionOptions: cobra.CompletionOptions{
-			DisableDefaultCmd: true,
-		},
-		RunE: run,
+		Use:          appName,
+		Short:        shortAppDesc,
+		Long:         longAppDesc,
+		SilenceUsage: true,
+		RunE:         run,
 	}
 
 	whosthereFlags = &config.Flags{}
@@ -41,7 +39,7 @@ func init() {
 		cyan = ""
 		reset = ""
 	}
-	longAppDesc = cyan + "whosthere [global options] <subcommand> [args]\n" + reset + `
+	longAppDesc = cyan + "whosthere [global flags] <subcommand> [args]\n" + reset + `
 Knock Knock..
           _               _   _                   ___
 __      _| |__   ___  ___| |_| |__   ___ _ __ ___/ _ \
@@ -73,7 +71,7 @@ func SetVersion(v string) {
 }
 
 func run(*cobra.Command, []string) error {
-	result, err := InitComponents(whosthereFlags.ConfigFile, false)
+	result, err := InitComponents(whosthereFlags.ConfigFile, whosthereFlags.NetworkInterface, false)
 	if err != nil {
 		return err
 	}
@@ -113,17 +111,23 @@ func run(*cobra.Command, []string) error {
 }
 
 func initWhosthereFlags() {
-	rootCmd.Flags().StringVarP(
+	rootCmd.PersistentFlags().StringVarP(
 		&whosthereFlags.ConfigFile,
 		"config-file", "c",
 		"",
-		"Path to config file.",
+		"Path to config file (overrides default).",
 	)
-	rootCmd.Flags().StringVar(
+	rootCmd.PersistentFlags().StringVar(
 		&whosthereFlags.PprofPort,
 		"pprof-port",
 		"",
-		"Port for pprof HTTP server for debugging and profiling purposes (e.g., 6060)",
+		"Pprof HTTP server port for debugging and profiling purposes (e.g., 6060)",
+	)
+	rootCmd.PersistentFlags().StringVarP(
+		&whosthereFlags.NetworkInterface,
+		"interface", "i",
+		"",
+		"Network interface to use for scanning (overrides config).",
 	)
 }
 
