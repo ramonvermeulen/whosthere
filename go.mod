@@ -4,7 +4,7 @@ go 1.25.4
 
 require (
 	github.com/dece2183/go-clipboard v1.0.0
-	github.com/gdamore/tcell/v2 v2.13.7
+	github.com/gdamore/tcell/v2 v2.13.8
 	github.com/goccy/go-yaml v1.19.2
 	github.com/rivo/tview v0.42.0
 	github.com/spf13/cobra v1.10.2
