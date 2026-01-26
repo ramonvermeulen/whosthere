@@ -44,7 +44,11 @@ func runDaemon(cmd *cobra.Command, _ []string) error {
 
 	appState := state.NewAppState(result.Config, version.Version)
 
-	eng := core.BuildEngine(result.Interface, result.OuiDB, []string{"ssdp", "arp", "mdns"}, 30*time.Second)
+	eng := core.BuildEngine(result.Interface, result.OuiDB, result.Config)
+
+	if eng.Sweeper != nil {
+		eng.Sweeper.Start(ctx)
+	}
 
 	http.HandleFunc("/devices", func(w http.ResponseWriter, r *http.Request) {
 		handleDevices(w, r, appState)

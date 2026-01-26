@@ -11,42 +11,29 @@ import (
 	"github.com/ramonvermeulen/whosthere/internal/core/oui"
 )
 
-func BuildScanners(iface *discovery.InterfaceInfo, enabled []string) ([]discovery.Scanner, *arp.Sweeper) {
-	sweeper := arp.NewSweeper(iface, 5*time.Minute, time.Minute)
+func BuildEngine(iface *discovery.InterfaceInfo, ouiDB *oui.Registry, cfg *config.Config) *discovery.Engine {
 	var scanners []discovery.Scanner
-	for _, e := range enabled {
-		switch e {
-		case "ssdp":
-			scanners = append(scanners, ssdp.NewScanner(iface))
-		case "arp":
-			scanners = append(scanners, arp.NewScanner(iface, sweeper))
-		case "mdns":
-			scanners = append(scanners, mdns.NewScanner(iface))
-		}
-	}
-	return scanners, sweeper
-}
 
-func GetEnabledFromCfg(cfg *config.Config) []string {
-	var enabled []string
 	if cfg.Scanners.SSDP.Enabled {
-		enabled = append(enabled, "ssdp")
+		scanners = append(scanners, ssdp.NewScanner(iface))
 	}
 	if cfg.Scanners.ARP.Enabled {
-		enabled = append(enabled, "arp")
+		scanners = append(scanners, arp.NewScanner(iface))
 	}
 	if cfg.Scanners.MDNS.Enabled {
-		enabled = append(enabled, "mdns")
+		scanners = append(scanners, mdns.NewScanner(iface))
 	}
-	return enabled
-}
 
-func BuildEngine(iface *discovery.InterfaceInfo, ouiDB *oui.Registry, enabled []string, timeout time.Duration) *discovery.Engine {
-	scanners, _ := BuildScanners(iface, enabled)
-
+	opts := []discovery.EngineOption{discovery.WithTimeout(cfg.ScanDuration)}
 	if ouiDB != nil {
-		return discovery.NewEngine(scanners, discovery.WithTimeout(timeout), discovery.WithOUIRegistry(ouiDB))
+		opts = append(opts, discovery.WithOUIRegistry(ouiDB))
 	}
 
-	return discovery.NewEngine(scanners, discovery.WithTimeout(timeout))
+	engine := discovery.NewEngine(scanners, opts...)
+
+	if cfg.Sweeper.Enabled {
+		engine.Sweeper = discovery.NewSweeper(iface, cfg.Sweeper.Interval, time.Minute)
+	}
+
+	return engine
 }

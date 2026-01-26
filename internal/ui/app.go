@@ -41,9 +41,12 @@ type App struct {
 	clipboard     *clipboard.Clipboard
 }
 
-func NewApp(cfg *config.Config, ouiDB *oui.Registry, version string) (*App, error) {
+func NewApp(cfg *config.Config, ouiDB *oui.Registry, iface *discovery.InterfaceInfo, version string) (*App, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config cannot be nil")
+	}
+	if iface == nil {
+		return nil, fmt.Errorf("interface cannot be nil")
 	}
 
 	app := tview.NewApplication()
@@ -64,10 +67,7 @@ func NewApp(cfg *config.Config, ouiDB *oui.Registry, version string) (*App, erro
 
 	a.applyTheme(appState.CurrentTheme())
 	a.setupPages(cfg)
-	err := a.setupEngine(cfg, ouiDB)
-	if err != nil {
-		return nil, fmt.Errorf("failed to setup engine: %w", err)
-	}
+	a.setupEngine(iface, ouiDB)
 
 	app.SetRoot(a.pages, true)
 	app.SetInputCapture(a.handleGlobalKeys)
@@ -97,6 +97,9 @@ func (a *App) Run() error {
 	}
 
 	if a.engine != nil && a.cfg != nil {
+		if a.engine.Sweeper != nil {
+			a.engine.Sweeper.Start(context.Background())
+		}
 		a.startDiscoveryScanLoop()
 	}
 
@@ -123,18 +126,9 @@ func (a *App) setupPages(cfg *config.Config) {
 	a.pages.SwitchToPage(initialPage)
 }
 
-// methods like this can be re-used for other commands
-func (a *App) setupEngine(cfg *config.Config, ouiDB *oui.Registry) error {
-	iface, err := discovery.NewInterfaceInfo(cfg.NetworkInterface)
-	if err != nil {
-		return fmt.Errorf("failed to get network interface: %w", err)
-	}
-
+func (a *App) setupEngine(iface *discovery.InterfaceInfo, ouiDB *oui.Registry) {
 	a.portScanner = discovery.NewPortScanner(100, iface)
-
-	a.engine = core.BuildEngine(iface, ouiDB, core.GetEnabledFromCfg(cfg), cfg.ScanDuration)
-
-	return nil
+	a.engine = core.BuildEngine(iface, ouiDB, a.cfg)
 }
 
 func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {

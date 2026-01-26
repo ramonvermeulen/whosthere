@@ -117,12 +117,33 @@ func marshalConfigWithComments(cfg *Config) ([]byte, error) {
 
 	commented := fmt.Sprintf(`# whosthere configuration file
 # For more information, visit: https://github.com/ramonvermeulen/whosthere
+# Uncomment the next line to configure a specific network interface - uses OS default if not set
+# network_interface: eth0
 
 # How often to run discovery scans
 scan_interval: %s
 
 # Maximum duration for each scan
 scan_duration: %s
+
+# Scanner configuration
+scanners:
+  mdns:
+    enabled: %t
+  ssdp:
+    enabled: %t
+  arp:
+    enabled: %t
+
+sweeper:
+  enabled: %t
+  sweep_interval: %s
+
+# Port scanner configuration
+port_scanner:
+  timeout: %s
+  # List of TCP ports to scan on discovered devices
+  tcp: [%s]
 
 # Splash screen configuration
 splash:
@@ -151,36 +172,20 @@ theme:
   # tertiary_text_color: "#ffaa00"
   # inverse_text_color: "#000a1a"
   # contrast_secondary_text_color: "#88ddff"
-
-# Scanner configuration
-scanners:
-  mdns:
-    enabled: %t
-  ssdp:
-    enabled: %t
-  arp:
-    enabled: %t
-
-# Port scanner configuration
-port_scanner:
-  timeout: %s
-  # List of TCP ports to scan on discovered devices
-  tcp: [%s]
-
-# Uncomment the next line to configure a specific network interface - uses OS default if not set
-# network_interface: eth0
 `,
 		cfg.ScanInterval,
 		cfg.ScanDuration,
+		cfg.Scanners.MDNS.Enabled,
+		cfg.Scanners.SSDP.Enabled,
+		cfg.Scanners.ARP.Enabled,
+		cfg.Sweeper.Enabled,
+		cfg.Sweeper.Interval,
+		cfg.PortScanner.Timeout,
+		strings.Join(tcpPorts, ", "),
 		cfg.Splash.Enabled,
 		cfg.Splash.Delay,
 		cfg.Theme.Enabled,
 		cfg.Theme.Name,
-		cfg.Scanners.MDNS.Enabled,
-		cfg.Scanners.SSDP.Enabled,
-		cfg.Scanners.ARP.Enabled,
-		cfg.PortScanner.Timeout,
-		strings.Join(tcpPorts, ", "),
 	)
 
 	return []byte(commented), nil

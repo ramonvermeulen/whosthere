@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/ramonvermeulen/whosthere/internal/core"
+	"github.com/ramonvermeulen/whosthere/internal/core/config"
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
 )
 
@@ -34,25 +34,8 @@ Examples:
 
 		ctx := context.Background()
 
-		var enabled []string
-		requested := strings.Split(scannerNames, ",")
-		for _, r := range requested {
-			r = strings.TrimSpace(strings.ToLower(r))
-			switch r {
-			case "", "all":
-				enabled = []string{"ssdp", "arp", "mdns"}
-			case "ssdp", "arp", "mdns":
-				enabled = append(enabled, r)
-			default:
-				return fmt.Errorf("unknown scanner: %s", r)
-			}
-		}
-
-		if len(enabled) == 0 {
-			return fmt.Errorf("no scanners selected")
-		}
-
-		eng := core.BuildEngine(result.Interface, result.OuiDB, enabled, scanDuration)
+		applyFlagOverrides(result.Config, scannerNames, scanDuration)
+		eng := core.BuildEngine(result.Interface, result.OuiDB, result.Config)
 
 		ctx, cancel := context.WithTimeout(ctx, scanDuration)
 		defer cancel()
@@ -76,7 +59,39 @@ Examples:
 }
 
 func init() {
-	scanCmd.Flags().StringP("scanner", "s", "all", "Comma-separated scanners to run (mdns,ssdp,arp,all)")
+	scanCmd.Flags().StringP("scanner", "s", "", "Comma-separated scanners to run, this overrides the config")
 	scanCmd.Flags().IntP("timeout", "t", 10, "Timeout in seconds for the scan")
 	rootCmd.AddCommand(scanCmd)
+}
+
+func applyFlagOverrides(cfg *config.Config, scannerNames string, duration time.Duration) {
+	cfg.ScanDuration = duration
+	cfg.Sweeper.Enabled = false
+
+	if scannerNames == "" {
+		return
+	}
+
+	cfg.Scanners = config.ScannerConfig{
+		SSDP: config.ScannerToggle{Enabled: false},
+		ARP:  config.ScannerToggle{Enabled: false},
+		MDNS: config.ScannerToggle{Enabled: false},
+	}
+
+	requested := strings.Split(scannerNames, ",")
+	for _, r := range requested {
+		r = strings.TrimSpace(strings.ToLower(r))
+		switch r {
+		case "ssdp":
+			cfg.Scanners.SSDP.Enabled = true
+		case "arp":
+			cfg.Scanners.ARP.Enabled = true
+		case "mdns":
+			cfg.Scanners.MDNS.Enabled = true
+		case "all":
+			cfg.Scanners.SSDP.Enabled = true
+			cfg.Scanners.ARP.Enabled = true
+			cfg.Scanners.MDNS.Enabled = true
+		}
+	}
 }

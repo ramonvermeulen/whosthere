@@ -125,9 +125,6 @@ func TestYAMLUnmarshalAndValidateHappyPath(t *testing.T) {
 	raw := `
 scan_interval: 15s
 scan_duration: 5s
-splash:
-  enabled: false
-  delay: 750ms
 scanners:
   mdns:
     enabled: true
@@ -138,6 +135,9 @@ scanners:
 port_scanner:
   timeout: 5s
   tcp: [80, 443]
+splash:
+  enabled: false
+  delay: 750ms
 `
 
 	cfg := DefaultConfig()
@@ -179,9 +179,6 @@ func TestYAMLUnmarshalAndValidateFixesInvalids(t *testing.T) {
 	raw := `
 scan_interval: -5s
 scan_duration: 0s
-splash:
-  enabled: true
-  delay: -2s
 scanners:
   mdns:
     enabled: false
@@ -189,6 +186,9 @@ scanners:
     enabled: false
   arp:
     enabled: false
+splash:
+  enabled: true
+  delay: -2s
 `
 
 	cfg := DefaultConfig()

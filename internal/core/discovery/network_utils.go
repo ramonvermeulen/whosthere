@@ -69,7 +69,7 @@ func getNetworkInterface(interfaceName string) (*net.Interface, error) {
 
 // getDefaultInterface attempts to return the OS default network interface
 func getDefaultInterface() (*net.Interface, error) {
-	// try to get default interface by sending UDP packet
+	// try to get the default interface by sending UDP packet
 	if name, err := getInterfaceNameByUDP(); err == nil {
 		return name, nil
 	}
@@ -131,19 +131,4 @@ func getInterfaceNameByUDP() (*net.Interface, error) {
 	}
 
 	return nil, fmt.Errorf("interface not found for IP %s", localAddr.IP)
-}
-
-// GetInterfaceIP returns the first IPv4 address of the interface.
-// Returns an error if no IPv4 address is found.
-func GetInterfaceIP(iface *net.Interface) (net.IP, error) {
-	addresses, err := iface.Addrs()
-	if err != nil {
-		return nil, err
-	}
-	for _, addr := range addresses {
-		if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
-			return ipnet.IP, nil
-		}
-	}
-	return nil, fmt.Errorf("no IPv4 address found for interface %s", iface.Name)
 }

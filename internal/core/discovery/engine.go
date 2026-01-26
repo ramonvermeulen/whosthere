@@ -19,6 +19,7 @@ type Scanner interface {
 // Engine coordinates multiple scanners and merges device results.
 type Engine struct {
 	Scanners    []Scanner
+	Sweeper     *Sweeper
 	Timeout     time.Duration
 	OUIRegistry *oui.Registry
 }

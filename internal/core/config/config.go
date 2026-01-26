@@ -8,19 +8,63 @@ import (
 )
 
 const (
-	DefaultSplashEnabled = true
-	DefaultThemeEnabled  = true
-	DefaultSplashDelay   = 1 * time.Second
+	DefaultSplashEnabled  = true
+	DefaultThemeEnabled   = true
+	DefaultSweeperEnabled = true
+	DefaultSplashDelay    = 1 * time.Second
 
 	DefaultScanInterval    = 20 * time.Second
 	DefaultScanDuration    = 10 * time.Second
 	DefaultPortScanTimeout = 5 * time.Second
+	DefaultSweeperInterval = 300 * time.Second
 
 	DefaultThemeName = "default"
 	CustomThemeName  = "custom"
 )
 
 var DefaultTCPPorts = []int{21, 22, 23, 25, 80, 110, 135, 139, 143, 389, 443, 445, 993, 995, 1433, 1521, 3306, 3389, 5432, 5900, 8080, 8443, 9000, 9090, 9200, 9300, 10000, 27017}
+
+// Config captures all configurable parameters for the application.
+type Config struct {
+	NetworkInterface string            `yaml:"network_interface"`
+	ScanInterval     time.Duration     `yaml:"scan_interval"`
+	ScanDuration     time.Duration     `yaml:"scan_duration"`
+	Scanners         ScannerConfig     `yaml:"scanners"`
+	Sweeper          SweeperConfig     `yaml:"sweeper"`
+	PortScanner      PortScannerConfig `yaml:"port_scanner"`
+	Splash           SplashConfig      `yaml:"splash"`
+	Theme            ThemeConfig       `yaml:"theme"`
+}
+
+// ScannerToggle lets users enable/disable a scanner.
+type ScannerToggle struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+// ScannerConfig groups scanner enablement flags.
+type ScannerConfig struct {
+	MDNS ScannerToggle `yaml:"mdns"`
+	SSDP ScannerToggle `yaml:"ssdp"`
+	ARP  ScannerToggle `yaml:"arp"`
+}
+
+// SweeperConfig controls the sweeper behavior.
+type SweeperConfig struct {
+	Enabled  bool          `yaml:"enabled"`
+	Interval time.Duration `yaml:"interval"`
+}
+
+// PortScannerConfig defines TCP ports to scan.
+type PortScannerConfig struct {
+	TCP     []int         `yaml:"tcp"`
+	Timeout time.Duration `yaml:"timeout"`
+}
+
+// SplashConfig controls the splash screen visibility and timing.
+type SplashConfig struct {
+	Enabled bool          `yaml:"enabled"`
+	Delay   time.Duration `yaml:"delay"`
+}
 
 // ThemeConfig selects a theme by name and optionally carries custom color overrides.
 type ThemeConfig struct {
@@ -39,53 +83,32 @@ type ThemeConfig struct {
 	ContrastSecondaryTextColor  string `yaml:"contrast_secondary_text_color"`
 }
 
-// PortScannerConfig defines TCP ports to scan.
-type PortScannerConfig struct {
-	TCP     []int         `yaml:"tcp"`
-	Timeout time.Duration `yaml:"timeout"`
-}
-
-// SplashConfig controls the splash screen visibility and timing.
-type SplashConfig struct {
-	Enabled bool          `yaml:"enabled"`
-	Delay   time.Duration `yaml:"delay"`
-}
-
-// ScannerConfig groups scanner enablement flags.
-type ScannerConfig struct {
-	MDNS ScannerToggle `yaml:"mdns"`
-	SSDP ScannerToggle `yaml:"ssdp"`
-	ARP  ScannerToggle `yaml:"arp"`
-}
-
-// ScannerToggle lets users enable/disable a scanner.
-type ScannerToggle struct {
-	Enabled bool `yaml:"enabled"`
-}
-
-// Config captures all configurable parameters for the application.
-type Config struct {
-	ScanInterval     time.Duration     `yaml:"scan_interval"`
-	ScanDuration     time.Duration     `yaml:"scan_duration"`
-	Splash           SplashConfig      `yaml:"splash"`
-	Theme            ThemeConfig       `yaml:"theme"`
-	Scanners         ScannerConfig     `yaml:"scanners"`
-	PortScanner      PortScannerConfig `yaml:"port_scanner"`
-	NetworkInterface string            `yaml:"network_interface"`
-}
-
 // DefaultConfig builds a Config pre-populated with baked-in defaults.
 func DefaultConfig() *Config {
 	return &Config{
 		ScanInterval: DefaultScanInterval,
 		ScanDuration: DefaultScanDuration,
+		Scanners: ScannerConfig{
+			MDNS: ScannerToggle{Enabled: true},
+			SSDP: ScannerToggle{Enabled: true},
+			ARP:  ScannerToggle{Enabled: true},
+		},
+		Sweeper: SweeperConfig{
+			Enabled:  DefaultSweeperEnabled,
+			Interval: DefaultSweeperInterval,
+		},
+		PortScanner: PortScannerConfig{
+			TCP:     DefaultTCPPorts,
+			Timeout: DefaultPortScanTimeout,
+		},
 		Splash: SplashConfig{
 			Enabled: DefaultSplashEnabled,
 			Delay:   DefaultSplashDelay,
 		},
-		Theme:       ThemeConfig{Name: DefaultThemeName, Enabled: DefaultThemeEnabled},
-		Scanners:    ScannerConfig{MDNS: ScannerToggle{Enabled: true}, SSDP: ScannerToggle{Enabled: true}, ARP: ScannerToggle{Enabled: true}},
-		PortScanner: PortScannerConfig{TCP: DefaultTCPPorts, Timeout: DefaultPortScanTimeout},
+		Theme: ThemeConfig{
+			Name:    DefaultThemeName,
+			Enabled: DefaultThemeEnabled,
+		},
 	}
 }
 
@@ -126,6 +149,10 @@ func (c *Config) validateAndNormalize() error {
 
 	if c.PortScanner.Timeout <= 0 {
 		c.PortScanner.Timeout = DefaultPortScanTimeout
+	}
+
+	if c.Sweeper.Interval <= 0 {
+		c.Sweeper.Interval = DefaultSweeperInterval
 	}
 
 	if strings.TrimSpace(c.Theme.Name) == "" {

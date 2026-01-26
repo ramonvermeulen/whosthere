@@ -96,7 +96,7 @@ func run(*cobra.Command, []string) error {
 		}()
 	}
 
-	app, err := ui.NewApp(cfg, ouiDB, version.Version)
+	app, err := ui.NewApp(cfg, ouiDB, result.Interface, version.Version)
 	if err != nil {
 		logger.Error("failed to create app", zap.Error(err))
 		return err

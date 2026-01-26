@@ -46,7 +46,7 @@ var (
 
 // readWindowsARPCache retrieves ARP entries using the Windows IP Helper API.
 func (s *Scanner) readWindowsARPCache(ctx context.Context, out chan<- discovery.Device) error {
-	log := zap.L().With(zap.String("scanner", "arp"))
+	log := zap.L().With(zap.String("scanner", s.Name()))
 
 	entries, err := s.getIpNetTable(ctx)
 	if err != nil {

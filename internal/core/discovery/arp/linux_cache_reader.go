@@ -18,7 +18,7 @@ import (
 // readLinuxARPCache reads /proc/net/arp and emits completed entries.
 // see https://man7.org/linux/man-pages/man5/proc_pid_net.5.html for more information about /proc/net/arp.
 func (s *Scanner) readLinuxARPCache(ctx context.Context, out chan<- discovery.Device) error {
-	log := zap.L().With(zap.String("scanner", "arp"))
+	log := zap.L().With(zap.String("scanner", s.Name()))
 
 	entries, err := parseProcNetARP(ctx, "/proc/net/arp")
 	if err != nil {
