@@ -137,7 +137,7 @@ scanners:
 
 sweeper:
   enabled: %t
-  sweep_interval: %s
+  interval: %s
 
 # Port scanner configuration
 port_scanner:
