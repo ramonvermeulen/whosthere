@@ -55,10 +55,10 @@ Knock Knock... who's there? 🚪`
 	return cmd
 }
 
-func Execute(v string) {
+func Execute() {
 	cobra.MousetrapHelpText = ""
 	rootCmd = NewRootCommand()
-	rootCmd.Version = v
+	rootCmd.Version = version.Version
 	setCobraUsageTemplate()
 	AddCommands(rootCmd)
 
