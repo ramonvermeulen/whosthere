@@ -15,31 +15,21 @@ import (
 )
 
 var (
-	appName      = "whosthere"
-	shortAppDesc = "Local network discovery tool with a modern TUI interface."
-	cyan         = "\033[36m"
-	reset        = "\033[0m"
-	longAppDesc  string
-)
-
-var (
-	rootCmd = &cobra.Command{
-		Use:          appName,
-		Short:        shortAppDesc,
-		Long:         longAppDesc,
-		SilenceUsage: true,
-		RunE:         run,
-	}
-
+	appName        = "whosthere"
+	shortAppDesc   = "Local network discovery tool with a modern TUI interface."
+	cyan           = "\033[36m"
+	reset          = "\033[0m"
+	rootCmd        *cobra.Command
 	whosthereFlags = &config.Flags{}
 )
 
-func init() {
+func NewRootCommand() *cobra.Command {
 	if theme.IsNoColor() {
 		cyan = ""
 		reset = ""
 	}
-	longAppDesc = cyan + "whosthere [global flags] <subcommand> [args]\n" + reset + `
+
+	longAppDesc := cyan + "whosthere [global flags] <subcommand> [args]\n" + reset + `
 Knock Knock..
           _               _   _                   ___
 __      _| |__   ___  ___| |_| |__   ___ _ __ ___/ _ \
@@ -52,22 +42,39 @@ Local Area Network discovery tool with a modern Terminal User Interface (TUI) wr
 Discover, explore, and understand your LAN in an intuitive way.
 
 Knock Knock... who's there? 🚪`
-	rootCmd.Long = longAppDesc
-	initWhosthereFlags()
-	setCobraUsageTemplate()
+
+	cmd := &cobra.Command{
+		Use:          appName,
+		Short:        shortAppDesc,
+		Long:         longAppDesc,
+		SilenceUsage: true,
+		RunE:         run,
+	}
+
+	initWhosthereFlags(cmd)
+	return cmd
 }
 
-// Execute is the entrypoint for the CLI application
-func Execute() {
+func Execute(version string) {
 	cobra.MousetrapHelpText = ""
-	err := rootCmd.Execute()
-	if err != nil {
+	rootCmd = NewRootCommand()
+	rootCmd.Version = version
+	setCobraUsageTemplate()
+	AddCommands(rootCmd)
+
+	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+
+	os.Exit(0)
 }
 
-func SetVersion(v string) {
-	rootCmd.Version = v
+func AddCommands(root *cobra.Command) {
+	root.AddCommand(
+		NewVersionCommand(),
+		NewDaemonCommand(),
+		NewScanCommand(),
+	)
 }
 
 func run(*cobra.Command, []string) error {
@@ -110,20 +117,20 @@ func run(*cobra.Command, []string) error {
 	return nil
 }
 
-func initWhosthereFlags() {
-	rootCmd.PersistentFlags().StringVarP(
+func initWhosthereFlags(cmd *cobra.Command) {
+	cmd.PersistentFlags().StringVarP(
 		&whosthereFlags.ConfigFile,
 		"config-file", "c",
 		"",
 		"Path to config file (overrides default).",
 	)
-	rootCmd.PersistentFlags().StringVar(
+	cmd.PersistentFlags().StringVar(
 		&whosthereFlags.PprofPort,
 		"pprof-port",
 		"",
 		"Pprof HTTP server port for debugging and profiling purposes (e.g., 6060)",
 	)
-	rootCmd.PersistentFlags().StringVarP(
+	cmd.PersistentFlags().StringVarP(
 		&whosthereFlags.NetworkInterface,
 		"interface", "i",
 		"",

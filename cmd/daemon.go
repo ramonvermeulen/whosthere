@@ -17,15 +17,20 @@ import (
 	"github.com/ramonvermeulen/whosthere/internal/core/version"
 )
 
-var daemonCmd = &cobra.Command{
-	Use:   "daemon",
-	Short: "Run whosthere in daemon mode with an HTTP API",
-	Long: `Run whosthere in daemon mode, continuously scanning the network and providing live device data via HTTP API.
+func NewDaemonCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "daemon",
+		Short: "Run whosthere in daemon mode with an HTTP API",
+		Long: `Run whosthere in daemon mode, continuously scanning the network and providing live device data via HTTP API.
 
 Examples:
  whosthere daemon --port 8080
 `,
-	RunE: runDaemon,
+		RunE: runDaemon,
+	}
+
+	cmd.Flags().StringP("port", "p", "", "Port for the HTTP API server")
+	return cmd
 }
 
 func runDaemon(cmd *cobra.Command, _ []string) error {
@@ -115,9 +120,4 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	zap.L().Info("incoming request", zap.String("method", r.Method), zap.String("path", r.URL.Path))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("OK"))
-}
-
-func init() {
-	daemonCmd.Flags().StringP("port", "p", "", "Port for the HTTP API server")
-	rootCmd.AddCommand(daemonCmd)
 }
