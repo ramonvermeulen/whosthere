@@ -9,12 +9,13 @@ import (
 
 func TestConfigDir(t *testing.T) {
 	// Test with XDG_CONFIG_HOME set
-	t.Setenv(xdgConfigDirEnv, filepath.FromSlash("/tmp/xdg_config"))
+	tmpDir := t.TempDir()
+	t.Setenv(xdgConfigDirEnv, tmpDir)
 	dir, err := ConfigDir()
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	expected := filepath.FromSlash("/tmp/xdg_config/whosthere")
+	expected := filepath.Join(tmpDir, appName)
 	if dir != expected {
 		t.Errorf("expected %s, got %s", expected, dir)
 	}
@@ -43,18 +44,21 @@ func TestConfigDir(t *testing.T) {
 
 func TestStateDir(t *testing.T) {
 	// Test with XDG_STATE_HOME set
-	t.Setenv(xdgStateDirEnv, filepath.FromSlash("/tmp/xdg_state"))
+	tmpDir := t.TempDir()
+	t.Setenv(xdgStateDirEnv, tmpDir)
 	dir, err := StateDir()
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	expected := filepath.FromSlash("/tmp/xdg_state/whosthere")
+	expected := filepath.Join(tmpDir, appName)
 	if dir != expected {
 		t.Errorf("expected %s, got %s", expected, dir)
 	}
 
-	// Test without XDG_STATE_HOME
+	// Test without XDG_STATE_HOME - use temp HOME to avoid writing to real home
 	t.Setenv(xdgStateDirEnv, "")
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
 	dir, err = StateDir()
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -70,8 +74,7 @@ func TestStateDir(t *testing.T) {
 			expected = filepath.Join(home, "AppData", "Local", appName)
 		}
 	} else {
-		home, _ := os.UserHomeDir()
-		expected = filepath.Join(home, defaultStateDir, appName)
+		expected = filepath.Join(tmpHome, defaultStateDir, appName)
 	}
 
 	if dir != expected {
