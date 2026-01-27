@@ -96,6 +96,7 @@ Whosthere is supported on the following platforms:
 | `g`                | Go to top                  |
 | `G`                | Go to bottom               |
 | `y`                | Copy IP of selected device |
+| `Y`                | Copy MAC of selected device|
 | `enter`            | Show device details        |
 | `CTRL+t`           | Toggle theme selector      |
 | `CTRL+c`           | Stop application           |

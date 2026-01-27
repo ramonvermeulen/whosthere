@@ -308,6 +308,21 @@ func (a *App) handleEvents() {
 					zap.L().Warn("failed to copy to clipboard", zap.Error(err))
 				}
 			}
+		case events.CopyMac:
+			var mac string
+			if event.MAC != "" {
+				mac = event.MAC
+			} else {
+				device, ok := a.state.Selected()
+				if ok {
+					mac = device.MAC
+				}
+			}
+			if mac != "" {
+				if err := a.clipboard.CopyText(mac); err != nil {
+					zap.L().Warn("failed to copy to clipboard", zap.Error(err))
+				}
+			}
 		}
 		a.rerenderVisibleViews()
 	}

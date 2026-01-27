@@ -80,6 +80,12 @@ func (dt *DeviceTable) handleNormalKey(ev *tcell.EventKey) *tcell.EventKey {
 			dt.emit(events.CopyIP{IP: ip})
 		}
 		return nil
+	case ev.Rune() == 'Y':
+		mac := dt.SelectedMAC()
+		if mac != "" {
+			dt.emit(events.CopyMac{MAC: mac})
+		}
+		return nil
 	default:
 		return ev
 	}
@@ -169,6 +175,16 @@ func (dt *DeviceTable) SelectedIP() string {
 	if cell == nil {
 		return ""
 	}
+	return cell.Text
+}
+
+// SelectedMAC returns the MAC for the currently selected row, if any.
+func (dt *DeviceTable) SelectedMAC() string {
+	row, _ := dt.GetSelection()
+	if row <= 0 {
+		return ""
+	}
+	cell := dt.GetCell(row, 2)
 	return cell.Text
 }
 

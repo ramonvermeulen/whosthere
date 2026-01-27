@@ -62,3 +62,8 @@ type SearchFinished struct{}
 type CopyIP struct {
 	IP string
 }
+
+// CopyMac is emitted to copy the MAC to clipboard.
+type CopyMac struct {
+	MAC string
+}
