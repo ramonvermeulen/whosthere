@@ -45,15 +45,8 @@ func runDaemon(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	ctx := context.Background()
-
 	appState := state.NewAppState(result.Config, version.Version)
-
 	eng := core.BuildEngine(result.Interface, result.OuiDB, result.Config)
-
-	if eng.Sweeper != nil {
-		eng.Sweeper.Start(ctx)
-	}
 
 	http.HandleFunc("/devices", func(w http.ResponseWriter, r *http.Request) {
 		handleDevices(w, r, appState)
@@ -70,9 +63,13 @@ func runDaemon(cmd *cobra.Command, _ []string) error {
 		}
 	}()
 
+	if eng.Sweeper != nil {
+		go eng.Sweeper.Start(context.Background())
+	}
+
 	for {
 		zap.L().Info("starting scan cycle")
-		_, err := eng.Stream(ctx, func(d *discovery.Device) {
+		_, err := eng.Stream(context.Background(), func(d *discovery.Device) {
 			appState.UpsertDevice(d)
 		})
 		if err != nil {

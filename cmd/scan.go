@@ -42,8 +42,6 @@ func runScan(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx := context.Background()
-
 	err = applyFlagOverrides(result.Config, scannerNames, scanDuration)
 	if err != nil {
 		return err
@@ -51,9 +49,12 @@ func runScan(cmd *cobra.Command, args []string) error {
 
 	eng := core.BuildEngine(result.Interface, result.OuiDB, result.Config)
 
-	ctx, cancel := context.WithTimeout(ctx, result.Config.ScanDuration)
-	defer cancel()
+	if eng.Sweeper != nil {
+		go eng.Sweeper.Start(context.Background())
+	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), result.Config.ScanDuration)
+	defer cancel()
 	devices, err := eng.Stream(ctx, func(_ *discovery.Device) {})
 	if err != nil {
 		return err

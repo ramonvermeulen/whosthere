@@ -133,21 +133,6 @@ func getInterfaceNameByUDP() (*net.Interface, error) {
 	return nil, fmt.Errorf("interface not found for IP %s", localAddr.IP)
 }
 
-// GetInterfaceIP returns the first IPv4 address of the interface.
-// Returns an error if no IPv4 address is found.
-func GetInterfaceIP(iface *net.Interface) (net.IP, error) {
-	addresses, err := iface.Addrs()
-	if err != nil {
-		return nil, err
-	}
-	for _, addr := range addresses {
-		if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
-			return ipnet.IP, nil
-		}
-	}
-	return nil, fmt.Errorf("no IPv4 address found for interface %s", iface.Name)
-}
-
 // CompareIPs compares two IP addresses for sorting.
 // IPv4 addresses are compared numerically (byte-by-byte), ensuring
 // correct ordering like 192.168.1.2 < 192.168.1.100.

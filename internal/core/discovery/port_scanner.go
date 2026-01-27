@@ -42,6 +42,7 @@ func (d *netDialer) DialContext(ctx context.Context, network, address string) (n
 
 // Stream scans the TCP ports on the given IP and calls the callback for each open port found.
 // It uses the provided context for cancellation.
+// TODO: instead of using a callback, maybe expose a channel for results?
 func (ps *PortScanner) Stream(ctx context.Context, ip string, ports []int, timeout time.Duration, callback func(int)) error {
 	if len(ports) == 0 {
 		return nil
@@ -51,7 +52,6 @@ func (ps *PortScanner) Stream(ctx context.Context, ip string, ports []int, timeo
 	portChan := make(chan int, ps.workers)
 	errChan := make(chan error, 1)
 
-	// Worker pool
 	for i := 0; i < ps.workers; i++ {
 		wg.Add(1)
 		go func() {
@@ -60,7 +60,6 @@ func (ps *PortScanner) Stream(ctx context.Context, ip string, ports []int, timeo
 		}()
 	}
 
-	// Feed ports to workers in background
 	go func() {
 		defer close(portChan)
 		for _, port := range ports {
@@ -73,7 +72,6 @@ func (ps *PortScanner) Stream(ctx context.Context, ip string, ports []int, timeo
 		}
 	}()
 
-	// Wait for completion
 	go func() {
 		wg.Wait()
 		close(errChan)

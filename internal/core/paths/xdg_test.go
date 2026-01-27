@@ -66,6 +66,7 @@ func TestStateDir(t *testing.T) {
 
 	if runtime.GOOS == "windows" {
 		// Windows expectation
+		// TODO(ramon) use temp dir instead
 		ucd, err := os.UserCacheDir()
 		if err == nil {
 			expected = filepath.Join(ucd, appName)

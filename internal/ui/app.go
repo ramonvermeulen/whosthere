@@ -97,9 +97,6 @@ func (a *App) Run() error {
 	}
 
 	if a.engine != nil && a.cfg != nil {
-		if a.engine.Sweeper != nil {
-			a.engine.Sweeper.Start(context.Background())
-		}
 		a.startDiscoveryScanLoop()
 	}
 
@@ -161,6 +158,10 @@ func (a *App) startUIRefreshLoop() {
 func (a *App) startDiscoveryScanLoop() {
 	if a.cfg == nil {
 		return
+	}
+
+	if a.engine.Sweeper != nil {
+		a.engine.Sweeper.Start(context.Background())
 	}
 
 	a.scanTicker = time.NewTicker(a.cfg.ScanInterval)

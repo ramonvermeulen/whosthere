@@ -1,8 +1,6 @@
 package core
 
 import (
-	"time"
-
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery/arp"
@@ -32,7 +30,7 @@ func BuildEngine(iface *discovery.InterfaceInfo, ouiDB *oui.Registry, cfg *confi
 	engine := discovery.NewEngine(scanners, opts...)
 
 	if cfg.Sweeper.Enabled {
-		engine.Sweeper = discovery.NewSweeper(iface, cfg.Sweeper.Interval, time.Minute)
+		engine.Sweeper = discovery.NewSweeper(iface, cfg.Sweeper.Interval)
 	}
 
 	return engine

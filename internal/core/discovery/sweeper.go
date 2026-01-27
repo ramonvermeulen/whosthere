@@ -30,22 +30,13 @@ var (
 type Sweeper struct {
 	iface    *InterfaceInfo
 	interval time.Duration
-	debounce time.Duration
 
 	logger *zap.Logger
-
-	mu       sync.Mutex
-	started  bool
-	inFlight map[string]time.Time
-	workCh   chan *net.IPNet
 }
 
-func NewSweeper(iface *InterfaceInfo, interval, debounce time.Duration) *Sweeper {
+func NewSweeper(iface *InterfaceInfo, interval time.Duration) *Sweeper {
 	if interval <= 0 {
 		interval = 5 * time.Minute
-	}
-	if debounce <= 0 {
-		debounce = 60 * time.Second
 	}
 	logger := zap.L().With(
 		zap.String("scanner", "arp"),
@@ -54,64 +45,30 @@ func NewSweeper(iface *InterfaceInfo, interval, debounce time.Duration) *Sweeper
 	return &Sweeper{
 		iface:    iface,
 		interval: interval,
-		debounce: debounce,
 		logger:   logger,
-		inFlight: make(map[string]time.Time),
-		workCh:   make(chan *net.IPNet, 8),
 	}
 }
 
 func (s *Sweeper) Start(ctx context.Context) {
-	s.mu.Lock()
-	if s.started {
-		s.mu.Unlock()
-		return
-	}
-	s.started = true
-	s.mu.Unlock()
-
 	subnet := s.iface.IPv4Net
 	localIP := *s.iface.IPv4Addr
-	// Initial sweep
-	s.runSweep(ctx, subnet, localIP)
 
 	ticker := time.NewTicker(s.interval)
 	go func() {
 		defer ticker.Stop()
+		defer ctx.Done()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				s.enqueue(subnet)
-			case sn := <-s.workCh:
-				if sn == nil {
-					continue
-				}
-				s.runSweep(ctx, sn, localIP)
+				s.runSweep(ctx, subnet, localIP)
 			}
 		}
 	}()
-}
 
-func (s *Sweeper) enqueue(subnet *net.IPNet) {
-	key := subnet.String()
-	now := time.Now()
-
-	s.mu.Lock()
-	last, ok := s.inFlight[key]
-	if ok && now.Sub(last) < s.debounce {
-		s.mu.Unlock()
-		return
-	}
-	s.inFlight[key] = now
-	s.mu.Unlock()
-
-	select {
-	case s.workCh <- subnet:
-	default:
-		// Drop if the queue is full to avoid blocking callers.
-	}
+	// run the initial sweep so that we don't have to wait for the first tick
+	s.runSweep(ctx, subnet, localIP)
 }
 
 func (s *Sweeper) runSweep(ctx context.Context, subnet *net.IPNet, localIP net.IP) {
