@@ -41,25 +41,12 @@ func (s *Scanner) Scan(ctx context.Context, out chan<- discovery.Device) error {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	isReading := false
-
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			if !isReading {
-				isReading = true
-				go func() {
-					defer func() {
-						if r := recover(); r != nil {
-							zap.L().Warn("panic in arp cache read", zap.Any("panic", r))
-						}
-						isReading = false
-					}()
-					_ = s.readARPCache(ctx, out)
-				}()
-			}
+			_ = s.readARPCache(ctx, out)
 		}
 	}
 }
