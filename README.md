@@ -97,21 +97,21 @@ Whosthere is supported on the following platforms:
 
 ## Key bindings (TUI)
 
-| Key                | Action                     |
-| ------------------ | -------------------------- |
-| `/`                | Start regex search         |
-| `k`                | Up                         |
-| `j`                | Down                       |
-| `g`                | Go to top                  |
-| `G`                | Go to bottom               |
-| `y`                | Copy IP of selected device |
-| `Y`                | Copy MAC of selected device|
-| `enter`            | Show device details        |
-| `CTRL+t`           | Toggle theme selector      |
-| `CTRL+c`           | Stop application           |
-| `ESC`              | Clear search / Go back     |
-| `p` (details view) | Start port scan on device  |
-| `tab` (modal view) | Switch button selection    |
+| Key                | Action                      |
+| ------------------ | --------------------------- |
+| `/`                | Start regex search          |
+| `k`                | Up                          |
+| `j`                | Down                        |
+| `g`                | Go to top                   |
+| `G`                | Go to bottom                |
+| `y`                | Copy IP of selected device  |
+| `Y`                | Copy MAC of selected device |
+| `enter`            | Show device details         |
+| `CTRL+t`           | Toggle theme selector       |
+| `CTRL+c`           | Stop application            |
+| `ESC`              | Clear search / Go back      |
+| `p` (details view) | Start port scan on device   |
+| `tab` (modal view) | Switch button selection     |
 
 ## Environment Variables
 

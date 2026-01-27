@@ -147,3 +147,23 @@ func GetInterfaceIP(iface *net.Interface) (net.IP, error) {
 	}
 	return nil, fmt.Errorf("no IPv4 address found for interface %s", iface.Name)
 }
+
+// CompareIPs compares two IP addresses for sorting.
+// IPv4 addresses are compared numerically (byte-by-byte), ensuring
+// correct ordering like 192.168.1.2 < 192.168.1.100.
+// IPv6 addresses or mixed IPv4/IPv6 comparisons fall back to
+// string comparison (lexicographic).
+// Returns true if a should be sorted before b.
+func CompareIPs(a, b net.IP) bool {
+	aBytes := a.To4()
+	bBytes := b.To4()
+	if aBytes == nil || bBytes == nil {
+		return a.String() < b.String()
+	}
+	for i := 0; i < 4; i++ {
+		if aBytes[i] != bBytes[i] {
+			return aBytes[i] < bBytes[i]
+		}
+	}
+	return false
+}
