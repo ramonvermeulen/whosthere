@@ -10,7 +10,11 @@ builds:
   - main: ./main.go
     binary: whosthere
     goos: ["linux", "darwin", "windows"]
-    goarch: ["386", "amd64", "arm64"]
+    goarch: ["386", "amd64", "arm64", "arm"]
+    goarm: ["6", "7"]
+    ignore:
+      - goos: windows
+        goarch: arm
     ldflags:
       - -s -w -X main.versionStr={{.Version}}
       - -X main.commitStr={{ .Commit }}

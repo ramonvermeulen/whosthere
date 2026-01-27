@@ -10,8 +10,10 @@ LDFLAGS := -s -w \
 	-X main.commitStr=$(GIT_COMMIT) \
 	-X main.dateStr=$(BUILD_DATE)
 
+all: dev-deps fmt lint test build release-clean
+
 # TODO: add cross-platform deps support
-deps:
+dev-deps:
 	go mod tidy
 	pipx install mdformat
 	pipx inject mdformat mdformat-gfm
@@ -19,8 +21,6 @@ deps:
 	brew install goreleaser
 	brew install golangci-lint
 	brew upgrade golangci-lint
-
-default: deps fmt lint install test release-clean
 
 build:
 	CGO_ENABLED=0 go build -ldflags '$(LDFLAGS)' -o $(APP_NAME) .
