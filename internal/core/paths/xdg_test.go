@@ -59,23 +59,18 @@ func TestStateDir(t *testing.T) {
 	t.Setenv(xdgStateDirEnv, "")
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
+
+	if runtime.GOOS == "windows" {
+		tmpLocalAppData := filepath.Join(tmpHome, "AppData", "Local")
+		t.Setenv("LOCALAPPDATA", tmpLocalAppData)
+		expected = filepath.Join(tmpLocalAppData, appName)
+	} else {
+		expected = filepath.Join(tmpHome, defaultStateDir, appName)
+	}
+
 	dir, err = StateDir()
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
-	}
-
-	if runtime.GOOS == "windows" {
-		// Windows expectation
-		// TODO(ramon) use temp dir instead
-		ucd, err := os.UserCacheDir()
-		if err == nil {
-			expected = filepath.Join(ucd, appName)
-		} else {
-			home, _ := os.UserHomeDir()
-			expected = filepath.Join(home, "AppData", "Local", appName)
-		}
-	} else {
-		expected = filepath.Join(tmpHome, defaultStateDir, appName)
 	}
 
 	if dir != expected {
