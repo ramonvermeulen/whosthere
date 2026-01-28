@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"runtime"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
 	"golang.org/x/net/route"
@@ -24,7 +25,14 @@ func (s *Scanner) readDarwinARPCache(ctx context.Context, out chan<- discovery.D
 }
 
 func (s *Scanner) readDarwinARPCacheRaw() ([]Entry, error) {
-	b, err := route.FetchRIB(unix.AF_INET, route.RIBTypeRoute, 0)
+	var ribType route.RIBType
+	if runtime.GOOS == "freebsd" {
+		ribType = unix.NET_RT_FLAGS
+	} else {
+		ribType = route.RIBTypeRoute
+	}
+
+	b, err := route.FetchRIB(unix.AF_INET, ribType, 0)
 	if err != nil {
 		return nil, fmt.Errorf("route.FetchRIB: %w", err)
 	}
