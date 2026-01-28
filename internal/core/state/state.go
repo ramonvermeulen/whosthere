@@ -94,7 +94,9 @@ func (s *AppState) DevicesSnapshot() []discovery.Device {
 	for _, d := range s.devices {
 		out = append(out, d)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].IP.String() < out[j].IP.String() })
+	sort.Slice(out, func(i, j int) bool {
+		return discovery.CompareIPs(out[i].IP, out[j].IP)
+	})
 	return out
 }
 

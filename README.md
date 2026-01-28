@@ -32,19 +32,25 @@ Whosthere provides a friendly, intuitive way to answer the question every networ
 
 ## Installation
 
-Via Homebrew:
+Via [**Homebrew**](https://brew.sh/) with `brew`:
 
 ```bash
 brew install whosthere
 ```
 
-On NixOS:
+On [**NixOS**](https://nixos.org/) with `nix`:
 
 ```bash
 nix profile install nixpkgs#whosthere
 ```
 
-With Go:
+On [**Arch Linux**](https://archlinux.org/) with `yay`:
+
+```bash
+yay -S whosthere-bin
+```
+
+If your package manager is not listed you can always install with [**Go**](https://go.dev/):
 
 ```bash
 go install github.com/ramonvermeulen/whosthere@latest
@@ -57,6 +63,9 @@ git clone https://github.com/ramonvermeulen/whosthere.git
 cd whosthere
 make build
 ```
+
+Additionally, you can download pre-built binaries from the
+[**releases page**](https://github.com/ramonvermeulen/whosthere/releases).
 
 ## Usage
 
@@ -88,21 +97,21 @@ Whosthere is supported on the following platforms:
 
 ## Key bindings (TUI)
 
-| Key                | Action                     |
-| ------------------ | -------------------------- |
-| `/`                | Start regex search         |
-| `k`                | Up                         |
-| `j`                | Down                       |
-| `g`                | Go to top                  |
-| `G`                | Go to bottom               |
-| `y`                | Copy IP of selected device |
-| `Y`                | Copy MAC of selected device|
-| `enter`            | Show device details        |
-| `CTRL+t`           | Toggle theme selector      |
-| `CTRL+c`           | Stop application           |
-| `ESC`              | Clear search / Go back     |
-| `p` (details view) | Start port scan on device  |
-| `tab` (modal view) | Switch button selection    |
+| Key                | Action                      |
+| ------------------ | --------------------------- |
+| `/`                | Start regex search          |
+| `k`                | Up                          |
+| `j`                | Down                        |
+| `g`                | Go to top                   |
+| `G`                | Go to bottom                |
+| `y`                | Copy IP of selected device  |
+| `Y`                | Copy MAC of selected device |
+| `enter`            | Show device details         |
+| `CTRL+t`           | Toggle theme selector       |
+| `CTRL+c`           | Stop application            |
+| `ESC`              | Clear search / Go back      |
+| `p` (details view) | Start port scan on device   |
+| `tab` (modal view) | Switch button selection     |
 
 ## Environment Variables
 

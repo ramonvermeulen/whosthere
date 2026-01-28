@@ -64,6 +64,9 @@ func TestL(t *testing.T) {
 }
 
 func TestResolveLogPath(t *testing.T) {
+	// Set XDG_STATE_HOME to avoid writing to real user directories
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
 	path, err := resolveLogPath()
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)

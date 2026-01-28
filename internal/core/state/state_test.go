@@ -59,6 +59,27 @@ func TestDevicesSnapshot(t *testing.T) {
 	}
 }
 
+func TestDevicesSnapshotNumericSort(t *testing.T) {
+	state := NewAppState(config.DefaultConfig(), "1.0.0")
+
+	ips := []string{"192.168.1.1", "192.168.1.100", "192.168.1.2", "192.168.1.200"}
+	for _, ip := range ips {
+		state.UpsertDevice(&discovery.Device{IP: net.ParseIP(ip)})
+	}
+
+	devices := state.DevicesSnapshot()
+	if len(devices) != 4 {
+		t.Errorf("expected 4 devices, got %d", len(devices))
+	}
+
+	expected := []string{"192.168.1.1", "192.168.1.2", "192.168.1.100", "192.168.1.200"}
+	for i, exp := range expected {
+		if devices[i].IP.String() != exp {
+			t.Errorf("expected IP at index %d to be %s, got %s", i, exp, devices[i].IP.String())
+		}
+	}
+}
+
 func TestSelected(t *testing.T) {
 	state := NewAppState(config.DefaultConfig(), "1.0.0")
 
