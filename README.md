@@ -135,12 +135,33 @@ When not running in TUI mode, logs are also written to the console output.
 Example of the default configuration file:
 
 ```yaml
+# Uncomment the next line to configure a specific network interface - uses OS default if not set
+# network_interface: eth0
+
 # How often to run discovery scans
 scan_interval: 20s
 
 # Maximum duration for each scan
-# If you set this too low some scanners or the sweeper might not complete in time
 scan_duration: 10s
+
+# Scanner configuration
+scanners:
+  mdns:
+    enabled: true
+  ssdp:
+    enabled: true
+  arp:
+    enabled: true
+
+sweeper:
+  enabled: true
+  interval: 5m
+
+# Port scanner configuration
+port_scanner:
+  timeout: 5s
+  # List of TCP ports to scan on discovered devices
+  tcp: [21, 22, 23, 25, 80, 110, 135, 139, 143, 389, 443, 445, 993, 995, 1433, 1521, 3306, 3389, 5432, 5900, 8080, 8443, 9000, 9090, 9200, 9300, 10000, 27017]
 
 # Splash screen configuration
 splash:
@@ -169,24 +190,6 @@ theme:
   # tertiary_text_color: "#ffaa00"
   # inverse_text_color: "#000a1a"
   # contrast_secondary_text_color: "#88ddff"
-
-# Scanner configuration
-scanners:
-  mdns:
-    enabled: true
-  ssdp:
-    enabled: true
-  arp:
-    enabled: true
-
-# Port scanner configuration
-port_scanner:
-  timeout: 5s
-  # List of TCP ports to scan on discovered devices
-  tcp: [21, 22, 23, 25, 80, 110, 135, 139, 143, 389, 443, 445, 993, 995, 1433, 1521, 3306, 3389, 5432, 5900, 8080, 8443, 9000, 9090, 9200, 9300, 10000, 27017]
-
-# Uncomment the next line to configure a specific network interface - uses OS default if not set
-# network_interface: lo0
 ```
 
 ## Daemon mode HTTP API

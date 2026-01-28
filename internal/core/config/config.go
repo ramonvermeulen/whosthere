@@ -16,7 +16,7 @@ const (
 	DefaultScanInterval    = 20 * time.Second
 	DefaultScanDuration    = 10 * time.Second
 	DefaultPortScanTimeout = 5 * time.Second
-	DefaultSweeperInterval = 300 * time.Second
+	DefaultSweeperInterval = 5 * time.Minute
 
 	DefaultThemeName = "default"
 	CustomThemeName  = "custom"

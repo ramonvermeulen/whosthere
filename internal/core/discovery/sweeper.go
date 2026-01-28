@@ -68,7 +68,7 @@ func (s *Sweeper) Start(ctx context.Context) {
 	}()
 
 	// run the initial sweep so that we don't have to wait for the first tick
-	s.runSweep(ctx, subnet, localIP)
+	go s.runSweep(ctx, subnet, localIP)
 }
 
 func (s *Sweeper) runSweep(ctx context.Context, subnet *net.IPNet, localIP net.IP) {
