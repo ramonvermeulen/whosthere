@@ -2,16 +2,17 @@ package theme
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
-	"github.com/ramonvermeulen/whosthere/internal/core/logging"
 	"github.com/rivo/tview"
-	"go.uber.org/zap"
 )
+
+var log = slog.Default()
 
 var noColor = os.Getenv("NO_COLOR") != ""
 
@@ -861,7 +862,7 @@ func Resolve(tc *config.ThemeConfig) tview.Theme {
 		defaultTheme := registry[config.DefaultThemeName]
 		base = applyOverrides(&defaultTheme, tc)
 	} else if !ok {
-		logging.L().Warn("theme not found, falling back to default", zap.String("name", name))
+		log.Warn("theme not found, falling back to default", "name", name)
 		base = registry[config.DefaultThemeName]
 	}
 

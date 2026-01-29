@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
 	"github.com/ramonvermeulen/whosthere/internal/ui/events"
 	"github.com/ramonvermeulen/whosthere/internal/ui/theme"
 	"github.com/ramonvermeulen/whosthere/internal/ui/utils"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 	"github.com/rivo/tview"
 )
 
@@ -20,7 +20,7 @@ var _ UIComponent = &DeviceTable{}
 // DeviceTable wraps a tview.Table for displaying discovered devices.
 type DeviceTable struct {
 	*tview.Table
-	devices     []discovery.Device
+	devices     []*discovery.Device
 	filterRE    *regexp.Regexp
 	searching   bool
 	searchInput string
@@ -29,7 +29,7 @@ type DeviceTable struct {
 }
 
 func NewDeviceTable(emit func(events.Event)) *DeviceTable {
-	t := &DeviceTable{Table: tview.NewTable(), devices: []discovery.Device{}, emit: emit}
+	t := &DeviceTable{Table: tview.NewTable(), devices: []*discovery.Device{}, emit: emit}
 	t.
 		SetBorder(true).
 		SetTitle(" Devices ")
@@ -211,11 +211,11 @@ func (dt *DeviceTable) buildRows() []tableRow {
 	rows := make([]tableRow, 0, len(dt.devices))
 	for _, d := range dt.devices {
 		row := tableRow{
-			ip:           d.IP.String(),
-			hostname:     d.DisplayName,
-			mac:          d.MAC,
-			manufacturer: d.Manufacturer,
-			lastSeen:     utils.FmtDuration(time.Since(d.LastSeen)),
+			ip:           d.IP().String(),
+			hostname:     d.DisplayName(),
+			mac:          d.MAC(),
+			manufacturer: d.Manufacturer(),
+			lastSeen:     utils.FmtDuration(time.Since(d.LastSeen())),
 		}
 		if dt.filterRE != nil && !dt.rowMatches(&row) {
 			continue

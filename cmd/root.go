@@ -7,17 +7,17 @@ import (
 	"strings"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
+	"github.com/ramonvermeulen/whosthere/internal/core/logging"
 	"github.com/ramonvermeulen/whosthere/internal/core/version"
 	"github.com/ramonvermeulen/whosthere/internal/ui"
 	"github.com/ramonvermeulen/whosthere/internal/ui/theme"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
 
 var (
 	appName        = "whosthere"
-	shortAppDesc   = "Local network discovery tool with a modern TUI interface."
-	cyan           = "\033[36m"
+	shortAppDesc   = "Local network discovery tool with an interactive TUI interface."
+	magenta        = "\x1b[35m"
 	reset          = "\033[0m"
 	rootCmd        *cobra.Command
 	whosthereFlags = &config.Flags{}
@@ -25,11 +25,11 @@ var (
 
 func NewRootCommand() *cobra.Command {
 	if theme.IsNoColor() {
-		cyan = ""
+		magenta = ""
 		reset = ""
 	}
 
-	longAppDesc := cyan + "whosthere [global flags] <subcommand> [args]\n" + reset + `
+	longAppDesc := magenta + "whosthere [global flags] <subcommand> [args]\n" + reset + `
 Knock Knock..
           _               _   _                   ___
 __      _| |__   ___  ___| |_| |__   ___ _ __ ___/ _ \
@@ -38,7 +38,7 @@ __      _| |__   ___  ___| |_| |__   ___ _ __ ___/ _ \
   \_/\_/ |_| |_|\___/|___/\__|_| |_|\___|_|  \___| ()
 
 
-Local Area Network discovery tool with a modern Terminal User Interface (TUI) written in Go.
+Local Area Network discovery tool with an interactive Terminal User Interface (TUI) written in Go.
 Discover, explore, and understand your LAN in an intuitive way.
 
 Knock Knock... who's there? 🚪`
@@ -50,8 +50,7 @@ Knock Knock... who's there? 🚪`
 		SilenceUsage: true,
 		RunE:         run,
 	}
-
-	initWhosthereFlags(cmd)
+	config.RegisterGlobalConfigFlags(cmd, whosthereFlags)
 	return cmd
 }
 
@@ -78,68 +77,40 @@ func AddCommands(root *cobra.Command) {
 }
 
 func run(*cobra.Command, []string) error {
-	result, err := InitComponents(whosthereFlags.ConfigFile, whosthereFlags.NetworkInterface, false)
+	logger, err := logging.New(false)
 	if err != nil {
 		return err
 	}
-
-	logger := result.Logger
-	logPath := result.LogPath
-	cfg := result.Config
-	ouiDB := result.OuiDB
-
-	logger.Info("logger initialized", zap.String("path", logPath), zap.String("level", logger.Level().String()))
-
-	if ouiDB == nil {
-		logger.Warn("OUI database is not initialized; manufacturer lookups will be disabled")
+	cfg, err := config.LoadForMode(config.ModeApp, whosthereFlags)
+	if err != nil {
+		return err
 	}
 
 	if whosthereFlags.PprofPort != "" {
 		go func() {
-			logger.Info("starting pprof server", zap.String("port", whosthereFlags.PprofPort))
+			logger.Info("starting pprof server", "port", whosthereFlags.PprofPort)
 			if err := http.ListenAndServe(":"+whosthereFlags.PprofPort, nil); err != nil {
-				logger.Error("pprof server failed", zap.Error(err))
+				logger.Error("pprof server failed", "error", err)
 			}
 		}()
 	}
 
-	app, err := ui.NewApp(cfg, ouiDB, result.Interface, version.Version)
+	app, err := ui.NewApp(cfg, logger, version.Version)
 	if err != nil {
-		logger.Error("failed to create app", zap.Error(err))
+		logger.Error("failed to create app", "error", err)
 		return err
 	}
 
 	if err := app.Run(); err != nil {
-		logger.Error("app run failed", zap.Error(err))
+		logger.Error("app run failed", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-func initWhosthereFlags(cmd *cobra.Command) {
-	cmd.PersistentFlags().StringVarP(
-		&whosthereFlags.ConfigFile,
-		"config-file", "c",
-		"",
-		"Path to config file (overrides default).",
-	)
-	cmd.PersistentFlags().StringVar(
-		&whosthereFlags.PprofPort,
-		"pprof-port",
-		"",
-		"Pprof HTTP server port for debugging and profiling purposes (e.g., 6060)",
-	)
-	cmd.PersistentFlags().StringVarP(
-		&whosthereFlags.NetworkInterface,
-		"interface", "i",
-		"",
-		"Network interface to use for scanning (overrides config).",
-	)
-}
-
 func setCobraUsageTemplate() {
-	cobra.AddTemplateFunc("StyleHeading", func(s string) string { return cyan + s + reset })
+	cobra.AddTemplateFunc("StyleHeading", func(s string) string { return magenta + s + reset })
 	usageTemplate := rootCmd.UsageTemplate()
 	usageTemplate = strings.NewReplacer(
 		`Usage:`, `{{StyleHeading "Usage:"}}`,

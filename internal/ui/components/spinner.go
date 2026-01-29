@@ -1,6 +1,7 @@
 package components
 
 import (
+	"sync"
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
@@ -12,6 +13,7 @@ var _ UIComponent = &Spinner{}
 
 type Spinner struct {
 	*tview.TextView
+	mu      sync.Mutex
 	stop    chan struct{}
 	running bool
 	suffix  string
@@ -23,14 +25,20 @@ func NewSpinner() *Spinner {
 	return &Spinner{TextView: tv, stop: make(chan struct{}, 1), suffix: ""}
 }
 
-func (s *Spinner) SetSuffix(suf string) { s.suffix = suf }
+func (s *Spinner) SetSuffix(suf string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.suffix = suf
+}
 
-// Start runs the spinner loop and uses the provided queue function to schedule UI updates.
 func (s *Spinner) Start(queue func(f func())) {
+	s.mu.Lock()
 	if s.running {
+		s.mu.Unlock()
 		return
 	}
 	s.running = true
+	s.mu.Unlock()
 
 	frames := []rune{'⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'}
 	interval := 100 * time.Millisecond
@@ -45,29 +53,33 @@ func (s *Spinner) Start(queue func(f func())) {
 		for {
 			select {
 			case <-s.stop:
+				s.mu.Lock()
 				s.running = false
+				s.mu.Unlock()
 				queue(func() { s.SetText("") })
 				return
 			case <-time.After(interval):
 				ch := string(frames[idx%len(frames)])
 				idx++
-				queue(func() { s.SetText(ch + s.suffix) })
+				s.mu.Lock()
+				suffix := s.suffix
+				s.mu.Unlock()
+				queue(func() { s.SetText(ch + suffix) })
 			}
 		}
 	}()
 }
 
-// Stop signals the spinner goroutine to stop and schedules a final clear.
 func (s *Spinner) Stop(queue func(f func())) {
 	select {
 	case s.stop <- struct{}{}:
 	default:
 	}
 	queue(func() { s.SetText("") })
+	s.mu.Lock()
 	s.running = false
+	s.mu.Unlock()
 }
 
-// Render implements UIComponent.
 func (s *Spinner) Render(_ state.ReadOnly) {
-	// Spinner is animated separately, no state update needed.
 }

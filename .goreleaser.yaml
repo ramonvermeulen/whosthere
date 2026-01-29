@@ -32,7 +32,7 @@ homebrew_casks:
     binaries:
       - whosthere
     homepage: "https://github.com/ramonvermeulen/whosthere"
-    description: "Local network discovery tool with a modern Terminal User Interface (TUI) written in Go."
+    description: "Local network discovery tool with an interactive Terminal User Interface (TUI) written in Go."
     license: "Apache-2.0"
     skip_upload: auto
     commit_author:
