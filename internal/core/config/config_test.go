@@ -1,12 +1,12 @@
 package config
 
 import (
-	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/goccy/go-yaml"
+	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
 )
 
 func TestValidateAndNormalizeDurations(t *testing.T) {
@@ -25,15 +25,15 @@ func TestValidateAndNormalizeDurations(t *testing.T) {
 	if !strings.Contains(err.Error(), "scan_interval must be > 0") {
 		t.Errorf("expected scan_interval error, got %v", err)
 	}
-	if cfg.ScanInterval != DefaultScanInterval {
-		t.Errorf("expected scan interval default %v, got %v", DefaultScanInterval, cfg.ScanInterval)
+	if cfg.ScanInterval != discovery.DefaultScanInterval {
+		t.Errorf("expected scan interval default %v, got %v", discovery.DefaultScanInterval, cfg.ScanInterval)
 	}
 
 	if !strings.Contains(err.Error(), "scan_duration must be > 0") {
 		t.Errorf("expected scan_duration error, got %v", err)
 	}
-	if cfg.ScanDuration != DefaultScanDuration {
-		t.Errorf("expected scan duration default %v, got %v", DefaultScanDuration, cfg.ScanDuration)
+	if cfg.ScanDuration != discovery.DefaultScanTimeout {
+		t.Errorf("expected scan duration default %v, got %v", discovery.DefaultScanTimeout, cfg.ScanDuration)
 	}
 
 	if !strings.Contains(err.Error(), "splash.delay must be >= 0") {
@@ -67,8 +67,8 @@ func TestValidateAndNormalizeDurationRelationship(t *testing.T) {
 
 func TestValidateAndNormalizeScanners(t *testing.T) {
 	cfg := &Config{
-		ScanInterval: DefaultScanInterval,
-		ScanDuration: DefaultScanDuration,
+		ScanInterval: discovery.DefaultScanInterval,
+		ScanDuration: discovery.DefaultScanTimeout,
 		Splash:       SplashConfig{Enabled: true, Delay: DefaultSplashDelay},
 		Scanners:     ScannerConfig{},
 	}
@@ -112,12 +112,6 @@ func TestDefaultConfigProducesValidConfig(t *testing.T) {
 
 	if cfg.Theme.Name != DefaultThemeName {
 		t.Fatalf("expected default theme %q, got %q", DefaultThemeName, cfg.Theme.Name)
-	}
-}
-
-func TestLoaderValidateNilConfig(t *testing.T) {
-	if err := validateAndNormalize(nil); !errors.Is(err, ErrConfigNil) {
-		t.Fatalf("expected ErrConfigNil, got %v", err)
 	}
 }
 
@@ -213,11 +207,11 @@ splash:
 		}
 	}
 
-	if cfg.ScanInterval != DefaultScanInterval {
-		t.Errorf("expected default scan interval %v, got %v", DefaultScanInterval, cfg.ScanInterval)
+	if cfg.ScanInterval != discovery.DefaultScanInterval {
+		t.Errorf("expected default scan interval %v, got %v", discovery.DefaultScanInterval, cfg.ScanInterval)
 	}
-	if cfg.ScanDuration != DefaultScanDuration {
-		t.Errorf("expected default scan duration %v, got %v", DefaultScanDuration, cfg.ScanDuration)
+	if cfg.ScanDuration != discovery.DefaultScanTimeout {
+		t.Errorf("expected default scan duration %v, got %v", discovery.DefaultScanTimeout, cfg.ScanDuration)
 	}
 	if cfg.Splash.Delay != DefaultSplashDelay {
 		t.Errorf("expected default splash delay %v, got %v", DefaultSplashDelay, cfg.Splash.Delay)

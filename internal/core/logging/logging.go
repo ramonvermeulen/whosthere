@@ -1,26 +1,29 @@
+// pkg/logging/logger.go
 package logging
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/paths"
+	"github.com/samber/slog-zap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 var (
-	logger     *zap.Logger
+	zapLogger  *zap.Logger
+	slogLogger *slog.Logger
 	once       sync.Once
-	cachedPath string
 )
 
-// ParseLevel converts a string like "DEBUG" to zapcore.Level.
+// parseLevel converts a string like "DEBUG" to zapcore.Level.
 // Supports TRACE (mapped to DEBUG), DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL.
-func ParseLevel(s string) zapcore.Level {
+func parseLevel(s string) zapcore.Level {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "trace":
 		return zapcore.DebugLevel
@@ -43,22 +46,16 @@ func ParseLevel(s string) zapcore.Level {
 	}
 }
 
-// LevelFromEnv returns the level from WHOSTHERE_LOG if set, else default.
-// Backward-compat: WHOSTHERE_DEBUG=1 forces DEBUG.
-func LevelFromEnv(defaultLevel zapcore.Level) zapcore.Level {
+// levelFromEnv returns the level from WHOSTHERE_LOG if set, else default.
+func levelFromEnv(defaultLevel zapcore.Level) zapcore.Level {
 	if v := os.Getenv("WHOSTHERE_LOG"); v != "" {
-		return ParseLevel(v)
-	}
-	if os.Getenv("WHOSTHERE_DEBUG") == "1" {
-		return zapcore.DebugLevel
+		return parseLevel(v)
 	}
 	return defaultLevel
 }
 
-// Init sets up a global Zap logger writing JSON to a file.
-// level: zapcore.InfoLevel for prod, zapcore.DebugLevel for dev.
-// enableStdout: if true, also logs to stdout with console format.
-func Init(level zapcore.Level, enableStdout bool) (*zap.Logger, string, error) {
+// Init sets up both zap and slog loggers
+func Init(enableStdout bool) (*slog.Logger, error) {
 	var initErr error
 	once.Do(func() {
 		path, err := resolveLogPath()
@@ -66,7 +63,7 @@ func Init(level zapcore.Level, enableStdout bool) (*zap.Logger, string, error) {
 			initErr = err
 			return
 		}
-		cachedPath = path
+		level := levelFromEnv(zapcore.InfoLevel)
 
 		encCfg := zapcore.EncoderConfig{
 			TimeKey:        "ts",
@@ -101,23 +98,35 @@ func Init(level zapcore.Level, enableStdout bool) (*zap.Logger, string, error) {
 			core = fileCore
 		}
 
-		logger = zap.New(core, zap.AddCaller())
-		zap.ReplaceGlobals(logger)
+		zapLogger = zap.New(core, zap.AddCaller())
+		zap.ReplaceGlobals(zapLogger)
+
+		// Create slog logger that uses zap
+		slogLogger = slog.New(slogzap.Option{
+			Logger: zapLogger,
+			Level:  convertZapLevelToSlog(level),
+		}.NewZapHandler())
 	})
-	return logger, cachedPath, initErr
+
+	return slogLogger, initErr
 }
 
-// L returns the global logger. If Init hasn't been called yet it
-// returns a no-op logger without mutating the global zap logger.
-//
-// This makes accidental logging before initialization cheap and
-// predictable, while keeping Init as the only place that installs
-// a real global logger.
+// L returns the global zap logger (for backward compatibility)
 func L() *zap.Logger {
-	if logger == nil {
+	if zapLogger == nil {
 		return zap.NewNop()
 	}
-	return logger
+	return zapLogger
+}
+
+// S returns the global slog logger
+func S() *slog.Logger {
+	if slogLogger == nil {
+		return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		}))
+	}
+	return slogLogger
 }
 
 func resolveLogPath() (string, error) {
@@ -126,4 +135,19 @@ func resolveLogPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, "app.log"), nil
+}
+
+func convertZapLevelToSlog(level zapcore.Level) slog.Level {
+	switch level {
+	case zapcore.DebugLevel:
+		return slog.LevelDebug
+	case zapcore.InfoLevel:
+		return slog.LevelInfo
+	case zapcore.WarnLevel:
+		return slog.LevelWarn
+	case zapcore.ErrorLevel, zapcore.DPanicLevel, zapcore.PanicLevel, zapcore.FatalLevel:
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
 }

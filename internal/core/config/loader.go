@@ -42,7 +42,7 @@ func Load(pathOverride string) (*Config, error) {
 		return cfg, fmt.Errorf("parse config: %w", err)
 	}
 
-	if err := validateAndNormalize(cfg); err != nil {
+	if err := cfg.validateAndNormalize(); err != nil {
 		return cfg, fmt.Errorf("validate config: %w", err)
 	}
 
@@ -75,14 +75,6 @@ func resolveConfigPath(pathOverride string) (string, error) {
 	}
 
 	return filepath.Join(dir, defaultConfigFileName), nil
-}
-
-func validateAndNormalize(cfg *Config) error {
-	if cfg == nil {
-		return ErrConfigNil
-	}
-
-	return cfg.validateAndNormalize()
 }
 
 // writeConfigFile marshals the config to YAML and writes it to the specified path,

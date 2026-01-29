@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ramonvermeulen/whosthere/internal/core/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
 	"github.com/ramonvermeulen/whosthere/internal/core"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
-	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
 )
 
 func NewScanCommand() *cobra.Command {
@@ -32,30 +32,31 @@ Examples:
 	return cmd
 }
 
-func runScan(cmd *cobra.Command, args []string) error {
+func runScan(cmd *cobra.Command, _ []string) error {
 	scannerNames, _ := cmd.Flags().GetString("scanner")
 	timeoutSec, _ := cmd.Flags().GetInt("timeout")
 	scanDuration := time.Duration(timeoutSec) * time.Second
 
-	result, err := InitComponents("", whosthereFlags.NetworkInterface, true)
+	logger, err := logging.Init(true)
 	if err != nil {
 		return err
 	}
 
-	err = applyFlagOverrides(result.Config, scannerNames, scanDuration)
+	cfg, err := config.Load(whosthereFlags.ConfigFile)
 	if err != nil {
 		return err
 	}
 
-	eng := core.BuildEngine(result.Interface, result.OuiDB, result.Config)
-
-	if eng.Sweeper != nil {
-		go eng.Sweeper.Start(context.Background())
+	err = applyFlagOverrides(cfg, scannerNames, scanDuration)
+	if err != nil {
+		return err
+	}
+	eng, err := core.BuildEngine(cfg, logger)
+	if err != nil {
+		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), result.Config.ScanDuration)
-	defer cancel()
-	devices, err := eng.Stream(ctx, func(_ *discovery.Device) {})
+	devices, err := eng.Scan(context.Background())
 	if err != nil {
 		return err
 	}

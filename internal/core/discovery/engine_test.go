@@ -34,7 +34,7 @@ func (f *fakeScanner) Scan(ctx context.Context, out chan<- Device) error {
 	return nil
 }
 
-func TestEngineStreamMergeAndDedup(t *testing.T) {
+func TestEngineScanOnceMergeAndDedup(t *testing.T) {
 	t0 := time.Unix(100, 0)
 	t1 := time.Unix(200, 0)
 	t2 := time.Unix(300, 0)
@@ -68,11 +68,10 @@ func TestEngineStreamMergeAndDedup(t *testing.T) {
 
 	eng := NewEngine(scanners, WithTimeout(2*time.Second))
 
-	var got []Device
 	ctx := context.Background()
-	devices, err := eng.Stream(ctx, func(d *Device) { got = append(got, *d) })
+	devices, err := eng.ScanOnce(ctx)
 	if err != nil {
-		t.Fatalf("Stream returned error: %v", err)
+		t.Fatalf("ScanOnce returned error: %v", err)
 	}
 
 	if len(devices) != 1 {
@@ -110,10 +109,6 @@ func TestEngineStreamMergeAndDedup(t *testing.T) {
 	if d.ExtraData["a"] != "1" || d.ExtraData["b"] != "2" {
 		t.Fatalf("extra data not merged: %+v", d.ExtraData)
 	}
-
-	if len(got) != 2 {
-		t.Fatalf("callback expected 2 calls (insert+merge), got %d", len(got))
-	}
 }
 
 func TestEngineTimeoutCancelsScanners(t *testing.T) {
@@ -122,7 +117,7 @@ func TestEngineTimeoutCancelsScanners(t *testing.T) {
 
 	start := time.Now()
 	ctx := context.Background()
-	devices, err := eng.Stream(ctx, nil)
+	devices, err := eng.ScanOnce(ctx)
 	elapsed := time.Since(start)
 
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {

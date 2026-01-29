@@ -3,8 +3,6 @@ package discovery
 import (
 	"fmt"
 	"net"
-
-	"go.uber.org/zap"
 )
 
 // InterfaceInfo holds the essential network interface information for scanning
@@ -54,20 +52,18 @@ func getNetworkInterface(interfaceName string) (*net.Interface, error) {
 		if iface, err = net.InterfaceByName(interfaceName); err != nil {
 			return nil, err
 		}
-		zap.L().Info("using specified network interface", zap.String("interface", interfaceName))
 		return iface, nil
 	}
 
 	if iface, err = getDefaultInterface(); err != nil {
-		zap.L().Info("failed to get default network interface", zap.Error(err))
 		return nil, err
 	}
 
-	zap.L().Info("using default network interface", zap.String("interface", iface.Name))
 	return iface, nil
 }
 
 // getDefaultInterface attempts to return the OS default network interface
+// todo(ramon) find more reliable way to get default interface across platforms
 func getDefaultInterface() (*net.Interface, error) {
 	// try to get the default interface by sending UDP packet
 	if name, err := getInterfaceNameByUDP(); err == nil {

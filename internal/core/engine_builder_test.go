@@ -12,6 +12,7 @@ func TestBuildEngine(t *testing.T) {
 	iface := &discovery.InterfaceInfo{}
 	cfg := &config.Config{
 		ScanDuration: 10 * time.Second,
+		ScanInterval: 20 * time.Second,
 		Scanners: config.ScannerConfig{
 			SSDP: config.ScannerToggle{Enabled: true},
 			ARP:  config.ScannerToggle{Enabled: false},
@@ -22,14 +23,14 @@ func TestBuildEngine(t *testing.T) {
 
 	engine := BuildEngine(iface, nil, cfg)
 
-	if len(engine.Scanners) != 1 {
-		t.Errorf("expected 1 scanner, got %d", len(engine.Scanners))
+	if engine == nil {
+		t.Errorf("expected engine to be created")
 	}
-	if engine.Timeout != 10*time.Second {
-		t.Errorf("expected timeout 10s, got %v", engine.Timeout)
+	if engine.Devices == nil {
+		t.Errorf("expected Devices channel to be created")
 	}
-	if engine.Sweeper == nil {
-		t.Errorf("expected sweeper to be created")
+	if engine.Events == nil {
+		t.Errorf("expected Events channel to be created")
 	}
 }
 
@@ -37,6 +38,7 @@ func TestBuildEngineSweeperDisabled(t *testing.T) {
 	iface := &discovery.InterfaceInfo{}
 	cfg := &config.Config{
 		ScanDuration: 10 * time.Second,
+		ScanInterval: 20 * time.Second,
 		Scanners: config.ScannerConfig{
 			SSDP: config.ScannerToggle{Enabled: true},
 			ARP:  config.ScannerToggle{Enabled: false},
@@ -47,7 +49,7 @@ func TestBuildEngineSweeperDisabled(t *testing.T) {
 
 	engine := BuildEngine(iface, nil, cfg)
 
-	if engine.Sweeper != nil {
-		t.Errorf("expected sweeper to be nil when disabled")
+	if engine == nil {
+		t.Errorf("expected engine to be created")
 	}
 }

@@ -1,13 +1,15 @@
-package discovery
+package sweeper
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
+	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
 )
 
 const (
@@ -21,6 +23,8 @@ var (
 	tcpTriggerPorts = []int{80, 443}
 )
 
+var _ discovery.Sweeper = (*Sweeper)(nil)
+
 // Sweeper triggers ARP resolution to populate the OS ARP cache.
 // Because whosthere is designed to not run with elevated privileges,
 // it cannot send ARP requests directly. Instead, it triggers ARP resolution
@@ -28,25 +32,30 @@ var (
 // to send ARP requests for those IPs, populating the ARP cache which can
 // then be read by the ARP scanner.
 type Sweeper struct {
-	iface    *InterfaceInfo
+	iface    *discovery.InterfaceInfo
 	interval time.Duration
-
-	logger *zap.Logger
+	timeout  time.Duration
+	logger   discovery.Logger
 }
 
-func NewSweeper(iface *InterfaceInfo, interval time.Duration) *Sweeper {
-	if interval <= 0 {
-		interval = 5 * time.Minute
+func NewSweeper(opts ...Option) (*Sweeper, error) {
+	s := &Sweeper{
+		interval: discovery.DefaultSweepInterval,
+		timeout:  discovery.DefaultSweepTimeout,
+		logger:   &discovery.NoOpLogger{},
 	}
-	logger := zap.L().With(
-		zap.String("scanner", "arp"),
-		zap.String("component", "Sweeper"),
-	)
-	return &Sweeper{
-		iface:    iface,
-		interval: interval,
-		logger:   logger,
+
+	for _, opt := range opts {
+		if err := opt(s); err != nil {
+			return nil, err
+		}
 	}
+
+	if s.iface == nil {
+		return nil, errors.New("interface is required for sweeper")
+	}
+
+	return s, nil
 }
 
 func (s *Sweeper) Start(ctx context.Context) {
@@ -67,35 +76,31 @@ func (s *Sweeper) Start(ctx context.Context) {
 		}
 	}()
 
-	// run the initial sweep so that we don't have to wait for the first tick
 	go s.runSweep(ctx, subnet, localIP)
 }
 
 func (s *Sweeper) runSweep(ctx context.Context, subnet *net.IPNet, localIP net.IP) {
-	ips := generateSubnetIPs(subnet, localIP)
+	ips := s.generateSubnetIPs(subnet, localIP)
 	if len(ips) == 0 {
 		return
 	}
 
-	s.logger.Debug("Triggering ARP requests for subnet", zap.String("subnet", subnet.Mask.String()))
-	triggerSubnetSweep(ctx, ips)
-	s.logger.Debug("ARP triggering completed", zap.String("subnet", subnet.String()))
+	s.logger.Log(ctx, slog.LevelDebug, "Triggering ARP requests for subnet", "subnet", subnet.Mask.String())
+	s.triggerSubnetSweep(ctx, ips)
+	s.logger.Log(ctx, slog.LevelDebug, "ARP triggering completed", "subnet", subnet.String())
 }
 
-func triggerSubnetSweep(ctx context.Context, ips []net.IP) {
+func (s *Sweeper) triggerSubnetSweep(ctx context.Context, ips []net.IP) {
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, maxConcurrentTriggers)
 	total := len(ips)
 	triggered := 0
 
 	for _, ip := range ips {
-		zap.L().Debug("Triggering ARP for IP", zap.String("ip", ip.String()))
+		s.logger.Log(ctx, slog.LevelDebug, "Triggering ARP for IP", "ip", ip.String())
 		select {
 		case <-ctx.Done():
-			zap.L().Warn("ARP sweep interrupted by context cancellation, this can indicate you have a short scan duration configured",
-				zap.Int("triggered", triggered),
-				zap.Int("total", total),
-				zap.Int("remaining", total-triggered))
+			s.logger.Log(ctx, slog.LevelWarn, "ARP sweep interrupted by context cancellation, this can indicate you have a short scan duration configured", "triggered", triggered, "total", total, "remaining", total-triggered)
 			return
 		default:
 		}
@@ -142,7 +147,7 @@ func sendARPTarget(ip net.IP) {
 // It includes the network address and broadcast address.
 // It limits the scan to a /16 equivalent if the subnet is larger.
 // In that case it will only scan the first 65534 IPs of that subnet.
-func generateSubnetIPs(subnet *net.IPNet, skipIP net.IP) []net.IP {
+func (s *Sweeper) generateSubnetIPs(subnet *net.IPNet, skipIP net.IP) []net.IP {
 	// If users request it, we could potentially add an option to override the /16 limit via configuration?
 	var ips []net.IP
 	network := subnet.IP.To4()
@@ -152,7 +157,7 @@ func generateSubnetIPs(subnet *net.IPNet, skipIP net.IP) []net.IP {
 
 	ones, _ := subnet.Mask.Size()
 	if ones < 16 {
-		zap.L().Warn("large subnet detected, limiting ARP scan to /16 equivalent", zap.Int("prefix", ones), zap.String("subnet", subnet.String()))
+		s.logger.Log(context.Background(), slog.LevelWarn, "large subnet detected, limiting ARP scan to /16 equivalent", "prefix", ones, "subnet", subnet.String())
 	}
 
 	networkIP := subnet.IP.Mask(subnet.Mask)

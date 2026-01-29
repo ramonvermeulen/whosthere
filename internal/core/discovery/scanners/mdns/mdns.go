@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
-	"go.uber.org/zap"
 	"golang.org/x/net/dns/dnsmessage"
 	"golang.org/x/net/ipv4"
 )
@@ -24,11 +24,12 @@ const (
 )
 
 type Scanner struct {
-	iface *discovery.InterfaceInfo
+	iface  *discovery.InterfaceInfo
+	logger discovery.Logger
 }
 
-func NewScanner(iface *discovery.InterfaceInfo) *Scanner {
-	return &Scanner{iface: iface}
+func NewScanner(iface *discovery.InterfaceInfo, logger discovery.Logger) *Scanner {
+	return &Scanner{iface: iface, logger: logger}
 }
 
 func (s *Scanner) Name() string {
@@ -37,15 +38,15 @@ func (s *Scanner) Name() string {
 
 func (s *Scanner) Scan(ctx context.Context, out chan<- discovery.Device) error {
 	session := &scanSession{
-		log:   zap.L().Named("mdns"),
-		iface: s.iface,
+		logger: s.logger,
+		iface:  s.iface,
 	}
 	return session.run(ctx, out)
 }
 
 // scanSession manages state for one mDNS scan
 type scanSession struct {
-	log                 *zap.Logger
+	logger              discovery.Logger
 	conn                *net.UDPConn
 	multicastAddr       *net.UDPAddr
 	iface               *discovery.InterfaceInfo
@@ -153,8 +154,7 @@ func (ss *scanSession) readAndProcessPacket(buffer []byte, out chan<- discovery.
 
 	dnsMsg, err := parseDNSMessage(buffer[:packetSize])
 	if err != nil {
-		ss.log.Debug("Failed to parse DNS", zap.Error(err))
-		return false, nil
+		return false, err
 	}
 
 	if !dnsMsg.Response {
@@ -171,10 +171,6 @@ func (ss *scanSession) processDNSResponse(msg *dnsmessage.Message, sender *net.U
 		if ptr, ok := answer.Body.(*dnsmessage.PTRResource); ok {
 			serviceName := answer.Header.Name.String()
 			ptrValue := ptr.PTR.String()
-
-			ss.log.Debug("Got PTR record",
-				zap.String("question", serviceName),
-				zap.String("points_to", ptrValue))
 
 			if serviceName == serviceDiscoveryQuery {
 				// This is a service type announcement (e.g., "_http._tcp.local")
@@ -195,12 +191,10 @@ func (ss *scanSession) handleDiscoveredServiceType(serviceType string) {
 	}
 
 	ss.queriedServiceTypes[serviceType] = true
-	ss.log.Debug("Discovered new service type", zap.String("type", serviceType))
 
 	if err := ss.queryService(serviceType); err != nil {
-		ss.log.Warn("Failed to query service",
-			zap.String("service", serviceType),
-			zap.Error(err))
+		// todo handle error properly
+		ss.logger.Log(context.Background(), slog.LevelWarn, "query service type", "serviceType", serviceType, "error", err)
 	}
 }
 

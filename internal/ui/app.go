@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/ramonvermeulen/whosthere/internal/core"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
-	"github.com/ramonvermeulen/whosthere/internal/core/discovery/oui"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
 	"github.com/ramonvermeulen/whosthere/internal/ui/events"
 	"github.com/ramonvermeulen/whosthere/internal/ui/routes"
@@ -31,7 +31,6 @@ type App struct {
 	pages         *tview.Pages
 	engine        *discovery.Engine
 	state         *state.AppState
-	scanTicker    *time.Ticker
 	refreshTicker *time.Ticker
 	cfg           *config.Config
 	events        chan events.Event
@@ -41,14 +40,7 @@ type App struct {
 	clipboard     *clipboard.Clipboard
 }
 
-func NewApp(cfg *config.Config, ouiDB *oui.Registry, iface *discovery.InterfaceInfo, version string) (*App, error) {
-	if cfg == nil {
-		return nil, fmt.Errorf("config cannot be nil")
-	}
-	if iface == nil {
-		return nil, fmt.Errorf("interface cannot be nil")
-	}
-
+func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, error) {
 	app := tview.NewApplication()
 	appState := state.NewAppState(cfg, version)
 
@@ -67,7 +59,14 @@ func NewApp(cfg *config.Config, ouiDB *oui.Registry, iface *discovery.InterfaceI
 
 	a.applyTheme(appState.CurrentTheme())
 	a.setupPages(cfg)
-	a.setupEngine(iface, ouiDB)
+
+	engine, err := core.BuildEngine(a.cfg, logger)
+	if err != nil {
+		return nil, fmt.Errorf("build engine: %w", err)
+	}
+	a.engine = engine
+	// todo(ramon) handle in BuildEngine -> WithPortScanner(...)
+	a.portScanner = discovery.NewPortScanner(100, engine.Iface)
 
 	app.SetRoot(a.pages, true)
 	app.SetInputCapture(a.handleGlobalKeys)
@@ -97,7 +96,8 @@ func (a *App) Run() error {
 	}
 
 	if a.engine != nil && a.cfg != nil {
-		a.startDiscoveryScanLoop()
+		a.engine.Run(context.Background())
+		go a.handleEngineEvents()
 	}
 
 	return a.Application.Run()
@@ -121,11 +121,6 @@ func (a *App) setupPages(cfg *config.Config) {
 		initialPage = routes.RouteSplash
 	}
 	a.pages.SwitchToPage(initialPage)
-}
-
-func (a *App) setupEngine(iface *discovery.InterfaceInfo, ouiDB *oui.Registry) {
-	a.portScanner = discovery.NewPortScanner(100, iface)
-	a.engine = core.BuildEngine(iface, ouiDB, a.cfg)
 }
 
 func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
@@ -155,24 +150,22 @@ func (a *App) startUIRefreshLoop() {
 	}()
 }
 
-func (a *App) startDiscoveryScanLoop() {
-	if a.cfg == nil {
-		return
-	}
-
-	if a.engine.Sweeper != nil {
-		a.engine.Sweeper.Start(context.Background())
-	}
-
-	a.scanTicker = time.NewTicker(a.cfg.ScanInterval)
-
-	go func() {
-		a.performScan()
-
-		for range a.scanTicker.C {
-			a.performScan()
+func (a *App) handleEngineEvents() {
+	for event := range a.engine.Events {
+		switch event.Type {
+		case discovery.EventScanStarted:
+			a.emit(events.DiscoveryStarted{})
+		case discovery.EventScanCompleted:
+			a.emit(events.DiscoveryStopped{})
+		case discovery.EventDeviceDiscovered:
+			a.state.UpsertDevice(event.Device)
+		case discovery.EventError:
+			a.emit(events.DiscoveryStopped{})
+			if event.Error != nil {
+				zap.L().Error("scan failed", zap.Error(event.Error))
+			}
 		}
-	}()
+	}
 }
 
 func (a *App) QueueUpdateDraw(f func()) {
@@ -182,22 +175,6 @@ func (a *App) QueueUpdateDraw(f func()) {
 	go func() {
 		a.Application.QueueUpdateDraw(f)
 	}()
-}
-
-func (a *App) performScan() {
-	if a.cfg == nil || a.engine == nil {
-		return
-	}
-
-	a.emit(events.DiscoveryStarted{})
-
-	ctx, cancel := context.WithTimeout(context.Background(), a.cfg.ScanDuration)
-	_, _ = a.engine.Stream(ctx, func(d *discovery.Device) {
-		a.state.UpsertDevice(d)
-	})
-	cancel()
-
-	a.emit(events.DiscoveryStopped{})
 }
 
 // applyTheme applies a theme by name, updates state, applies to primitives, and renders all pages.
@@ -346,4 +323,15 @@ func (a *App) startPortscan() {
 	})
 
 	a.emit(events.PortScanStopped{})
+}
+
+// Stop gracefully stops the engine and the application.
+func (a *App) Stop() {
+	if a.engine != nil {
+		a.engine.Stop()
+	}
+	if a.refreshTicker != nil {
+		a.refreshTicker.Stop()
+	}
+	a.Application.Stop()
 }

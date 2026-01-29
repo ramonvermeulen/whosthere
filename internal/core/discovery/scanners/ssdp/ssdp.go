@@ -6,13 +6,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/textproto"
 	"net/url"
 	"strings"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
-	"go.uber.org/zap"
 )
 
 const (
@@ -27,18 +27,18 @@ var _ discovery.Scanner = (*Scanner)(nil)
 // Scanner implements SSDP discovery (UPnP) via manual M-SEARCH over UDP.
 // Implemented as described in the RFC: https://datatracker.ietf.org/doc/html/draft-cai-ssdp-v1-03#section-4.1
 type Scanner struct {
-	iface *discovery.InterfaceInfo
+	iface  *discovery.InterfaceInfo
+	logger discovery.Logger
 }
 
-func NewScanner(iface *discovery.InterfaceInfo) *Scanner {
-	return &Scanner{iface: iface}
+func NewScanner(iface *discovery.InterfaceInfo, logger discovery.Logger) *Scanner {
+	return &Scanner{iface: iface, logger: logger}
 }
 
 func (s *Scanner) Name() string { return "ssdp" }
 
 // Scan sends an SSDP M-SEARCH and streams responses incrementally until the ctx deadline.
 func (s *Scanner) Scan(ctx context.Context, out chan<- discovery.Device) error {
-	log := zap.L()
 	mAddr, err := net.ResolveUDPAddr("udp4", MulticastAddr)
 	if err != nil {
 		return fmt.Errorf("resolve ssdp addr: %w", err)
@@ -49,9 +49,12 @@ func (s *Scanner) Scan(ctx context.Context, out chan<- discovery.Device) error {
 	}
 	defer func() { _ = conn.Close() }()
 
-	if err := sendSearch(conn, mAddr, log); err != nil {
+	s.logger.Log(ctx, slog.LevelDebug, "sending SSDP M-SEARCH", "to", mAddr.String(), "from", conn.LocalAddr().String())
+	if err := sendSearch(conn, mAddr); err != nil {
 		return err
 	}
+
+	s.logger.Log(ctx, slog.LevelDebug, "waiting for SSDP responses")
 	if err := applyDeadlineFromContext(conn, ctx); err != nil {
 		return err
 	}
@@ -69,12 +72,12 @@ func (s *Scanner) Scan(ctx context.Context, out chan<- discovery.Device) error {
 			}
 			return fmt.Errorf("read ssdp: %w", err)
 		}
-		handlePacket(out, src, buf[:n], log)
+		handlePacket(out, src, buf[:n])
 	}
 }
 
 // sendSearch builds and sends the SSDP M-SEARCH request.
-func sendSearch(conn *net.UDPConn, addr *net.UDPAddr, log *zap.Logger) error {
+func sendSearch(conn *net.UDPConn, addr *net.UDPAddr) error {
 	req := fmt.Sprintf(
 		"M-SEARCH * HTTP/1.1\r\n"+
 			"HOST: %s\r\n"+
@@ -84,7 +87,6 @@ func sendSearch(conn *net.UDPConn, addr *net.UDPAddr, log *zap.Logger) error {
 			"USER-AGENT: whosthere/0.1\r\n\r\n",
 		MulticastAddr, HeaderMan, HeaderMX, HeaderST,
 	)
-	log.Debug("ssdp m-search send", zap.String("host", MulticastAddr), zap.Int("mx", HeaderMX), zap.String("st", HeaderST))
 	if _, err := conn.WriteToUDP([]byte(req), addr); err != nil {
 		return fmt.Errorf("send m-search: %w", err)
 	}
@@ -103,14 +105,13 @@ func applyDeadlineFromContext(conn *net.UDPConn, ctx context.Context) error {
 }
 
 // handlePacket parses the packet and emits a Device if an IP can be resolved.
-func handlePacket(out chan<- discovery.Device, src *net.UDPAddr, payload []byte, log *zap.Logger) {
+func handlePacket(out chan<- discovery.Device, src *net.UDPAddr, payload []byte) {
 	loc, server := parseHeaders(payload)
 	ip := ipFromAddr(src)
 	if ip == nil && loc != "" {
 		ip = ipFromLocation(loc)
 	}
 	if ip == nil {
-		log.Debug("ssdp response skipped; no ip", zap.String("src", src.String()), zap.String("location", loc))
 		return
 	}
 	d := discovery.NewDevice(ip)

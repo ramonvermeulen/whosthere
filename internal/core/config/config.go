@@ -5,6 +5,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
 )
 
 const (
@@ -13,10 +15,7 @@ const (
 	DefaultSweeperEnabled = true
 	DefaultSplashDelay    = 1 * time.Second
 
-	DefaultScanInterval    = 20 * time.Second
-	DefaultScanDuration    = 10 * time.Second
 	DefaultPortScanTimeout = 5 * time.Second
-	DefaultSweeperInterval = 5 * time.Minute
 
 	DefaultThemeName = "default"
 	CustomThemeName  = "custom"
@@ -26,14 +25,17 @@ var DefaultTCPPorts = []int{21, 22, 23, 25, 80, 110, 135, 139, 143, 389, 443, 44
 
 // Config captures all configurable parameters for the application.
 type Config struct {
-	NetworkInterface string            `yaml:"network_interface"`
-	ScanInterval     time.Duration     `yaml:"scan_interval"`
-	ScanDuration     time.Duration     `yaml:"scan_duration"`
-	Scanners         ScannerConfig     `yaml:"scanners"`
-	Sweeper          SweeperConfig     `yaml:"sweeper"`
-	PortScanner      PortScannerConfig `yaml:"port_scanner"`
-	Splash           SplashConfig      `yaml:"splash"`
-	Theme            ThemeConfig       `yaml:"theme"`
+	NetworkInterface string        `yaml:"network_interface"`
+	ScanInterval     time.Duration `yaml:"scan_interval"`
+	// ScanDuration is deprecated.
+	// Deprecated: use ScanTimeout instead. Field will be removed in next major release.
+	ScanDuration time.Duration     `yaml:"scan_duration"`
+	ScanTimeout  time.Duration     `yaml:"scan_timeout"`
+	Scanners     ScannerConfig     `yaml:"scanners"`
+	Sweeper      SweeperConfig     `yaml:"sweeper"`
+	PortScanner  PortScannerConfig `yaml:"port_scanner"`
+	Splash       SplashConfig      `yaml:"splash"`
+	Theme        ThemeConfig       `yaml:"theme"`
 }
 
 // ScannerToggle lets users enable/disable a scanner.
@@ -52,6 +54,7 @@ type ScannerConfig struct {
 type SweeperConfig struct {
 	Enabled  bool          `yaml:"enabled"`
 	Interval time.Duration `yaml:"interval"`
+	Timeout  time.Duration `yaml:"timeout"`
 }
 
 // PortScannerConfig defines TCP ports to scan.
@@ -86,8 +89,9 @@ type ThemeConfig struct {
 // DefaultConfig builds a Config pre-populated with baked-in defaults.
 func DefaultConfig() *Config {
 	return &Config{
-		ScanInterval: DefaultScanInterval,
-		ScanDuration: DefaultScanDuration,
+		ScanInterval: discovery.DefaultScanInterval,
+		ScanDuration: discovery.DefaultScanTimeout,
+		ScanTimeout:  discovery.DefaultScanTimeout,
 		Scanners: ScannerConfig{
 			MDNS: ScannerToggle{Enabled: true},
 			SSDP: ScannerToggle{Enabled: true},
@@ -95,7 +99,7 @@ func DefaultConfig() *Config {
 		},
 		Sweeper: SweeperConfig{
 			Enabled:  DefaultSweeperEnabled,
-			Interval: DefaultSweeperInterval,
+			Interval: discovery.DefaultSweepInterval,
 		},
 		PortScanner: PortScannerConfig{
 			TCP:     DefaultTCPPorts,
@@ -123,17 +127,27 @@ func (c *Config) validateAndNormalize() error {
 
 	if c.ScanInterval <= 0 {
 		errs = append(errs, "scan_interval must be > 0")
-		c.ScanInterval = DefaultScanInterval
+		c.ScanInterval = discovery.DefaultScanInterval
 	}
 
 	if c.ScanDuration <= 0 {
 		errs = append(errs, "scan_duration must be > 0")
-		c.ScanDuration = DefaultScanDuration
+		c.ScanDuration = discovery.DefaultScanTimeout
 	}
 
 	if c.ScanDuration > c.ScanInterval {
 		errs = append(errs, "scan_duration must be <= scan_interval")
 		c.ScanDuration = c.ScanInterval
+	}
+
+	if c.ScanTimeout <= 0 {
+		errs = append(errs, "scan_timeout must be > 0")
+		c.ScanTimeout = discovery.DefaultScanTimeout
+	}
+
+	if c.ScanTimeout > c.ScanInterval {
+		errs = append(errs, "scan_timeout must be <= scan_interval")
+		c.ScanTimeout = c.ScanInterval
 	}
 
 	if !c.Scanners.MDNS.Enabled && !c.Scanners.SSDP.Enabled && !c.Scanners.ARP.Enabled {
@@ -152,7 +166,11 @@ func (c *Config) validateAndNormalize() error {
 	}
 
 	if c.Sweeper.Interval <= 0 {
-		c.Sweeper.Interval = DefaultSweeperInterval
+		c.Sweeper.Interval = discovery.DefaultSweepInterval
+	}
+
+	if c.Sweeper.Timeout <= 0 {
+		c.Sweeper.Timeout = discovery.DefaultSweepTimeout
 	}
 
 	if strings.TrimSpace(c.Theme.Name) == "" {

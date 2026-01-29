@@ -1,9 +1,11 @@
-package discovery
+package sweeper
 
 import (
 	"net"
 	"reflect"
 	"testing"
+
+	"github.com/ramonvermeulen/whosthere/internal/core/discovery/sweepers/default"
 )
 
 func TestGenerateSubnetIPs(t *testing.T) {
@@ -48,7 +50,7 @@ func TestGenerateSubnetIPs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := generateSubnetIPs(tt.subnet, tt.skipIP)
+			result := _default.generateSubnetIPs(tt.subnet, tt.skipIP)
 			if !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("generateSubnetIPs() = %v, expected %v", result, tt.expected)
 			}
@@ -69,7 +71,7 @@ func generateExpectedIPs(start, end, skip net.IP) []net.IP {
 		if current.Equal(end) {
 			break
 		}
-		current = incrementIP(current)
+		current = _default.incrementIP(current)
 	}
 	return ips
 }

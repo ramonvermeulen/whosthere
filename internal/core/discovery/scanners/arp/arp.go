@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
-	"go.uber.org/zap"
 )
 
 var _ discovery.Scanner = (*Scanner)(nil)
@@ -17,23 +16,19 @@ var _ discovery.Scanner = (*Scanner)(nil)
 type Scanner struct {
 	iface *discovery.InterfaceInfo
 
-	logger *zap.Logger
+	logger discovery.Logger
 	mu     sync.Mutex
 	seen   map[string]struct{}
 }
 
-func NewScanner(iface *discovery.InterfaceInfo) *Scanner {
-	return &Scanner{iface: iface}
+func NewScanner(iface *discovery.InterfaceInfo, logger discovery.Logger) *Scanner {
+	return &Scanner{iface: iface, logger: logger}
 }
 
 func (s *Scanner) Name() string { return "arp" }
 
 // Scan performs ARP discovery.
 func (s *Scanner) Scan(ctx context.Context, out chan<- discovery.Device) error {
-	if s.logger == nil {
-		s.logger = zap.L().With(zap.String("scanner", s.Name()))
-	}
-
 	s.mu.Lock()
 	s.seen = make(map[string]struct{})
 	s.mu.Unlock()

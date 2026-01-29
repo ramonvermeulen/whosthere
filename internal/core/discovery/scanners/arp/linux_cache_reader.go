@@ -6,23 +6,21 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
-	"go.uber.org/zap"
 )
 
 // readLinuxARPCache reads /proc/net/arp and emits completed entries.
 // see https://man7.org/linux/man-pages/man5/proc_pid_net.5.html for more information about /proc/net/arp.
 func (s *Scanner) readLinuxARPCache(ctx context.Context, out chan<- discovery.Device) error {
-	log := zap.L().With(zap.String("scanner", s.Name()))
-
 	entries, err := parseProcNetARP(ctx, "/proc/net/arp")
 	if err != nil {
-		log.Debug("failed to parse /proc/net/arp", zap.Error(err))
+		s.logger.Log(ctx, slog.LevelDebug, "failed to read linux arp cache", err)
 		return err
 	}
 	return s.emitARPEntries(ctx, out, entries)

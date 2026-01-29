@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
+	"github.com/ramonvermeulen/whosthere/internal/core/logging"
 	"github.com/ramonvermeulen/whosthere/internal/core/version"
 	"github.com/ramonvermeulen/whosthere/internal/ui"
 	"github.com/ramonvermeulen/whosthere/internal/ui/theme"
@@ -78,20 +79,18 @@ func AddCommands(root *cobra.Command) {
 }
 
 func run(*cobra.Command, []string) error {
-	result, err := InitComponents(whosthereFlags.ConfigFile, whosthereFlags.NetworkInterface, false)
+	logger, err := logging.Init(false)
+	if err != nil {
+		return err
+	}
+	cfg, err := config.Load(whosthereFlags.ConfigFile)
 	if err != nil {
 		return err
 	}
 
-	logger := result.Logger
-	logPath := result.LogPath
-	cfg := result.Config
-	ouiDB := result.OuiDB
-
-	logger.Info("logger initialized", zap.String("path", logPath), zap.String("level", logger.Level().String()))
-
-	if ouiDB == nil {
-		logger.Warn("OUI database is not initialized; manufacturer lookups will be disabled")
+	if whosthereFlags.NetworkInterface != "" {
+		cfg.NetworkInterface = strings.TrimSpace(whosthereFlags.NetworkInterface)
+		logger.Info("overriding network interface from flag", zap.String("interface", cfg.NetworkInterface))
 	}
 
 	if whosthereFlags.PprofPort != "" {
@@ -103,7 +102,7 @@ func run(*cobra.Command, []string) error {
 		}()
 	}
 
-	app, err := ui.NewApp(cfg, ouiDB, result.Interface, version.Version)
+	app, err := ui.NewApp(cfg, logger, version.Version)
 	if err != nil {
 		logger.Error("failed to create app", zap.Error(err))
 		return err
