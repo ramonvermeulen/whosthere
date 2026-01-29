@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
-	"github.com/ramonvermeulen/whosthere/internal/core/oui"
+	"github.com/ramonvermeulen/whosthere/internal/core/discovery/oui"
 	"go.uber.org/zap"
 )
 

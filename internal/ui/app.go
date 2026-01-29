@@ -11,7 +11,7 @@ import (
 	"github.com/ramonvermeulen/whosthere/internal/core"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
 	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
-	"github.com/ramonvermeulen/whosthere/internal/core/oui"
+	"github.com/ramonvermeulen/whosthere/internal/core/discovery/oui"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
 	"github.com/ramonvermeulen/whosthere/internal/ui/events"
 	"github.com/ramonvermeulen/whosthere/internal/ui/routes"
