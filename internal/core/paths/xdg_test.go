@@ -29,7 +29,7 @@ func TestConfigDir(t *testing.T) {
 
 	home, _ := os.UserHomeDir()
 	expected = filepath.Join(home, defaultConfigDir, appName)
-	if runtime.GOOS == "Windows" {
+	if runtime.GOOS == "windows" {
 		dir, _ := os.UserConfigDir()
 		expected = filepath.Join(dir, appName)
 	}
