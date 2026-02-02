@@ -23,21 +23,22 @@ func ConfigDir() (string, error) {
 		return filepath.Join(env, appName), nil
 	}
 
-	// os.UserConfigDir returns:
-	// - ~/.config on Linux
-	// - ~/Library/Application Support on macOS
-	// - %APPDATA% on Windows
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		// Fallback to home dir construction if UserConfigDir fails
-		home, err := os.UserHomeDir()
+	if runtime.GOOS == "windows" {
+		// returns %APPDATA% on Windows
+		dir, err := os.UserConfigDir()
 		if err != nil {
-			return "", err
+			goto fallback
 		}
-		dir = filepath.Join(home, defaultConfigDir)
+		return filepath.Join(dir, appName), nil
 	}
 
-	return filepath.Join(dir, appName), nil
+fallback:
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(home, defaultConfigDir, appName), nil
 }
 
 // StateDir returns the XDG state directory for this app, creating it if
