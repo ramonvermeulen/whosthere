@@ -27,14 +27,11 @@ func TestConfigDir(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	// Expectation depends on OS now
-	ucd, err := os.UserConfigDir()
-	if err != nil {
-		// Fallback expectation
-		home, _ := os.UserHomeDir()
-		expected = filepath.Join(home, defaultConfigDir, appName)
-	} else {
-		expected = filepath.Join(ucd, appName)
+	home, _ := os.UserHomeDir()
+	expected = filepath.Join(home, defaultConfigDir, appName)
+	if runtime.GOOS == "windows" {
+		dir, _ := os.UserConfigDir()
+		expected = filepath.Join(dir, appName)
 	}
 
 	if dir != expected {
