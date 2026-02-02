@@ -29,6 +29,10 @@ func TestConfigDir(t *testing.T) {
 
 	home, _ := os.UserHomeDir()
 	expected = filepath.Join(home, defaultConfigDir, appName)
+	if runtime.GOOS == "Windows" {
+		dir, _ := os.UserConfigDir()
+		expected = filepath.Join(dir, appName)
+	}
 
 	if dir != expected {
 		t.Errorf("expected %s, got %s", expected, dir)
