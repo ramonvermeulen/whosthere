@@ -272,6 +272,11 @@ Whosthere is intended for use on networks where you have permission to perform n
 such as your own home network. Unauthorized scanning of networks may be illegal and unethical.
 Always obtain proper authorization before using this tool on any network.
 
+This tool was created primarily for educational purposes and home network exploration. While functional
+and useful, it should not be considered a professional-grade network monitoring solution. Results are
+based on unprivileged scanning techniques and may not be comprehensive. For critical network analysis
+or security assessments, consider using established professional tools with formal support.
+
 ## Contributing
 
 Contributions and suggestions such as feature requests, bug reports, or improvements are welcome!

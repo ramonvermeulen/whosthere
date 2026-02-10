@@ -22,6 +22,7 @@ func TestLoadMergedPrecedenceFlagsOverrideEnv(t *testing.T) {
 
 	_ = os.Setenv("WHOSTHERE__SCAN_TIMEOUT", "3s")
 	_ = os.Setenv("HOME", "/tmp")
+	_ = os.Setenv("USERPROFILE", "/tmp")
 
 	flags := &Flags{Overrides: map[string]string{"scan_timeout": "9s"}}
 	cfg, err := LoadMerged(flags)

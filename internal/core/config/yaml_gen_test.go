@@ -66,13 +66,15 @@ func TestGenerateDefaultYAMLMatchesREADME(t *testing.T) {
 		t.Skipf("README.md not found at %s: %v", readmePath, err)
 	}
 
-	re := regexp.MustCompile(`(?s)\*\*Example configuration:\*\*\n\n` + "```yaml\n" + `(.*?)` + "```" + ``)
+	re := regexp.MustCompile(`(?s)\*\*Example configuration:\*\*[\r\n]+` + "```yaml[\r\n]+" + `(.*?)` + "```" + ``)
 	matches := re.FindSubmatch(readmeContent)
 	if matches == nil {
 		t.Fatal("could not find YAML config block in README.md")
 	}
 
 	readmeYAML := strings.TrimSpace(string(matches[1]))
+	// so test runs fine on Windows too, where newlines are \r\n
+	readmeYAML = strings.ReplaceAll(readmeYAML, "\r\n", "\n")
 	generatedYAML := strings.TrimSpace(GenerateDefaultYAML())
 
 	if readmeYAML != generatedYAML {
