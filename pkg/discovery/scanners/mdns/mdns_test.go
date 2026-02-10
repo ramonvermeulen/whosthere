@@ -35,11 +35,6 @@ func TestCleanDisplayName(t *testing.T) {
 	require.Equal(t, "My Device", cleanDisplayName("My Device"))
 }
 
-func TestExtractServiceName(t *testing.T) {
-	require.Equal(t, "http", extractServiceName("_http._tcp.local."))
-	require.Equal(t, "", extractServiceName(""))
-}
-
 func TestExtractServiceNameFromTarget(t *testing.T) {
 	require.Equal(t, "http", extractServiceNameFromTarget("_http._tcp.local."))
 	require.Equal(t, "", extractServiceNameFromTarget("invalid"))

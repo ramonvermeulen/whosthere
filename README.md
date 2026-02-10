@@ -75,6 +75,12 @@ Run the TUI for interactive discovery:
 whosthere
 ```
 
+Run as cli to do a single scan and output results:
+
+```bash
+whosthere scan -t 5
+```
+
 Run as a daemon with HTTP API:
 
 ```bash
@@ -155,7 +161,7 @@ By default, Whosthere looks for configuration in this order:
 1. `$XDG_CONFIG_HOME/whosthere/config.yaml` (if `XDG_CONFIG_HOME` is set)
 1. `~/.config/whosthere/config.yaml` (fallback)
 
-**Example configuration (`config.yaml`):**
+**Example configuration:**
 
 ```yaml
 # Uncomment the next line to configure a specific network interface - uses OS default if not set

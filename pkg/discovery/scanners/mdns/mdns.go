@@ -284,10 +284,6 @@ func (ss *scanSession) handleDiscoveredDevice(
 	device.SetDisplayName(cleanDisplayName(ptrValue))
 	device.AddSource("mdns")
 
-	if service := extractServiceName(answer.Header.Name.String()); service != "" {
-		// Service discovered, but not stored
-	}
-
 	select {
 	case out <- device:
 		ss.reportedDevices[deviceID] = true
@@ -367,14 +363,6 @@ func isTimeout(err error) bool {
 func cleanDisplayName(name string) string {
 	name = strings.TrimSuffix(name, ".local.")
 	return strings.TrimSuffix(name, ".")
-}
-
-func extractServiceName(dnsName string) string {
-	parts := strings.Split(dnsName, ".")
-	if len(parts) == 0 {
-		return ""
-	}
-	return strings.TrimPrefix(parts[0], "_")
 }
 
 func extractServiceNameFromTarget(target string) string {

@@ -23,8 +23,8 @@ Use --no-xxx flags to disable specific scanners.` + magenta + `
 
 Examples:` + reset + `
   whosthere scan
-  whosthere scan --no-sweeper
-  whosthere scan --no-mdns --no-ssdp
+  whosthere scan --sweeper=false
+  whosthere scan --mdns=false --ssdp=false
   whosthere scan --timeout 15s
 `,
 		RunE: runScan,

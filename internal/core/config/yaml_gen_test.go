@@ -66,7 +66,7 @@ func TestGenerateDefaultYAMLMatchesREADME(t *testing.T) {
 		t.Skipf("README.md not found at %s: %v", readmePath, err)
 	}
 
-	re := regexp.MustCompile("(?s)Example of the default configuration file:\n\n```yaml\n(.*?)```")
+	re := regexp.MustCompile(`(?s)\*\*Example configuration:\*\*\n\n` + "```yaml\n" + `(.*?)` + "```" + ``)
 	matches := re.FindSubmatch(readmeContent)
 	if matches == nil {
 		t.Fatal("could not find YAML config block in README.md")
