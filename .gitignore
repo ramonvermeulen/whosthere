@@ -35,3 +35,6 @@ whosthere
 
 # goreleaser
 dist
+
+manual_*_test.sh
+*.log

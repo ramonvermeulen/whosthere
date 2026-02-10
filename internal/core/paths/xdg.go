@@ -24,15 +24,12 @@ func ConfigDir() (string, error) {
 	}
 
 	if runtime.GOOS == "windows" {
-		// returns %APPDATA% on Windows
 		dir, err := os.UserConfigDir()
-		if err != nil {
-			goto fallback
+		if err == nil {
+			return filepath.Join(dir, appName), nil
 		}
-		return filepath.Join(dir, appName), nil
 	}
 
-fallback:
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err

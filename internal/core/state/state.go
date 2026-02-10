@@ -5,15 +5,15 @@ import (
 	"sync"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
-	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
 	"github.com/ramonvermeulen/whosthere/internal/ui/theme"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 )
 
 // ReadOnly provides read-only access to application state.
 // This interface is intended for "dumb" components that only need to read state.
 type ReadOnly interface {
-	DevicesSnapshot() []discovery.Device
-	Selected() (discovery.Device, bool)
+	DevicesSnapshot() []*discovery.Device
+	Selected() (*discovery.Device, bool)
 	SelectedIP() string
 	CurrentTheme() string
 	PreviousTheme() string
@@ -22,7 +22,7 @@ type ReadOnly interface {
 	IsDiscovering() bool
 	IsPortscanning() bool
 	Config() config.Config
-	GetDevice(ip string) (discovery.Device, bool)
+	GetDevice(ip string) (*discovery.Device, bool)
 	SearchActive() bool
 	SearchText() string
 	SearchError() bool
@@ -34,7 +34,7 @@ type ReadOnly interface {
 type AppState struct {
 	mu sync.RWMutex
 
-	devices        map[string]discovery.Device
+	devices        map[string]*discovery.Device
 	selectedIP     string
 	previousTheme  string
 	version        string
@@ -49,7 +49,7 @@ type AppState struct {
 
 func NewAppState(cfg *config.Config, version string) *AppState {
 	s := &AppState{
-		devices: make(map[string]discovery.Device),
+		devices: make(map[string]*discovery.Device),
 		version: version,
 		cfg:     cfg,
 		noColor: theme.IsNoColor(),
@@ -66,10 +66,10 @@ func NewAppState(cfg *config.Config, version string) *AppState {
 
 // UpsertDevice merges a device into the canonical device map.
 func (s *AppState) UpsertDevice(d *discovery.Device) {
-	if d.IP == nil {
+	if d.IP() == nil {
 		return
 	}
-	key := d.IP.String()
+	key := d.IP().String()
 	if key == "" {
 		return
 	}
@@ -81,21 +81,22 @@ func (s *AppState) UpsertDevice(d *discovery.Device) {
 		existing.Merge(d)
 		s.devices[key] = existing
 	} else {
-		s.devices[key] = *d
+		// Stores a copy to prevent race conditions between discovery engine and UI rendering
+		s.devices[key] = d.Copy()
 	}
 }
 
 // DevicesSnapshot returns a copy of all devices for rendering.
-func (s *AppState) DevicesSnapshot() []discovery.Device {
+func (s *AppState) DevicesSnapshot() []*discovery.Device {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	out := make([]discovery.Device, 0, len(s.devices))
+	out := make([]*discovery.Device, 0, len(s.devices))
 	for _, d := range s.devices {
 		out = append(out, d)
 	}
 	sort.Slice(out, func(i, j int) bool {
-		return discovery.CompareIPs(out[i].IP, out[j].IP)
+		return discovery.CompareIPs(out[i].IP(), out[j].IP())
 	})
 	return out
 }
@@ -108,12 +109,12 @@ func (s *AppState) SetSelectedIP(ip string) {
 }
 
 // Selected returns the currently selected device, if any.
-func (s *AppState) Selected() (discovery.Device, bool) {
+func (s *AppState) Selected() (*discovery.Device, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	if s.selectedIP == "" {
-		return discovery.Device{}, false
+		return nil, false
 	}
 	d, ok := s.devices[s.selectedIP]
 	return d, ok
@@ -223,7 +224,7 @@ func (s *AppState) ReadOnly() ReadOnly {
 }
 
 // GetDevice retrieves a device by IP address.
-func (s *AppState) GetDevice(ip string) (discovery.Device, bool) {
+func (s *AppState) GetDevice(ip string) (*discovery.Device, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

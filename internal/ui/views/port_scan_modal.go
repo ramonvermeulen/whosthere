@@ -63,5 +63,5 @@ func (p *PortScanModalView) Render(s state.ReadOnly) {
 	text += fmt.Sprintf("TCP: %v\n\n", tcpPorts)
 	text += "Only scan hosts that you have permission to scan!"
 
-	p.Modal.SetText(text).SetTitle(fmt.Sprintf(" IP: %s ", device.IP))
+	p.Modal.SetText(text).SetTitle(fmt.Sprintf(" IP: %s ", device.IP()))
 }

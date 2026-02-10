@@ -141,30 +141,30 @@ func (d *DetailView) Render(s state.ReadOnly) {
 		return t.Format("2006-01-02 15:04:05")
 	}
 
-	writeLine("IP", device.IP.String())
-	writeLine("Display Name", device.DisplayName)
-	writeLine("MAC", device.MAC)
-	writeLine("Manufacturer", device.Manufacturer)
-	writeLine("First Seen", formatTime(device.FirstSeen))
-	writeLine("Last Seen", formatTime(device.LastSeen))
+	writeLine("IP", device.IP().String())
+	writeLine("Display Name", device.DisplayName())
+	writeLine("MAC", device.MAC())
+	writeLine("Manufacturer", device.Manufacturer())
+	writeLine("First Seen", formatTime(device.FirstSeen()))
+	writeLine("Last Seen", formatTime(device.LastSeen()))
 	_, _ = fmt.Fprintln(d.info)
 
 	writeSection("Sources")
-	if len(device.Sources) == 0 {
+	if len(device.Sources()) == 0 {
 		_, _ = fmt.Fprintln(d.info, "  (none)")
 	} else {
-		for _, src := range utils.SortedKeys(device.Sources) {
+		for _, src := range utils.SortedKeys(device.Sources()) {
 			_, _ = fmt.Fprintf(d.info, "  %s\n", src)
 		}
 	}
 
 	_, _ = fmt.Fprintln(d.info)
 	writeSection("Open Ports")
-	if len(device.OpenPorts) == 0 {
+	if len(device.OpenPorts()) == 0 {
 		_, _ = fmt.Fprintln(d.info, "  (no ports scanned yet)")
 	} else {
-		for _, key := range utils.SortedKeys(device.OpenPorts) {
-			ports := device.OpenPorts[key]
+		for _, key := range utils.SortedKeys(device.OpenPorts()) {
+			ports := device.OpenPorts()[key]
 			if len(ports) > 0 {
 				writeProto(key)
 				for _, port := range ports {
@@ -173,18 +173,18 @@ func (d *DetailView) Render(s state.ReadOnly) {
 				_, _ = fmt.Fprintln(d.info)
 			}
 		}
-		if !device.LastPortScan.IsZero() {
-			writeLastScan(device.LastPortScan.Format("2006-01-02 15:04:05"))
+		if !device.LastPortScan().IsZero() {
+			writeLastScan(device.LastPortScan().Format("2006-01-02 15:04:05"))
 		}
 	}
 
 	_, _ = fmt.Fprintln(d.info)
 	writeSection("Extra Data")
-	if len(device.ExtraData) == 0 {
+	if len(device.ExtraData()) == 0 {
 		_, _ = fmt.Fprintln(d.info, "  (none)")
 	} else {
-		for _, k := range utils.SortedKeys(device.ExtraData) {
-			_, _ = fmt.Fprintf(d.info, "  %s: %s\n", k, utils.SanitizeString(device.ExtraData[k]))
+		for _, k := range utils.SortedKeys(device.ExtraData()) {
+			_, _ = fmt.Fprintf(d.info, "  %s: %s\n", k, utils.SanitizeString(device.ExtraData()[k]))
 		}
 	}
 

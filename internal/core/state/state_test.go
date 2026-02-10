@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
-	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 )
 
 func TestNewAppState(t *testing.T) {
@@ -28,16 +28,17 @@ func TestUpsertDevice(t *testing.T) {
 	state := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	ip := net.ParseIP("192.168.1.1")
-	device := discovery.Device{IP: ip, DisplayName: "test"}
+	device := discovery.NewDevice(ip)
+	device.SetDisplayName("test")
 
-	state.UpsertDevice(&device)
+	state.UpsertDevice(device)
 
 	devices := state.DevicesSnapshot()
 	if len(devices) != 1 {
 		t.Errorf("expected 1 device, got %d", len(devices))
 	}
-	if devices[0].IP.String() != "192.168.1.1" {
-		t.Errorf("expected IP 192.168.1.1, got %s", devices[0].IP.String())
+	if devices[0].IP().String() != "192.168.1.1" {
+		t.Errorf("expected IP 192.168.1.1, got %s", devices[0].IP().String())
 	}
 }
 
@@ -46,16 +47,16 @@ func TestDevicesSnapshot(t *testing.T) {
 
 	ip1 := net.ParseIP("192.168.1.2")
 	ip2 := net.ParseIP("192.168.1.1")
-	state.UpsertDevice(&discovery.Device{IP: ip1})
-	state.UpsertDevice(&discovery.Device{IP: ip2})
+	state.UpsertDevice(discovery.NewDevice(ip1))
+	state.UpsertDevice(discovery.NewDevice(ip2))
 
 	devices := state.DevicesSnapshot()
 	if len(devices) != 2 {
 		t.Errorf("expected 2 devices, got %d", len(devices))
 	}
 	// Should be sorted by IP
-	if devices[0].IP.String() != "192.168.1.1" {
-		t.Errorf("expected first IP 192.168.1.1, got %s", devices[0].IP.String())
+	if devices[0].IP().String() != "192.168.1.1" {
+		t.Errorf("expected first IP 192.168.1.1, got %s", devices[0].IP().String())
 	}
 }
 
@@ -64,7 +65,7 @@ func TestDevicesSnapshotNumericSort(t *testing.T) {
 
 	ips := []string{"192.168.1.1", "192.168.1.100", "192.168.1.2", "192.168.1.200"}
 	for _, ip := range ips {
-		state.UpsertDevice(&discovery.Device{IP: net.ParseIP(ip)})
+		state.UpsertDevice(discovery.NewDevice(net.ParseIP(ip)))
 	}
 
 	devices := state.DevicesSnapshot()
@@ -74,8 +75,8 @@ func TestDevicesSnapshotNumericSort(t *testing.T) {
 
 	expected := []string{"192.168.1.1", "192.168.1.2", "192.168.1.100", "192.168.1.200"}
 	for i, exp := range expected {
-		if devices[i].IP.String() != exp {
-			t.Errorf("expected IP at index %d to be %s, got %s", i, exp, devices[i].IP.String())
+		if devices[i].IP().String() != exp {
+			t.Errorf("expected IP at index %d to be %s, got %s", i, exp, devices[i].IP().String())
 		}
 	}
 }
@@ -84,16 +85,16 @@ func TestSelected(t *testing.T) {
 	state := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	ip := net.ParseIP("192.168.1.1")
-	device := discovery.Device{IP: ip}
-	state.UpsertDevice(&device)
+	device := discovery.NewDevice(ip)
+	state.UpsertDevice(device)
 
 	state.SetSelectedIP("192.168.1.1")
 	selected, ok := state.Selected()
 	if !ok {
 		t.Errorf("expected selected device")
 	}
-	if selected.IP.String() != "192.168.1.1" {
-		t.Errorf("expected selected IP 192.168.1.1, got %s", selected.IP.String())
+	if selected.IP().String() != "192.168.1.1" {
+		t.Errorf("expected selected IP 192.168.1.1, got %s", selected.IP().String())
 	}
 
 	state.SetSelectedIP("192.168.1.2")
@@ -152,14 +153,14 @@ func TestGetDevice(t *testing.T) {
 	state := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	ip := net.ParseIP("192.168.1.1")
-	device := discovery.Device{IP: ip}
-	state.UpsertDevice(&device)
+	device := discovery.NewDevice(ip)
+	state.UpsertDevice(device)
 
 	d, ok := state.GetDevice("192.168.1.1")
 	if !ok {
 		t.Errorf("expected device")
 	}
-	if d.IP.String() != "192.168.1.1" {
+	if d.IP().String() != "192.168.1.1" {
 		t.Errorf("expected IP 192.168.1.1")
 	}
 }

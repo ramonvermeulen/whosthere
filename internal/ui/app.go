@@ -3,22 +3,24 @@ package ui
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/dece2183/go-clipboard"
 	"github.com/gdamore/tcell/v2"
 	"github.com/ramonvermeulen/whosthere/internal/core"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
-	"github.com/ramonvermeulen/whosthere/internal/core/discovery"
-	"github.com/ramonvermeulen/whosthere/internal/core/discovery/oui"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
 	"github.com/ramonvermeulen/whosthere/internal/ui/events"
 	"github.com/ramonvermeulen/whosthere/internal/ui/routes"
 	"github.com/ramonvermeulen/whosthere/internal/ui/theme"
 	"github.com/ramonvermeulen/whosthere/internal/ui/views"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 	"github.com/rivo/tview"
-	"go.uber.org/zap"
 )
 
 const (
@@ -31,7 +33,6 @@ type App struct {
 	pages         *tview.Pages
 	engine        *discovery.Engine
 	state         *state.AppState
-	scanTicker    *time.Ticker
 	refreshTicker *time.Ticker
 	cfg           *config.Config
 	events        chan events.Event
@@ -39,18 +40,16 @@ type App struct {
 	portScanner   *discovery.PortScanner
 	isReady       bool
 	clipboard     *clipboard.Clipboard
+	logger        *slog.Logger
 }
 
-func NewApp(cfg *config.Config, ouiDB *oui.Registry, iface *discovery.InterfaceInfo, version string) (*App, error) {
-	if cfg == nil {
-		return nil, fmt.Errorf("config cannot be nil")
-	}
-	if iface == nil {
-		return nil, fmt.Errorf("interface cannot be nil")
-	}
-
+func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, error) {
 	app := tview.NewApplication()
 	appState := state.NewAppState(cfg, version)
+
+	if logger == nil {
+		logger = slog.Default()
+	}
 
 	a := &App{
 		Application: app,
@@ -58,7 +57,9 @@ func NewApp(cfg *config.Config, ouiDB *oui.Registry, iface *discovery.InterfaceI
 		cfg:         cfg,
 		events:      make(chan events.Event, 100),
 		clipboard:   clipboard.New(clipboard.ClipboardOptions{Primary: false}),
+		logger:      logger,
 	}
+	a.setupSignalHandler()
 
 	a.emit = func(e events.Event) {
 		a.events <- e
@@ -67,7 +68,14 @@ func NewApp(cfg *config.Config, ouiDB *oui.Registry, iface *discovery.InterfaceI
 
 	a.applyTheme(appState.CurrentTheme())
 	a.setupPages(cfg)
-	a.setupEngine(iface, ouiDB)
+
+	engine, err := core.BuildEngine(a.cfg, logger)
+	if err != nil {
+		return nil, fmt.Errorf("build engine: %w", err)
+	}
+	a.engine = engine
+	// todo(ramon) handle in BuildEngine -> WithPortScanner(...)
+	a.portScanner = discovery.NewPortScanner(100, engine.Iface)
 
 	app.SetRoot(a.pages, true)
 	app.SetInputCapture(a.handleGlobalKeys)
@@ -76,18 +84,37 @@ func NewApp(cfg *config.Config, ouiDB *oui.Registry, iface *discovery.InterfaceI
 	return a, nil
 }
 
+func (a *App) setupSignalHandler() {
+	defer func() {
+		if r := recover(); r != nil {
+			a.logger.Error("panic in signal handler", "panic", r)
+		}
+	}()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				a.logger.Error("panic in signal handler goroutine", "panic", r)
+				os.Exit(1)
+			}
+		}()
+
+		sig := <-sigChan
+		a.logger.Info("received signal, shutting down", "signal", sig)
+		a.Stop()
+	}()
+}
+
 func (a *App) Run() error {
-	zap.L().Debug("App Run started")
+	a.logger.Debug("App Run started")
 	go a.handleEvents()
 	a.startUIRefreshLoop()
 
 	if a.cfg != nil && a.cfg.Splash.Enabled {
 		go func(delay time.Duration) {
-			defer func() {
-				if r := recover(); r != nil {
-					zap.L().Error("Panic in splash delay", zap.Any("panic", r))
-				}
-			}()
 			time.Sleep(delay)
 			a.emit(events.NavigateTo{Route: routes.RouteDashboard})
 			a.isReady = true
@@ -97,7 +124,8 @@ func (a *App) Run() error {
 	}
 
 	if a.engine != nil && a.cfg != nil {
-		a.startDiscoveryScanLoop()
+		a.engine.Start(context.Background())
+		go a.handleEngineEvents()
 	}
 
 	return a.Application.Run()
@@ -123,13 +151,7 @@ func (a *App) setupPages(cfg *config.Config) {
 	a.pages.SwitchToPage(initialPage)
 }
 
-func (a *App) setupEngine(iface *discovery.InterfaceInfo, ouiDB *oui.Registry) {
-	a.portScanner = discovery.NewPortScanner(100, iface)
-	a.engine = core.BuildEngine(iface, ouiDB, a.cfg)
-}
-
 func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
-	// if the app isn't fully started, but it can already listen to key events this can cause a UI bug
 	if !a.isReady {
 		return event
 	}
@@ -155,24 +177,30 @@ func (a *App) startUIRefreshLoop() {
 	}()
 }
 
-func (a *App) startDiscoveryScanLoop() {
-	if a.cfg == nil {
-		return
-	}
-
-	if a.engine.Sweeper != nil {
-		a.engine.Sweeper.Start(context.Background())
-	}
-
-	a.scanTicker = time.NewTicker(a.cfg.ScanInterval)
-
-	go func() {
-		a.performScan()
-
-		for range a.scanTicker.C {
-			a.performScan()
+func (a *App) handleEngineEvents() {
+	defer func() {
+		if r := recover(); r != nil {
+			a.logger.Error("panic in handleEngineEvents", "panic", r)
 		}
 	}()
+
+	for event := range a.engine.Events {
+		switch event.Type {
+		case discovery.EventScanStarted:
+			a.emit(events.DiscoveryStarted{})
+		case discovery.EventScanCompleted:
+			a.emit(events.DiscoveryStopped{})
+		case discovery.EventDeviceDiscovered:
+			if event.Device != nil {
+				a.state.UpsertDevice(event.Device)
+			}
+		case discovery.EventError:
+			a.emit(events.DiscoveryStopped{})
+			if event.Error != nil {
+				a.logger.Error("scan failed", "error", event.Error)
+			}
+		}
+	}
 }
 
 func (a *App) QueueUpdateDraw(f func()) {
@@ -182,22 +210,6 @@ func (a *App) QueueUpdateDraw(f func()) {
 	go func() {
 		a.Application.QueueUpdateDraw(f)
 	}()
-}
-
-func (a *App) performScan() {
-	if a.cfg == nil || a.engine == nil {
-		return
-	}
-
-	a.emit(events.DiscoveryStarted{})
-
-	ctx, cancel := context.WithTimeout(context.Background(), a.cfg.ScanDuration)
-	_, _ = a.engine.Stream(ctx, func(d *discovery.Device) {
-		a.state.UpsertDevice(d)
-	})
-	cancel()
-
-	a.emit(events.DiscoveryStopped{})
 }
 
 // applyTheme applies a theme by name, updates state, applies to primitives, and renders all pages.
@@ -246,8 +258,14 @@ func (a *App) rerenderVisibleViews() {
 }
 
 func (a *App) handleEvents() {
+	defer func() {
+		if r := recover(); r != nil {
+			a.logger.Error("panic in handleEvents", "panic", r)
+		}
+	}()
+
 	for e := range a.events {
-		zap.L().Debug("Handling event: ", zap.Any("event", e))
+		a.logger.Debug("handling event", "event", e)
 		switch event := e.(type) {
 		case events.DeviceSelected:
 			a.state.SetSelectedIP(event.IP)
@@ -295,12 +313,12 @@ func (a *App) handleEvents() {
 			} else {
 				device, ok := a.state.Selected()
 				if ok {
-					ip = device.IP.String()
+					ip = device.IP().String()
 				}
 			}
 			if ip != "" {
 				if err := a.clipboard.CopyText(ip); err != nil {
-					zap.L().Warn("failed to copy to clipboard", zap.Error(err))
+					a.logger.Warn("failed to copy to clipboard", "error", err)
 				}
 			}
 		case events.CopyMac:
@@ -310,12 +328,12 @@ func (a *App) handleEvents() {
 			} else {
 				device, ok := a.state.Selected()
 				if ok {
-					mac = device.MAC
+					mac = device.MAC()
 				}
 			}
 			if mac != "" {
 				if err := a.clipboard.CopyText(mac); err != nil {
-					zap.L().Warn("failed to copy to clipboard", zap.Error(err))
+					a.logger.Warn("failed to copy to clipboard", "error", err)
 				}
 			}
 		}
@@ -329,21 +347,21 @@ func (a *App) startPortscan() {
 		a.emit(events.PortScanStopped{})
 		return
 	}
-	ip := device.IP.String()
-	ctx, cancel := context.WithTimeout(context.Background(), a.cfg.ScanDuration)
+	ip := device.IP().String()
+	ctx, cancel := context.WithTimeout(context.Background(), a.cfg.ScanTimeout)
 	defer cancel()
 
-	device.OpenPorts = map[string][]int{}
-	device.LastPortScan = time.Now()
+	openPorts := make(map[string][]int)
+	device.SetOpenPorts(openPorts)
+	device.SetLastPortScan(time.Now())
 
-	// todo(ramon) handle errors properly
 	var mu sync.Mutex
 	_ = a.portScanner.Stream(ctx, ip, a.cfg.PortScanner.TCP, a.cfg.PortScanner.Timeout, func(port int) {
 		mu.Lock()
 		defer mu.Unlock()
-		device.OpenPorts["tcp"] = append(device.OpenPorts["tcp"], port)
-		a.state.UpsertDevice(&device)
+		openPorts["tcp"] = append(openPorts["tcp"], port)
 	})
 
+	device.SetOpenPorts(openPorts)
 	a.emit(events.PortScanStopped{})
 }

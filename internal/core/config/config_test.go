@@ -1,12 +1,12 @@
 package config
 
 import (
-	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/goccy/go-yaml"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 )
 
 func TestValidateAndNormalizeDurations(t *testing.T) {
@@ -25,15 +25,15 @@ func TestValidateAndNormalizeDurations(t *testing.T) {
 	if !strings.Contains(err.Error(), "scan_interval must be > 0") {
 		t.Errorf("expected scan_interval error, got %v", err)
 	}
-	if cfg.ScanInterval != DefaultScanInterval {
-		t.Errorf("expected scan interval default %v, got %v", DefaultScanInterval, cfg.ScanInterval)
+	if cfg.ScanInterval != discovery.DefaultScanInterval {
+		t.Errorf("expected scan interval default %v, got %v", discovery.DefaultScanInterval, cfg.ScanInterval)
 	}
 
 	if !strings.Contains(err.Error(), "scan_duration must be > 0") {
 		t.Errorf("expected scan_duration error, got %v", err)
 	}
-	if cfg.ScanDuration != DefaultScanDuration {
-		t.Errorf("expected scan duration default %v, got %v", DefaultScanDuration, cfg.ScanDuration)
+	if cfg.ScanDuration != discovery.DefaultScanTimeout {
+		t.Errorf("expected scan duration default %v, got %v", discovery.DefaultScanTimeout, cfg.ScanDuration)
 	}
 
 	if !strings.Contains(err.Error(), "splash.delay must be >= 0") {
@@ -65,32 +65,11 @@ func TestValidateAndNormalizeDurationRelationship(t *testing.T) {
 	}
 }
 
-func TestValidateAndNormalizeScanners(t *testing.T) {
-	cfg := &Config{
-		ScanInterval: DefaultScanInterval,
-		ScanDuration: DefaultScanDuration,
-		Splash:       SplashConfig{Enabled: true, Delay: DefaultSplashDelay},
-		Scanners:     ScannerConfig{},
-	}
-
-	err := cfg.validateAndNormalize()
-	if err == nil {
-		t.Fatalf("expected validation error")
-	}
-
-	if !strings.Contains(err.Error(), "at least one scanner must be enabled") {
-		t.Errorf("expected scanner error, got %v", err)
-	}
-
-	if !cfg.Scanners.MDNS.Enabled || !cfg.Scanners.SSDP.Enabled || !cfg.Scanners.ARP.Enabled {
-		t.Errorf("expected all scanners default-enabled when none specified, got %+v", cfg.Scanners)
-	}
-}
-
 func TestValidateAndNormalizeHappyPath(t *testing.T) {
 	cfg := &Config{
 		ScanInterval: 15 * time.Second,
 		ScanDuration: 5 * time.Second,
+		ScanTimeout:  5 * time.Second,
 		Splash:       SplashConfig{Enabled: false, Delay: 2 * time.Second},
 		Scanners: ScannerConfig{
 			MDNS: ScannerToggle{Enabled: true},
@@ -112,12 +91,6 @@ func TestDefaultConfigProducesValidConfig(t *testing.T) {
 
 	if cfg.Theme.Name != DefaultThemeName {
 		t.Fatalf("expected default theme %q, got %q", DefaultThemeName, cfg.Theme.Name)
-	}
-}
-
-func TestLoaderValidateNilConfig(t *testing.T) {
-	if err := validateAndNormalize(nil); !errors.Is(err, ErrConfigNil) {
-		t.Fatalf("expected ErrConfigNil, got %v", err)
 	}
 }
 
@@ -206,23 +179,19 @@ splash:
 		"scan_interval must be > 0",
 		"scan_duration must be > 0",
 		"splash.delay must be >= 0",
-		"at least one scanner must be enabled",
 	} {
 		if !strings.Contains(msg, expected) {
 			t.Errorf("expected error %q in %q", expected, msg)
 		}
 	}
 
-	if cfg.ScanInterval != DefaultScanInterval {
-		t.Errorf("expected default scan interval %v, got %v", DefaultScanInterval, cfg.ScanInterval)
+	if cfg.ScanInterval != discovery.DefaultScanInterval {
+		t.Errorf("expected default scan interval %v, got %v", discovery.DefaultScanInterval, cfg.ScanInterval)
 	}
-	if cfg.ScanDuration != DefaultScanDuration {
-		t.Errorf("expected default scan duration %v, got %v", DefaultScanDuration, cfg.ScanDuration)
+	if cfg.ScanDuration != discovery.DefaultScanTimeout {
+		t.Errorf("expected default scan duration %v, got %v", discovery.DefaultScanTimeout, cfg.ScanDuration)
 	}
 	if cfg.Splash.Delay != DefaultSplashDelay {
 		t.Errorf("expected default splash delay %v, got %v", DefaultSplashDelay, cfg.Splash.Delay)
-	}
-	if !cfg.Scanners.MDNS.Enabled || !cfg.Scanners.SSDP.Enabled || !cfg.Scanners.ARP.Enabled {
-		t.Errorf("expected scanners re-enabled to defaults, got %+v", cfg.Scanners)
 	}
 }

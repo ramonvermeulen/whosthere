@@ -16,8 +16,8 @@ var (
 	Commit  = "unknown"
 	Date    = "unknown"
 	// ANSII color codes for labels
-	cyan  = "\033[36m"
-	reset = "\033[0m"
+	magenta = "\x1b[35m"
+	reset   = "\033[0m"
 )
 
 // Fprint writes version and runtime information to the provided writer.
@@ -26,15 +26,15 @@ func Fprint(w io.Writer) {
 		w = os.Stdout
 	}
 	if theme.IsNoColor() {
-		cyan = ""
+		magenta = ""
 		reset = ""
 	}
-	_, _ = fmt.Fprintf(w, "%sOS:%s         %s/%s\n", cyan, reset, runtime.GOOS, runtime.GOARCH)
-	_, _ = fmt.Fprintf(w, "%sVersion:%s    %s\n", cyan, reset, Version)
-	_, _ = fmt.Fprintf(w, "%sCommit:%s     %s\n", cyan, reset, Commit)
+	_, _ = fmt.Fprintf(w, "%sOS:%s         %s/%s\n", magenta, reset, runtime.GOOS, runtime.GOARCH)
+	_, _ = fmt.Fprintf(w, "%sVersion:%s    %s\n", magenta, reset, Version)
+	_, _ = fmt.Fprintf(w, "%sCommit:%s     %s\n", magenta, reset, Commit)
 	dateStr := Date
 	if len(Date) >= 10 {
 		dateStr = Date[:10]
 	}
-	_, _ = fmt.Fprintf(w, "%sDate:%s       %s\n", cyan, reset, dateStr)
+	_, _ = fmt.Fprintf(w, "%sDate:%s       %s\n", magenta, reset, dateStr)
 }

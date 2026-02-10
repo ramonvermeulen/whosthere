@@ -5,6 +5,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 )
 
 const (
@@ -13,10 +15,7 @@ const (
 	DefaultSweeperEnabled = true
 	DefaultSplashDelay    = 1 * time.Second
 
-	DefaultScanInterval    = 20 * time.Second
-	DefaultScanDuration    = 10 * time.Second
 	DefaultPortScanTimeout = 5 * time.Second
-	DefaultSweeperInterval = 5 * time.Minute
 
 	DefaultThemeName = "default"
 	CustomThemeName  = "custom"
@@ -26,14 +25,18 @@ var DefaultTCPPorts = []int{21, 22, 23, 25, 80, 110, 135, 139, 143, 389, 443, 44
 
 // Config captures all configurable parameters for the application.
 type Config struct {
-	NetworkInterface string            `yaml:"network_interface"`
-	ScanInterval     time.Duration     `yaml:"scan_interval"`
-	ScanDuration     time.Duration     `yaml:"scan_duration"`
-	Scanners         ScannerConfig     `yaml:"scanners"`
-	Sweeper          SweeperConfig     `yaml:"sweeper"`
-	PortScanner      PortScannerConfig `yaml:"port_scanner"`
-	Splash           SplashConfig      `yaml:"splash"`
-	Theme            ThemeConfig       `yaml:"theme"`
+	NetworkInterface string        `yaml:"network_interface"`
+	ScanInterval     time.Duration `yaml:"scan_interval"`
+	// ScanDuration is deprecated.
+	//
+	// Deprecated: use ScanTimeout instead. Field will be removed in the next major release.
+	ScanDuration time.Duration     `yaml:"scan_duration"`
+	ScanTimeout  time.Duration     `yaml:"scan_timeout"`
+	Scanners     ScannerConfig     `yaml:"scanners"`
+	Sweeper      SweeperConfig     `yaml:"sweeper"`
+	PortScanner  PortScannerConfig `yaml:"port_scanner"`
+	Splash       SplashConfig      `yaml:"splash"`
+	Theme        ThemeConfig       `yaml:"theme"`
 }
 
 // ScannerToggle lets users enable/disable a scanner.
@@ -52,6 +55,7 @@ type ScannerConfig struct {
 type SweeperConfig struct {
 	Enabled  bool          `yaml:"enabled"`
 	Interval time.Duration `yaml:"interval"`
+	Timeout  time.Duration `yaml:"timeout"`
 }
 
 // PortScannerConfig defines TCP ports to scan.
@@ -84,10 +88,12 @@ type ThemeConfig struct {
 }
 
 // DefaultConfig builds a Config pre-populated with baked-in defaults.
+// These defaults are used if no config is provided by the user.
 func DefaultConfig() *Config {
 	return &Config{
-		ScanInterval: DefaultScanInterval,
-		ScanDuration: DefaultScanDuration,
+		ScanInterval: discovery.DefaultScanInterval,
+		ScanDuration: discovery.DefaultScanTimeout,
+		ScanTimeout:  discovery.DefaultScanTimeout,
 		Scanners: ScannerConfig{
 			MDNS: ScannerToggle{Enabled: true},
 			SSDP: ScannerToggle{Enabled: true},
@@ -95,7 +101,8 @@ func DefaultConfig() *Config {
 		},
 		Sweeper: SweeperConfig{
 			Enabled:  DefaultSweeperEnabled,
-			Interval: DefaultSweeperInterval,
+			Interval: discovery.DefaultSweepInterval,
+			Timeout:  discovery.DefaultSweepTimeout,
 		},
 		PortScanner: PortScannerConfig{
 			TCP:     DefaultTCPPorts,
@@ -113,7 +120,18 @@ func DefaultConfig() *Config {
 }
 
 // validateAndNormalize validates the config and fixes up out-of-range values.
+// It also applies app-mode policies (e.g., ensuring at least one scanner is enabled).
 func (c *Config) validateAndNormalize() error {
+	if err := c.normalizeBasics(); err != nil {
+		return err
+	}
+	if err := c.enforceAppPolicies(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Config) normalizeBasics() error {
 	var errs []string
 
 	if c.Splash.Delay < 0 {
@@ -123,12 +141,12 @@ func (c *Config) validateAndNormalize() error {
 
 	if c.ScanInterval <= 0 {
 		errs = append(errs, "scan_interval must be > 0")
-		c.ScanInterval = DefaultScanInterval
+		c.ScanInterval = discovery.DefaultScanInterval
 	}
 
 	if c.ScanDuration <= 0 {
 		errs = append(errs, "scan_duration must be > 0")
-		c.ScanDuration = DefaultScanDuration
+		c.ScanDuration = discovery.DefaultScanTimeout
 	}
 
 	if c.ScanDuration > c.ScanInterval {
@@ -136,11 +154,14 @@ func (c *Config) validateAndNormalize() error {
 		c.ScanDuration = c.ScanInterval
 	}
 
-	if !c.Scanners.MDNS.Enabled && !c.Scanners.SSDP.Enabled && !c.Scanners.ARP.Enabled {
-		errs = append(errs, "at least one scanner must be enabled")
-		c.Scanners.MDNS.Enabled = true
-		c.Scanners.SSDP.Enabled = true
-		c.Scanners.ARP.Enabled = true
+	if c.ScanTimeout <= 0 {
+		errs = append(errs, "scan_timeout must be > 0")
+		c.ScanTimeout = discovery.DefaultScanTimeout
+	}
+
+	if c.ScanTimeout > c.ScanInterval {
+		errs = append(errs, "scan_timeout must be <= scan_interval")
+		c.ScanTimeout = c.ScanInterval
 	}
 
 	if len(c.PortScanner.TCP) == 0 {
@@ -152,7 +173,11 @@ func (c *Config) validateAndNormalize() error {
 	}
 
 	if c.Sweeper.Interval <= 0 {
-		c.Sweeper.Interval = DefaultSweeperInterval
+		c.Sweeper.Interval = discovery.DefaultSweepInterval
+	}
+
+	if c.Sweeper.Timeout <= 0 {
+		c.Sweeper.Timeout = discovery.DefaultSweepTimeout
 	}
 
 	if strings.TrimSpace(c.Theme.Name) == "" {
@@ -168,6 +193,21 @@ func (c *Config) validateAndNormalize() error {
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "; "))
 	}
+	return nil
+}
 
+func (c *Config) enforceAppPolicies() error {
+	var errs []string
+
+	if !c.Scanners.MDNS.Enabled && !c.Scanners.SSDP.Enabled && !c.Scanners.ARP.Enabled {
+		errs = append(errs, "at least one scanner must be enabled")
+		c.Scanners.MDNS.Enabled = true
+		c.Scanners.SSDP.Enabled = true
+		c.Scanners.ARP.Enabled = true
+	}
+
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
 	return nil
 }
