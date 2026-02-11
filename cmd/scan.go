@@ -25,13 +25,13 @@ Examples:` + reset + `
   whosthere scan
   whosthere scan --sweeper=false
   whosthere scan --mdns=false --ssdp=false
-  whosthere scan --timeout 5s --json --pretty
+  whosthere scan --timeout=5s --json --pretty
 `,
 		RunE: runScan,
 	}
 
-	cmd.Flags().Bool("json", false, "Output results in JSON format.")
-	cmd.Flags().Bool("pretty", false, "Pretty print output.")
+	cmd.Flags().Bool("json", false, "Output results in JSON format")
+	cmd.Flags().Bool("pretty", false, "Pretty print output")
 
 	return cmd
 }

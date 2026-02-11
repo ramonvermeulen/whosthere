@@ -90,7 +90,7 @@ whosthere scan -t 5 --json --pretty > devices.json
 Run as a daemon with HTTP API:
 
 ```bash
-whosthere daemon --port 8080
+whosthere daemon --port=8080
 ```
 
 Additional command line options can be found by running:

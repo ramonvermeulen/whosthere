@@ -24,7 +24,7 @@ func NewDaemonCommand() *cobra.Command {
 		Long: `Run whosthere in daemon mode, continuously scanning the network and providing live device data via HTTP API.
 ` + magenta + `
 Examples:` + reset + `
-  whosthere daemon --port 8080
+  whosthere daemon --port=8080
 `,
 		RunE: runDaemon,
 	}
