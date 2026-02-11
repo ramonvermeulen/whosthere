@@ -35,14 +35,13 @@ func TestEngine_Scan_MergesDevices(t *testing.T) {
 	other.SetMAC("aa:bb:cc:dd:ee:ff")
 	other.AddSource("b")
 
-	s1 := &testkit.FakeScanner{NameStr: "s1", Devices: []*discovery.Device{base}}
-	s2 := &testkit.FakeScanner{NameStr: "s2", Devices: []*discovery.Device{other}}
+	s1 := &testkit.FakeScanner{NameStr: "s1", Devices: []*discovery.Device{base}, Delay: 250 * time.Millisecond}
+	s2 := &testkit.FakeScanner{NameStr: "s2", Devices: []*discovery.Device{other}, Delay: 250 * time.Millisecond}
 
 	e, err := discovery.NewEngine(
 		discovery.WithInterface(iface),
 		discovery.WithScanners(s1, s2),
 		discovery.WithScanTimeout(1*time.Second),
-		discovery.WithScanInterval(time.Millisecond),
 	)
 	require.NoError(t, err)
 
