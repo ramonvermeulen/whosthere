@@ -46,6 +46,8 @@ func (s *Spinner) run() {
 
 	start := time.Now()
 	i := 0
+	// Initial print to show the spinner immediately
+	_, _ = fmt.Fprintf(s.w, "\r%s %s (%s/%.0fs)", frames[i%len(frames)], s.message, formatDuration(time.Since(start)), s.total.Seconds())
 	for {
 		select {
 		case <-s.stop:

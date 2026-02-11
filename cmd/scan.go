@@ -9,6 +9,7 @@ import (
 	"github.com/ramonvermeulen/whosthere/internal/core/output"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 func NewScanCommand() *cobra.Command {
@@ -24,8 +25,7 @@ Examples:` + reset + `
   whosthere scan
   whosthere scan --sweeper=false
   whosthere scan --mdns=false --ssdp=false
-  whosthere scan --timeout 15s
-  whosthere scan --json
+  whosthere scan --timeout 5s --json --pretty
 `,
 		RunE: runScan,
 	}
@@ -49,12 +49,19 @@ func runScan(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	spinner := output.NewSpinner(os.Stdout, "Scanning network...", cfg.ScanTimeout)
-	spinner.Start()
+	// Only show the spinner if stdout is a terminal to avoid polluting redirected output
+	// (e.g., when piping to save to a file).
+	var spinner *output.Spinner
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		spinner = output.NewSpinner(os.Stdout, "Scanning network...", cfg.ScanTimeout)
+		spinner.Start()
+	}
 
 	results, err := eng.Scan(ctx)
 
-	spinner.Stop()
+	if spinner != nil {
+		spinner.Stop()
+	}
 
 	if err != nil {
 		return err

@@ -81,6 +81,12 @@ Run as cli to do a single scan and output results:
 whosthere scan -t 5
 ```
 
+Output results to a JSON file:
+
+```bash
+whosthere scan -t 5 --json --pretty > devices.json
+```
+
 Run as a daemon with HTTP API:
 
 ```bash
