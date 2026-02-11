@@ -18,7 +18,7 @@ import (
 //   - mac: Hardware address in colon-separated format (e.g., "aa:bb:cc:dd:ee:ff")
 //   - displayName: Human-readable name from mDNS, SSDP, or other protocols
 //   - manufacturer: Vendor name derived from the MAC address OUI prefix
-//   - sources: Set of scanner names that contributed data (e.g., {"arp", "mdns"})
+//   - sources: Set of scanner names that contributed data (e.g., {"arp-cache", "mdns"})
 //   - firstSeen: When this device was first discovered
 //   - lastSeen: Most recent discovery time
 //   - extraData: Protocol-specific metadata (e.g., SSDP device type, mDNS TXT records)
@@ -385,14 +385,14 @@ func (d *Device) MarshalJSON() ([]byte, error) {
 	defer d.mu.RUnlock()
 
 	type temp struct {
-		IP           string              `json:"ip"`
-		MAC          string              `json:"mac"`
-		DisplayName  string              `json:"displayName"`
-		Manufacturer string              `json:"manufacturer"`
-		Sources      map[string]struct{} `json:"sources"`
-		FirstSeen    time.Time           `json:"firstSeen"`
-		LastSeen     time.Time           `json:"lastSeen"`
-		ExtraData    map[string]string   `json:"extraData"`
+		IP           string            `json:"ip"`
+		MAC          string            `json:"mac"`
+		DisplayName  string            `json:"displayName"`
+		Manufacturer string            `json:"manufacturer"`
+		Sources      []string          `json:"sources"`
+		FirstSeen    time.Time         `json:"firstSeen"`
+		LastSeen     time.Time         `json:"lastSeen"`
+		ExtraData    map[string]string `json:"extraData"`
 	}
 
 	ipStr := ""
@@ -405,14 +405,14 @@ func (d *Device) MarshalJSON() ([]byte, error) {
 		MAC:          d.mac,
 		DisplayName:  d.displayName,
 		Manufacturer: d.manufacturer,
-		Sources:      make(map[string]struct{}, len(d.sources)),
+		Sources:      make([]string, 0, len(d.sources)),
 		FirstSeen:    d.firstSeen,
 		LastSeen:     d.lastSeen,
 		ExtraData:    make(map[string]string, len(d.extraData)),
 	}
 
-	for k, v := range d.sources {
-		t.Sources[k] = v
+	for source := range d.sources {
+		t.Sources = append(t.Sources, source)
 	}
 	for k, v := range d.extraData {
 		t.ExtraData[k] = v

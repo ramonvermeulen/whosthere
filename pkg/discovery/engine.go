@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -50,6 +51,30 @@ type Scanner interface {
 // The sweeper can be overridden by providing a custom implementation.
 type Sweeper interface {
 	Start(ctx context.Context)
+}
+
+// ScanStats contains statistics about a completed scan.
+type ScanStats struct {
+	Count    int
+	Duration time.Duration
+}
+
+// MarshalJSON customizes the JSON encoding of the ScanStats struct.
+func (s *ScanStats) MarshalJSON() ([]byte, error) {
+	type temp struct {
+		Count    int    `json:"count"`
+		Duration string `json:"duration"`
+	}
+	return json.Marshal(temp{
+		Count:    s.Count,
+		Duration: fmt.Sprintf("%.1fs", s.Duration.Seconds()),
+	})
+}
+
+// ScanResults contains the results of a completed scan, including devices and stats.
+type ScanResults struct {
+	Devices []*Device  `json:"devices"`
+	Stats   *ScanStats `json:"stats"`
 }
 
 // Engine coordinates multiple scanners and merges device results.
@@ -148,7 +173,7 @@ func NewEngine(opts ...Option) (*Engine, error) {
 //	        fmt.Printf("Found: %s\n", event.Device.IP())
 //	    case discovery.EventScanCompleted:
 //	        fmt.Printf("Scan done: %d devices in %v\n",
-//	            event.Stats.DeviceCount, event.Stats.Duration)
+//	            event.Stats.Count, event.Stats.Duration)
 //	    case discovery.EventError:
 //	        fmt.Printf("Error: %v\n", event.Error)
 //	    }
@@ -223,7 +248,7 @@ func (e *Engine) Stop() {
 // If a sweeper is configured, it runs concurrently during the scan to populate
 // the ARP cache.
 //
-// Returns a slice of discovered devices or an error if the scan fails.
+// Returns scan results including the discovered devices and statistics or an error if the scan fails.
 // An empty slice is returned if no devices are found (not an error).
 //
 // Use this method for one-off discovery. For continuous monitoring, use Run().
@@ -232,14 +257,14 @@ func (e *Engine) Stop() {
 //
 //	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 //	defer cancel()
-//	devices, err := engine.Scan(ctx)
+//	results, err := engine.Scan(ctx)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	for _, dev := range devices {
+//	for _, dev := range results.Devices {
 //	    fmt.Printf("%s - %s\n", dev.IP(), dev.DisplayName())
 //	}
-func (e *Engine) Scan(ctx context.Context) ([]*Device, error) {
+func (e *Engine) Scan(ctx context.Context) (*ScanResults, error) {
 	ctx, cancel := context.WithTimeout(ctx, e.scanTimeout)
 	defer cancel()
 
@@ -301,7 +326,7 @@ func (e *Engine) runScanLoop(ctx context.Context) {
 	}
 }
 
-func (e *Engine) performScan(ctx context.Context) ([]*Device, error) {
+func (e *Engine) performScan(ctx context.Context) (*ScanResults, error) {
 	e.emit(NewScanStartedEvent())
 	start := time.Now()
 
@@ -333,13 +358,18 @@ func (e *Engine) performScan(ctx context.Context) ([]*Device, error) {
 		mu.Unlock()
 	}
 
+	deviceSlice := mapToSlicePtr(devices)
 	stats := &ScanStats{
-		DeviceCount: len(devices),
-		Duration:    time.Since(start),
+		Count:    len(deviceSlice),
+		Duration: time.Since(start),
 	}
 	e.emit(NewScanCompletedEvent(stats))
 
-	return mapToSlicePtr(devices), nil
+	results := &ScanResults{
+		Devices: deviceSlice,
+		Stats:   stats,
+	}
+	return results, nil
 }
 
 // processDevice handles a single discovered device
@@ -369,10 +399,7 @@ func (e *Engine) processDevice(d *Device, devices map[string]*Device) {
 		devices[key] = d
 	}
 
-	e.emit(Event{
-		Type:   EventDeviceDiscovered,
-		Device: d,
-	})
+	e.emit(NewDeviceEvent(d))
 }
 
 // emit sends an event non-blocking

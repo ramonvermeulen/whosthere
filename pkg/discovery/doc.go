@@ -58,7 +58,7 @@
 //	                dev.IP, dev.MAC, dev.DisplayName)
 //	        case discovery.EventScanCompleted:
 //	            fmt.Printf("Scan completed: %d devices in %v\n",
-//	                event.Stats.DeviceCount, event.Stats.Duration)
+//	                event.Stats.Count, event.Stats.Duration)
 //	        case discovery.EventError:
 //	            fmt.Printf("Error: %v\n", event.Error)
 //	        }
@@ -72,12 +72,12 @@
 //	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 //	defer cancel()
 //
-//	devices, err := engine.Scan(ctx)
+//	results, err := engine.Scan(ctx)
 //	if err != nil {
 //	    panic(err)
 //	}
 //
-//	for _, dev := range devices {
+//	for _, dev := range results.Devices {
 //	    fmt.Printf("%s - %s - %s\n", dev.IP, dev.MAC, dev.DisplayName)
 //	}
 //

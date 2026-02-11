@@ -22,8 +22,19 @@ func TestPrintDevices(t *testing.T) {
 		discovery.NewDevice(net.ParseIP("192.168.1.100")),
 	}
 
+	results := &discovery.ScanResults{
+		Devices: devices,
+		Stats: &discovery.ScanStats{
+			Count:    len(devices),
+			Duration: 1500 * time.Millisecond,
+		},
+	}
+
 	var buf bytes.Buffer
-	PrintDevices(&buf, devices, 1500*time.Millisecond)
+	err := PrintDevices(&buf, results, FormatTable)
+	if err != nil {
+		t.Fatalf("PrintDevices failed: %v", err)
+	}
 
 	output := buf.String()
 
@@ -54,8 +65,19 @@ func TestPrintDevices(t *testing.T) {
 }
 
 func TestPrintDevices_Empty(t *testing.T) {
+	results := &discovery.ScanResults{
+		Devices: []*discovery.Device{},
+		Stats: &discovery.ScanStats{
+			Count:    0,
+			Duration: 100 * time.Millisecond,
+		},
+	}
+
 	var buf bytes.Buffer
-	PrintDevices(&buf, []*discovery.Device{}, 100*time.Millisecond)
+	err := PrintDevices(&buf, results, FormatTable)
+	if err != nil {
+		t.Fatalf("PrintDevices failed: %v", err)
+	}
 
 	output := buf.String()
 
@@ -64,23 +86,5 @@ func TestPrintDevices_Empty(t *testing.T) {
 	}
 	if !strings.Contains(output, "0.1s") {
 		t.Error("expected output to contain elapsed time")
-	}
-}
-
-func TestFormatDuration(t *testing.T) {
-	tests := []struct {
-		input    time.Duration
-		expected string
-	}{
-		{500 * time.Millisecond, "0.5s"},
-		{1500 * time.Millisecond, "1.5s"},
-		{3 * time.Second, "3.0s"},
-	}
-
-	for _, tc := range tests {
-		result := formatDuration(tc.input)
-		if result != tc.expected {
-			t.Errorf("formatDuration(%v) = %q, want %q", tc.input, result, tc.expected)
-		}
 	}
 }
