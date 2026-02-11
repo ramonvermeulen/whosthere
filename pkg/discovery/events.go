@@ -1,7 +1,5 @@
 package discovery
 
-import "time"
-
 // Event represents something that happened during device discovery.
 // Events are emitted through the Events channel. Each Event has a Type
 // indicating what happened. Based on the Type, exactly one of Device,
@@ -20,7 +18,7 @@ import "time"
 //	    case discovery.EventDeviceDiscovered:
 //	        fmt.Println(event.Device.IP)
 //	    case discovery.EventScanCompleted:
-//	        fmt.Printf("Found %d devices\n", event.Stats.DeviceCount)
+//	        fmt.Printf("Found %d devices\n", event.Stats.Count)
 //	    }
 //	}
 type Event struct {
@@ -41,12 +39,6 @@ const (
 	EventEngineStarted
 	EventEngineStopped
 )
-
-// ScanStats contains statistics about a completed scan.
-type ScanStats struct {
-	DeviceCount int
-	Duration    time.Duration
-}
 
 // NewDeviceEvent creates a device discovery event.
 func NewDeviceEvent(device *Device) Event {

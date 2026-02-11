@@ -81,6 +81,12 @@ Run as cli to do a single scan and output results:
 whosthere scan -t 5
 ```
 
+Output results to a JSON file:
+
+```bash
+whosthere scan -t 5 --json --pretty > devices.json
+```
+
 Run as a daemon with HTTP API:
 
 ```bash
@@ -92,14 +98,6 @@ Additional command line options can be found by running:
 ```bash
 whosthere --help
 ```
-
-## Platforms
-
-Whosthere is supported on the following platforms:
-
-- [x] Linux
-- [x] macOS
-- [x] Windows
 
 ## Key bindings (TUI)
 
@@ -119,39 +117,14 @@ Whosthere is supported on the following platforms:
 | `p` (details view) | Start port scan on device   |
 | `tab` (modal view) | Switch button selection     |
 
-## Environment Variables
-
-### General Environment Variables
-
-| Variable           | Description                                                                     |
-| ------------------ | ------------------------------------------------------------------------------- |
-| `WHOSTHERE_CONFIG` | Path to the configuration file, to be able to overwrite the default location.   |
-| `WHOSTHERE_LOG`    | Set the log level (e.g., `debug`, `info`, `warn`, `error`). Defaults to `info`. |
-| `NO_COLOR`         | Disable ANSI colors in the TUI.                                                 |
-
-### Configuration via Environment Variables
-
-Any configuration option that is available in the YAML configuration, can be set via environment variables using the
-`WHOSTHERE__` prefix (note the double underscore). Nested configuration keys are separated by double underscores, and
-keys are case-insensitive.
-
-Examples:
-
-- `WHOSTHERE__SPLASH__ENABLED=false` - Disable the splash screen, equivalent to `splash.enabled: false` in the YAML config
-- `WHOSTHERE__SPLASH__DELAY=2s` - Set splash screen delay to 2 seconds, equivalent to `splash.delay: 2s` in the YAML config
-- `WHOSTHERE__SCAN_INTERVAL=30s` - Set scan interval to 30 seconds, equivalent to `scan_interval: 30s` in the YAML config
-- `WHOSTHERE__SCANNERS__MDNS__ENABLED=false` - Disable mDNS scanner, equivalent to `scanners.mdns.enabled: false` in the YAML config
-- `WHOSTHERE__PORT_SCANNER__TCP=80,443,8080` - Set custom TCP ports to scan, equivalent to `port_scanner.tcp: [80, 443, 8080]` in the YAML config
-- `WHOSTHERE__THEME__NAME=cyberpunk` - Set theme to cyberpunk, equivalent to `theme.name: cyberpunk` in the YAML config
-
 ## Configuration
 
 Whosthere supports multiple configuration methods with the following precedence (highest to lowest):
 
-1. **Command line flags** - Highest priority
-1. **Environment variables** - Using `WHOSTHERE__` prefix
-1. **Configuration file** - YAML format
-1. **Default values** - [**Built-in defaults**](https://github.com/ramonvermeulen/whosthere/blob/main/internal/core/config/config.go)
+1. **Command line flags** - Highest priority, see `whosthere --help` for available flags
+1. **Environment variables** - Using `WHOSTHERE__` prefix, see [**Configuration via Environment Variables**](#configuration-via-environment-variables)
+1. **Configuration file** - Via the YAML config file, see [**Configuration File**](#configuration-file)
+1. **Default values** - Fallback to defaults, see the `DefaultConfig()` in [**config.go**](https://github.com/ramonvermeulen/whosthere/blob/main/internal/core/config/config.go)
 
 ### Configuration File
 
@@ -218,6 +191,31 @@ theme:
   # contrast_secondary_text_color: "#88ddff"
 ```
 
+## Environment Variables
+
+### General Environment Variables
+
+| Variable           | Description                                                                     |
+| ------------------ | ------------------------------------------------------------------------------- |
+| `WHOSTHERE_CONFIG` | Path to the configuration file, to be able to overwrite the default location.   |
+| `WHOSTHERE_LOG`    | Set the log level (e.g., `debug`, `info`, `warn`, `error`). Defaults to `info`. |
+| `NO_COLOR`         | Disable ANSI colors in the TUI.                                                 |
+
+### Configuration via Environment Variables
+
+Any configuration option that is available in the YAML configuration, can be set via environment variables using the
+`WHOSTHERE__` prefix (note the double underscore). Nested configuration keys are separated by double underscores, and
+keys are case-insensitive.
+
+Examples:
+
+- `WHOSTHERE__SPLASH__ENABLED=false` - Disable the splash screen, equivalent to `splash.enabled: false` in the YAML config
+- `WHOSTHERE__SPLASH__DELAY=2s` - Set splash screen delay to 2 seconds, equivalent to `splash.delay: 2s` in the YAML config
+- `WHOSTHERE__SCAN_INTERVAL=30s` - Set scan interval to 30 seconds, equivalent to `scan_interval: 30s` in the YAML config
+- `WHOSTHERE__SCANNERS__MDNS__ENABLED=false` - Disable mDNS scanner, equivalent to `scanners.mdns.enabled: false` in the YAML config
+- `WHOSTHERE__PORT_SCANNER__TCP=80,443,8080` - Set custom TCP ports to scan, equivalent to `port_scanner.tcp: [80, 443, 8080]` in the YAML config
+- `WHOSTHERE__THEME__NAME=cyberpunk` - Set theme to cyberpunk, equivalent to `theme.name: cyberpunk` in the YAML config
+
 ## Daemon mode HTTP API
 
 When running Whosthere in daemon mode, it exposes an very simplistic HTTP API with the following endpoints:
@@ -254,6 +252,14 @@ Logs are written to the application's state directory:
 - `%LOCALAPPDATA%/whosthere/app.log` (fallback Windows)
 
 When not running in TUI mode, logs are also written to the console.
+
+## Platforms
+
+Whosthere is supported on the following platforms:
+
+- [x] Linux
+- [x] macOS
+- [x] Windows
 
 ## Known Issues
 

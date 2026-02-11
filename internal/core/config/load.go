@@ -44,7 +44,7 @@ func LoadForMode(mode RunMode, flags *Flags) (*Config, error) {
 	if flags != nil {
 		for k, v := range flags.Overrides {
 			if err := SetByYAMLKey(cfg, k, v); err != nil {
-				return nil, err
+				return cfg, fmt.Errorf("set override %s: %w", k, err)
 			}
 		}
 	}

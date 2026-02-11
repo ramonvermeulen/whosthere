@@ -35,25 +35,26 @@ func TestEngine_Scan_MergesDevices(t *testing.T) {
 	other.SetMAC("aa:bb:cc:dd:ee:ff")
 	other.AddSource("b")
 
-	s1 := &testkit.FakeScanner{NameStr: "s1", Devices: []*discovery.Device{base}}
-	s2 := &testkit.FakeScanner{NameStr: "s2", Devices: []*discovery.Device{other}}
+	s1 := &testkit.FakeScanner{NameStr: "s1", Devices: []*discovery.Device{base}, Delay: 250 * time.Millisecond}
+	s2 := &testkit.FakeScanner{NameStr: "s2", Devices: []*discovery.Device{other}, Delay: 250 * time.Millisecond}
 
 	e, err := discovery.NewEngine(
 		discovery.WithInterface(iface),
 		discovery.WithScanners(s1, s2),
-		discovery.WithScanTimeout(250*time.Millisecond),
-		discovery.WithScanInterval(time.Millisecond),
+		discovery.WithScanTimeout(1*time.Second),
 	)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	devices, scanErr := e.Scan(ctx)
+	stats, scanErr := e.Scan(ctx)
 	require.NoError(t, scanErr)
-	require.Len(t, devices, 1)
+	require.Len(t, stats.Devices, 1)
+	require.Equal(t, 1, stats.Stats.Count)
+	require.True(t, stats.Stats.Duration > 0)
 
-	d := devices[0]
+	d := stats.Devices[0]
 	require.Equal(t, "10.0.0.2", d.IP().String())
 	require.Equal(t, "host", d.DisplayName())
 	require.Equal(t, "aa:bb:cc:dd:ee:ff", d.MAC())
@@ -73,9 +74,9 @@ func TestEngine_Scan_IgnoresInvalidDevice(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	devices, scanErr := e.Scan(ctx)
+	stats, scanErr := e.Scan(ctx)
 	require.NoError(t, scanErr)
-	require.Empty(t, devices)
+	require.Empty(t, stats.Devices)
 }
 
 func TestEngine_Scan_EmitsDiscoveredEventForEachObservation(t *testing.T) {
