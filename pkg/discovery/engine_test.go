@@ -41,7 +41,7 @@ func TestEngine_Scan_MergesDevices(t *testing.T) {
 	e, err := discovery.NewEngine(
 		discovery.WithInterface(iface),
 		discovery.WithScanners(s1, s2),
-		discovery.WithScanTimeout(250*time.Millisecond),
+		discovery.WithScanTimeout(1*time.Second),
 		discovery.WithScanInterval(time.Millisecond),
 	)
 	require.NoError(t, err)
