@@ -56,7 +56,7 @@ If your package manager is not listed you can always install with [**Go**](https
 go install github.com/ramonvermeulen/whosthere@latest
 ```
 
-Or build from source:
+Or **build from source**:
 
 ```bash
 git clone https://github.com/ramonvermeulen/whosthere.git
@@ -121,18 +121,18 @@ whosthere --help
 
 Whosthere supports multiple configuration methods with the following precedence (highest to lowest):
 
-1. **Command line flags** - Highest priority, see `whosthere --help` for available flags
-1. **Environment variables** - Using `WHOSTHERE__` prefix, see [**Configuration via Environment Variables**](#configuration-via-environment-variables)
-1. **Configuration file** - Via the YAML config file, see [**Configuration File**](#configuration-file)
-1. **Default values** - Fallback to defaults, see the `DefaultConfig()` in [**config.go**](https://github.com/ramonvermeulen/whosthere/blob/main/internal/core/config/config.go)
+1. **Command line flags** - Highest priority. See `whosthere --help` for available flags.
+1. **Environment variables** - Prefix with `WHOSTHERE__`. See [**Configuration via Environment Variables**](#configuration-via-environment-variables).
+1. **Configuration file** - YAML config file. See [**Configuration File**](#configuration-file).
+1. **Default values** - Fallback defaults. See `DefaultConfig()` in [**config.go**](https://github.com/ramonvermeulen/whosthere/blob/main/internal/core/config/config.go).
 
 ### Configuration File
 
-By default, Whosthere looks for configuration in this order:
+Whosthere looks for the configuration file in the following order, using the first one found:
 
-1. Path specified in `WHOSTHERE_CONFIG` environment variable (if set)
+1. Path specified via `--config` flag or `WHOSTHERE_CONFIG` environment variable
 1. `$XDG_CONFIG_HOME/whosthere/config.yaml` (if `XDG_CONFIG_HOME` is set)
-1. `~/.config/whosthere/config.yaml` (fallback)
+1. `~/.config/whosthere/config.yaml` (default location)
 
 **Example configuration:**
 
