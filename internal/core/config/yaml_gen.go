@@ -37,6 +37,9 @@ func GenerateDefaultYAML() string {
 		}
 
 		writeSettingLine(&sb, &s, parts, indent, defaults)
+		if s.Doc.BlankLineAfter {
+			sb.WriteString("\n")
+		}
 		prevPath = parts
 	}
 

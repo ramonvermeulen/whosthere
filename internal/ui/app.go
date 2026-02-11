@@ -218,7 +218,7 @@ func (a *App) applyTheme(name string) {
 
 	var th tview.Theme
 	switch {
-	case theme.IsNoColor():
+	case theme.IsNoColor() || a.cfg.Theme.NoColor:
 		th = theme.NoColorTheme()
 	case !a.cfg.Theme.Enabled:
 		th = theme.TviewDefaultTheme()

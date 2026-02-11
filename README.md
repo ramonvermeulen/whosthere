@@ -172,10 +172,15 @@ theme:
   # When disabled, the TUI will use the terminal it's default ANSI colors
   # Also see the NO_COLOR environment variable to completely disable ANSI colors
   enabled: true
+
   # See the complete list of available themes at https://github.com/ramonvermeulen/whosthere/tree/main/internal/ui/theme/theme.go
   # Set name to "custom" to use the custom colors below
   # For any color that is not configured it will take the default theme value as fallback
   name: default
+
+  # Disable ANSI colors completely, overrides theme.enabled
+  # Can also be set via NO_COLOR or WHOSTHERE__THEME__NO_COLOR environment variables
+  # no_color: false
 
   # Custom theme colors (uncomment and set name: custom to use)
   # primitive_background_color: "#000a1a"

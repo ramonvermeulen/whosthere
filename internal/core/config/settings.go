@@ -36,6 +36,7 @@ type YAMLDoc struct {
 	ExampleValue    string
 	CommentedOut    bool
 	BlankLineBefore bool
+	BlankLineAfter  bool
 }
 
 type GlobalSetting struct {
@@ -336,7 +337,8 @@ func GlobalSettings() []GlobalSetting {
 			},
 			Get: func(c *Config) any { return c.Theme.Enabled },
 			Doc: YAMLDoc{
-				Comment: "When disabled, the TUI will use the terminal it's default ANSI colors\nAlso see the NO_COLOR environment variable to completely disable ANSI colors",
+				Comment:        "When disabled, the TUI will use the terminal it's default ANSI colors\nAlso see the NO_COLOR environment variable to completely disable ANSI colors",
+				BlankLineAfter: true,
 			},
 		},
 		{
@@ -348,7 +350,29 @@ func GlobalSettings() []GlobalSetting {
 			Set:      func(c *Config, v string) error { c.Theme.Name = v; return nil },
 			Get:      func(c *Config) any { return c.Theme.Name },
 			Doc: YAMLDoc{
-				Comment: "See the complete list of available themes at https://github.com/ramonvermeulen/whosthere/tree/main/internal/ui/theme/theme.go\nSet name to \"custom\" to use the custom colors below\nFor any color that is not configured it will take the default theme value as fallback",
+				Comment:        "See the complete list of available themes at https://github.com/ramonvermeulen/whosthere/tree/main/internal/ui/theme/theme.go\nSet name to \"custom\" to use the custom colors below\nFor any color that is not configured it will take the default theme value as fallback",
+				BlankLineAfter: true,
+			},
+		},
+		{
+			YAMLKey: "theme.no_color",
+			Usage:   "Disable ANSI colors completely (equivalent to NO_COLOR=1).",
+			Type:    FlagTypeBool,
+			Sources: yamlEnvOnly,
+			Set: func(c *Config, v string) error {
+				b, err := parseBool(v)
+				if err != nil {
+					return err
+				}
+				c.Theme.NoColor = b
+				return nil
+			},
+			Get: func(c *Config) any { return c.Theme.NoColor },
+			Doc: YAMLDoc{
+				Comment:        "Disable ANSI colors completely, overrides theme.enabled\nCan also be set via NO_COLOR or WHOSTHERE__THEME__NO_COLOR environment variables",
+				CommentedOut:   true,
+				ExampleValue:   "false",
+				BlankLineAfter: true,
 			},
 		},
 		{
@@ -359,10 +383,9 @@ func GlobalSettings() []GlobalSetting {
 			Set:     func(c *Config, v string) error { c.Theme.PrimitiveBackgroundColor = v; return nil },
 			Get:     func(c *Config) any { return c.Theme.PrimitiveBackgroundColor },
 			Doc: YAMLDoc{
-				Comment:         "Custom theme colors (uncomment and set name: custom to use)",
-				ExampleValue:    "\"#000a1a\"",
-				CommentedOut:    true,
-				BlankLineBefore: true,
+				Comment:      "Custom theme colors (uncomment and set name: custom to use)",
+				ExampleValue: "\"#000a1a\"",
+				CommentedOut: true,
 			},
 		},
 		{

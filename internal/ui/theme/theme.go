@@ -14,7 +14,7 @@ import (
 
 var log = slog.Default()
 
-var noColor = os.Getenv("NO_COLOR") != ""
+var noColor = os.Getenv("NO_COLOR") != "" || os.Getenv("WHOSTHERE__THEME__NO_COLOR") != ""
 
 var registry = map[string]tview.Theme{
 	config.DefaultThemeName: {

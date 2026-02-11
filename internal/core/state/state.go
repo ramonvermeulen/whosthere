@@ -52,7 +52,7 @@ func NewAppState(cfg *config.Config, version string) *AppState {
 		devices: make(map[string]*discovery.Device),
 		version: version,
 		cfg:     cfg,
-		noColor: theme.IsNoColor(),
+		noColor: theme.IsNoColor() || (cfg != nil && cfg.Theme.NoColor),
 	}
 
 	themeName := config.DefaultThemeName

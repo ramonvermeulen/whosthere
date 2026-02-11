@@ -74,6 +74,7 @@ type SplashConfig struct {
 type ThemeConfig struct {
 	Enabled                     bool   `yaml:"enabled"`
 	Name                        string `yaml:"name"`
+	NoColor                     bool   `yaml:"no_color"`
 	PrimitiveBackgroundColor    string `yaml:"primitive_background_color"`
 	ContrastBackgroundColor     string `yaml:"contrast_background_color"`
 	MoreContrastBackgroundColor string `yaml:"more_contrast_background_color"`
