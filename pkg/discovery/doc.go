@@ -55,7 +55,7 @@
 //	        case discovery.EventDeviceDiscovered:
 //	            dev := event.Device
 //	            fmt.Printf("Found: %s (%s) - %s\n",
-//	                dev.IP, dev.MAC, dev.DisplayName)
+//	                dev.IP().String(), dev.MAC(), dev.DisplayName())
 //	        case discovery.EventScanCompleted:
 //	            fmt.Printf("Scan completed: %d devices in %v\n",
 //	                event.Stats.Count, event.Stats.Duration)
@@ -78,7 +78,7 @@
 //	}
 //
 //	for _, dev := range results.Devices {
-//	    fmt.Printf("%s - %s - %s\n", dev.IP, dev.MAC, dev.DisplayName)
+//	    fmt.Printf("%s - %s - %s\n", dev.IP().String(), dev.MAC(), dev.DisplayName())
 //	}
 //
 // # Architecture

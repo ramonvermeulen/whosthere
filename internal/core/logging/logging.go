@@ -36,6 +36,7 @@ func parseLevel(s string) slog.Level {
 }
 
 // levelFromEnv returns the level from WHOSTHERE_LOG if set, else default.
+// todo(ramon): this should also be something that can be moved as global setting (e.g. --log-level=debug, and log_level=debug in config file).
 func levelFromEnv(defaultLevel slog.Level) slog.Level {
 	if v := os.Getenv("WHOSTHERE_LOG"); v != "" {
 		return parseLevel(v)
