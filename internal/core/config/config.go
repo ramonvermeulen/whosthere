@@ -150,19 +150,9 @@ func (c *Config) normalizeBasics() error {
 		c.ScanDuration = discovery.DefaultScanTimeout
 	}
 
-	if c.ScanDuration > c.ScanInterval {
-		errs = append(errs, "scan_duration must be <= scan_interval")
-		c.ScanDuration = c.ScanInterval
-	}
-
 	if c.ScanTimeout <= 0 {
 		errs = append(errs, "scan_timeout must be > 0")
 		c.ScanTimeout = discovery.DefaultScanTimeout
-	}
-
-	if c.ScanTimeout > c.ScanInterval {
-		errs = append(errs, "scan_timeout must be <= scan_interval")
-		c.ScanTimeout = c.ScanInterval
 	}
 
 	if len(c.PortScanner.TCP) == 0 {

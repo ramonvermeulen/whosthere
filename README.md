@@ -143,7 +143,7 @@ Whosthere looks for the configuration file in the following order, using the fir
 # How often to run discovery scans
 scan_interval: 20s
 
-# Maximum timeout for each scan
+# Maximum timeout for each scan, recommended to be less than the scan interval
 scan_timeout: 10s
 
 scanners:

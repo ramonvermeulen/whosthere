@@ -44,27 +44,6 @@ func TestValidateAndNormalizeDurations(t *testing.T) {
 	}
 }
 
-func TestValidateAndNormalizeDurationRelationship(t *testing.T) {
-	cfg := &Config{
-		ScanInterval: 5 * time.Second,
-		ScanDuration: 10 * time.Second,
-		Splash:       SplashConfig{Enabled: true, Delay: DefaultSplashDelay},
-		Scanners:     ScannerConfig{MDNS: ScannerToggle{Enabled: true}},
-	}
-
-	err := cfg.validateAndNormalize()
-	if err == nil {
-		t.Fatalf("expected validation error")
-	}
-
-	if !strings.Contains(err.Error(), "scan_duration must be <= scan_interval") {
-		t.Errorf("expected relationship error, got %v", err)
-	}
-	if cfg.ScanDuration != cfg.ScanInterval {
-		t.Errorf("expected scan duration coerced to interval %v, got %v", cfg.ScanInterval, cfg.ScanDuration)
-	}
-}
-
 func TestValidateAndNormalizeHappyPath(t *testing.T) {
 	cfg := &Config{
 		ScanInterval: 15 * time.Second,

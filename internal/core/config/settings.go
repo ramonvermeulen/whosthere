@@ -137,7 +137,7 @@ func GlobalSettings() []GlobalSetting {
 			},
 			Get: func(c *Config) any { return c.ScanTimeout },
 			Doc: YAMLDoc{
-				Comment: "Maximum timeout for each scan",
+				Comment: "Maximum timeout for each scan, recommended to be less than the scan interval",
 			},
 		},
 		{
@@ -539,10 +539,10 @@ func registerStringSetting(cmd *cobra.Command, flags *Flags, s *GlobalSetting, u
 	}
 
 	cmd.PersistentPreRunE = chainPersistentPreRun(cmd.PersistentPreRunE, func(cmd *cobra.Command, _ []string) error {
-		if !cmd.Flags().Changed(s.FlagName) {
+		if !cmd.Root().Flags().Changed(s.FlagName) {
 			return nil
 		}
-		val, err := cmd.Flags().GetString(s.FlagName)
+		val, err := cmd.Root().Flags().GetString(s.FlagName)
 		if err != nil {
 			return err
 		}
@@ -563,10 +563,10 @@ func registerBoolSetting(cmd *cobra.Command, flags *Flags, s *GlobalSetting, usa
 	}
 
 	cmd.PersistentPreRunE = chainPersistentPreRun(cmd.PersistentPreRunE, func(cmd *cobra.Command, _ []string) error {
-		if !cmd.Flags().Changed(s.FlagName) {
+		if !cmd.Root().Flags().Changed(s.FlagName) {
 			return nil
 		}
-		val, err := cmd.Flags().GetBool(s.FlagName)
+		val, err := cmd.Root().Flags().GetBool(s.FlagName)
 		if err != nil {
 			return err
 		}
