@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ramonvermeulen/whosthere/cmd"
+	"github.com/ramonvermeulen/whosthere/internal/cmd"
 	"github.com/ramonvermeulen/whosthere/internal/core/version"
 )
 
