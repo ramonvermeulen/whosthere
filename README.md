@@ -112,7 +112,7 @@ whosthere --help
 | `Y`                | Copy MAC of selected device |
 | `enter`            | Show device details         |
 | `CTRL+t`           | Toggle theme selector       |
-| `CTRL+c`           | Stop application            |
+| `CTRL+c`/`q`       | Stop application            |
 | `ESC`              | Clear search / Go back      |
 | `p` (details view) | Start port scan on device   |
 | `tab` (modal view) | Switch button selection     |

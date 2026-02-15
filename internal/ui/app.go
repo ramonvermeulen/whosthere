@@ -159,6 +159,11 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyCtrlT:
 		a.emit(events.NavigateTo{Route: routes.RouteThemePicker, Overlay: true})
 		return nil
+	case tcell.KeyRune:
+		if event.Rune() == 'q' || event.Rune() == 'Q' {
+			a.Stop()
+			return nil
+		}
 	case tcell.KeyCtrlC:
 		a.Stop()
 		return nil
