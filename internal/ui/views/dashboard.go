@@ -39,7 +39,7 @@ func NewDashboardView(emit func(events.Event), queue func(f func())) *DashboardV
 		"Enter: details" + components.Divider +
 		"y: copy" + components.Divider +
 		"Ctrl+T: theme" + components.Divider +
-		"q: quit"
+		"q: quit",
 	)
 
 
