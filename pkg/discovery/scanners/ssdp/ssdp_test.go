@@ -10,7 +10,8 @@ import (
 
 func TestNewScanner(t *testing.T) {
 	iface := &discovery.InterfaceInfo{}
-	scanner := New(iface)
+	scanner, err := New(iface)
+	require.NoError(t, err)
 	if scanner.iface != iface {
 		t.Errorf("expected iface to be set")
 	}
@@ -18,12 +19,14 @@ func TestNewScanner(t *testing.T) {
 
 func TestNewScanner_WithLogger(t *testing.T) {
 	iface := &discovery.InterfaceInfo{}
-	scanner := New(iface, WithLogger(discovery.NoOpLogger{}))
+	scanner, err := New(iface, WithLogger(discovery.NoOpLogger{}))
+	require.NoError(t, err)
 	require.NotNil(t, scanner.logger)
 }
 
 func TestName(t *testing.T) {
-	scanner := New(nil)
+	scanner, err := New(nil)
+	require.NoError(t, err)
 	if scanner.Name() != "ssdp" {
 		t.Errorf("expected name ssdp, got %s", scanner.Name())
 	}

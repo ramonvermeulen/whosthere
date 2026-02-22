@@ -40,14 +40,14 @@ type Scanner struct {
 }
 
 // New creates an SSDP scanner for the specified network interface.
-func New(iface *discovery.InterfaceInfo, opts ...Option) *Scanner {
+func New(iface *discovery.InterfaceInfo, opts ...Option) (*Scanner, error) {
 	s := &Scanner{iface: iface, logger: discovery.NoOpLogger{}}
 	for _, opt := range opts {
 		if err := opt(s); err != nil {
-			return nil
+			return nil, err
 		}
 	}
-	return s
+	return s, nil
 }
 
 func (s *Scanner) Name() string { return "ssdp" }

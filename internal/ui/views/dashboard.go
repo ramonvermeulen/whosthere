@@ -36,12 +36,11 @@ func NewDashboardView(emit func(events.Event), queue func(f func())) *DashboardV
 	statusBar.Spinner().SetSuffix(" Discovering Devices...")
 	statusBar.SetHelp(
 		"j/k: up/down" + components.Divider +
-		"Enter: details" + components.Divider +
-		"y: copy" + components.Divider +
-		"Ctrl+T: theme" + components.Divider +
-		"q: quit",
+			"Enter: details" + components.Divider +
+			"y: copy" + components.Divider +
+			"Ctrl+T: theme" + components.Divider +
+			"q: quit",
 	)
-
 
 	filterBar := components.NewFilterBar()
 
