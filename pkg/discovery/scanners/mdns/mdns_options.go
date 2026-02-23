@@ -6,10 +6,10 @@ import (
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 )
 
-// Option configures an mDNS Scanner during construction.
+// Option is a functional option for configuring the mDNS Scanner.
 type Option func(*Scanner) error
 
-// WithLogger sets a custom logger for the mDNS scanner.
+// WithLogger sets a custom logger for the MDNS scanner.
 func WithLogger(logger discovery.Logger) Option {
 	return func(s *Scanner) error {
 		if logger == nil {
