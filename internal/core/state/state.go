@@ -54,6 +54,7 @@ func NewAppState(cfg *config.Config, version string) *AppState {
 		cfg:     cfg,
 		noColor: theme.IsNoColor() || (cfg != nil && cfg.Theme.NoColor),
 	}
+	theme.UpdateNoColor(s.noColor)
 
 	themeName := config.DefaultThemeName
 	if cfg != nil && cfg.Theme.Name != "" {

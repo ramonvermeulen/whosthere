@@ -1143,3 +1143,7 @@ func IsNoColor() bool {
 	// consider if it is worth parsing config earlier to prevent this
 	return noColor
 }
+
+func UpdateNoColor(updateNoColor bool) {
+       noColor = updateNoColor
+}
