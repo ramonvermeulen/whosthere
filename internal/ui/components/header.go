@@ -30,7 +30,7 @@ func (h *Header) Render(s state.ReadOnly) {
 	const baseTitle = "whosthere"
 	text := baseTitle
 	if version := s.Version(); version != "" {
-		text = baseTitle + " - v" + version
+		text = baseTitle + " - " + version
 	}
 	h.SetText(text)
 }

@@ -79,7 +79,7 @@ func NewSplashView(emit func(events.Event)) *SplashView {
 func (p *SplashView) Render(s state.ReadOnly) {
 	version := s.Version()
 	if version != "" {
-		p.footer.SetText(fmt.Sprintf("v%s", version))
+		p.footer.SetText(version)
 	}
 }
 
