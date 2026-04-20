@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/dece2183/go-clipboard v1.0.0
-	github.com/gdamore/tcell/v2 v2.13.8
+	github.com/gdamore/tcell/v2 v2.13.9
 	github.com/goccy/go-yaml v1.19.2
 	github.com/hashicorp/mdns v1.0.6
 	github.com/rivo/tview v0.42.0
