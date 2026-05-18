@@ -3,6 +3,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/ramonvermeulen/whosthere)](https://goreportcard.com/report/github.com/ramonvermeulen/whosthere)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/ramonvermeulen/whosthere)](https://go.dev/doc/devel/release)
 [![License](https://img.shields.io/github/license/ramonvermeulen/whosthere)](LICENSE)
+[![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ramonvermeulen/whosthere/total)](https://github.com/ramonvermeulen/whosthere/releases)
 [![GitHub Release](https://img.shields.io/github/v/release/ramonvermeulen/whosthere)](https://github.com/ramonvermeulen/whosthere/releases)
 [![GitHub Repo stars](https://img.shields.io/github/stars/ramonvermeulen/whosthere)](https://github.com/ramonvermeulen/whosthere)
 
