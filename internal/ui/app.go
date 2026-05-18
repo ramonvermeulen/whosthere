@@ -47,7 +47,7 @@ type App struct {
 	// When the user switches network interface, the old engine must stop cleanly
 	// and the new one must start without any stale device data leaking through.
 	engineCancel context.CancelFunc // cancels the context of the active handleEngineEvents goroutine
-	engineMu     sync.Mutex         // prevents concurrent interface switches from racing on shared state
+	engineMu     sync.RWMutex       // write-locked during interface switch, read-locked during device upsert
 	engineGen    atomic.Uint64      // generation counter; old goroutines compare against this before upserting devices
 }
 
@@ -218,8 +218,12 @@ func (a *App) handleEngineEvents(ctx context.Context, engine *discovery.Engine, 
 		case discovery.EventScanCompleted:
 			a.emit(events.DiscoveryStopped{})
 		case discovery.EventDeviceDiscovered:
-			if event.Device != nil && a.engineGen.Load() == gen {
-				a.state.UpsertDevice(event.Device)
+			if event.Device != nil {
+				a.engineMu.RLock()
+				if a.engineGen.Load() == gen {
+					a.state.UpsertDevice(event.Device)
+				}
+				a.engineMu.RUnlock()
 			}
 		case discovery.EventError:
 			a.emit(events.DiscoveryStopped{})
@@ -410,6 +414,7 @@ func (a *App) switchInterface(name string) {
 	if a.engine != nil {
 		oldEngine := a.engine
 		go oldEngine.Stop()
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	if !a.cfg.AllInterfaces {
@@ -419,6 +424,7 @@ func (a *App) switchInterface(name string) {
 	a.rerenderVisibleViews()
 
 	a.cfg.NetworkInterface = name
+
 	engine, err := core.BuildEngine(a.cfg, a.logger)
 	if err != nil {
 		a.logger.Error("failed to build engine for interface", "interface", name, "error", err)

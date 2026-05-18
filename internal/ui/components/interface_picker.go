@@ -164,7 +164,3 @@ func interfaceDescription(name string) string {
 	}
 	return ""
 }
-
-
-
-

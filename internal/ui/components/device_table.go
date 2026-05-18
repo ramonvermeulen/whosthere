@@ -63,6 +63,12 @@ func (dt *DeviceTable) handleNormalKey(ev *tcell.EventKey) *tcell.EventKey {
 			return nil
 		}
 		return ev
+	case ev.Key() == tcell.KeyCtrlD:
+		dt.moveSelection(10)
+		return nil
+	case ev.Key() == tcell.KeyCtrlU:
+		dt.moveSelection(-10)
+		return nil
 	case ev.Rune() == '/':
 		dt.searching = true
 		dt.searchInput = ""
@@ -201,6 +207,18 @@ func (dt *DeviceTable) SelectLast() {
 	if rows > 1 {
 		dt.Select(rows-1, 0)
 	}
+}
+
+func (dt *DeviceTable) moveSelection(delta int) {
+	row, col := dt.GetSelection()
+	target := row + delta
+	if target < 1 {
+		target = 1
+	}
+	if lastRow := dt.GetRowCount() - 1; target > lastRow {
+		target = lastRow
+	}
+	dt.Select(target, col)
 }
 
 type tableRow struct {
