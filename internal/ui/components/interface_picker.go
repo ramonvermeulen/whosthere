@@ -24,7 +24,7 @@ type InterfacePicker struct {
 
 func NewInterfacePicker(emit func(events.Event)) *InterfacePicker {
 	list := tview.NewList()
-	list.ShowSecondaryText(true)
+	list.ShowSecondaryText(false)
 
 	ip := &InterfacePicker{
 		List: list,
@@ -95,12 +95,14 @@ func (ip *InterfacePicker) Render(s state.ReadOnly) {
 	var activeIndex int
 	for i, name := range ip.interfaces {
 		displayName := name
-		secondary := interfaceDescription(name)
+		if desc := interfaceDescription(name); desc != "" {
+			displayName += " (" + desc + ")"
+		}
 		if name == ip.currentInterface {
 			displayName = "✓ " + displayName
 			activeIndex = i
 		}
-		ip.AddItem(displayName, secondary, 0, nil)
+		ip.AddItem(displayName, "", 0, nil)
 	}
 
 	if ip.initialized && !activeChanged && savedIdx >= 0 && savedIdx < len(ip.interfaces) {
@@ -155,7 +157,9 @@ func interfaceDescription(name string) string {
 	}
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
-			return ipnet.IP.String() + " " + ipnet.String()
+			network := ipnet.IP.Mask(ipnet.Mask)
+			ones, _ := ipnet.Mask.Size()
+			return fmt.Sprintf("%s - %s/%d", ipnet.IP.String(), network.String(), ones)
 		}
 	}
 	return ""

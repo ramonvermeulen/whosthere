@@ -112,6 +112,7 @@ whosthere --help
 | `Y`                | Copy MAC of selected device |
 | `enter`            | Show device details         |
 | `CTRL+t`           | Toggle theme selector       |
+| `CTRL+i`           | Toggle interface selector   |
 | `CTRL+c`/`q`       | Stop application            |
 | `ESC`              | Clear search / Go back      |
 | `p` (details view) | Start port scan on device   |
@@ -139,6 +140,11 @@ Whosthere looks for the configuration file in the following order, using the fir
 ```yaml
 # Uncomment the next line to configure a specific network interface - uses OS default if not set
 # network_interface: eth0
+
+# When enabled, devices from all network interfaces are shown and persist when switching interfaces
+# Note: if two interfaces share the same subnet (e.g. both use 192.168.1.x), devices may get merged
+# since they are identified by IP address. Use with caution on overlapping subnets.
+all_interfaces: false
 
 # How often to run discovery scans
 scan_interval: 20s

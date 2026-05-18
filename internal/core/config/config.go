@@ -26,6 +26,7 @@ var DefaultTCPPorts = []int{21, 22, 23, 25, 80, 110, 135, 139, 143, 389, 443, 44
 // Config captures all configurable parameters for the application.
 type Config struct {
 	NetworkInterface string        `yaml:"network_interface"`
+	AllInterfaces    bool          `yaml:"all_interfaces"`
 	ScanInterval     time.Duration `yaml:"scan_interval"`
 	// ScanDuration is deprecated.
 	//
@@ -92,9 +93,10 @@ type ThemeConfig struct {
 // These defaults are used if no config is provided by the user.
 func DefaultConfig() *Config {
 	return &Config{
-		ScanInterval: discovery.DefaultScanInterval,
-		ScanDuration: discovery.DefaultScanTimeout,
-		ScanTimeout:  discovery.DefaultScanTimeout,
+		AllInterfaces: false,
+		ScanInterval:  discovery.DefaultScanInterval,
+		ScanDuration:  discovery.DefaultScanTimeout,
+		ScanTimeout:   discovery.DefaultScanTimeout,
 		Scanners: ScannerConfig{
 			MDNS: ScannerToggle{Enabled: true},
 			SSDP: ScannerToggle{Enabled: true},

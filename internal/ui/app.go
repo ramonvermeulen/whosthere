@@ -403,7 +403,9 @@ func (a *App) switchInterface(name string) {
 		go oldEngine.Stop()
 	}
 
-	a.state.ClearDevices()
+	if !a.cfg.AllInterfaces {
+		a.state.ClearDevices()
+	}
 	a.state.SetIsDiscovering(false)
 	a.rerenderVisibleViews()
 

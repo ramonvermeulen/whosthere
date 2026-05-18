@@ -35,6 +35,16 @@ func getSettingTestCases() []settingTestCase {
 			expectedYAML: "en0",
 		},
 		{
+			yamlKey:      "all_interfaces",
+			envVar:       "WHOSTHERE__ALL_INTERFACES",
+			envValue:     "true",
+			expectedEnv:  true,
+			flagValue:    "true",
+			expectedFlag: true,
+			yamlValue:    "true",
+			expectedYAML: true,
+		},
+		{
 			yamlKey:      "scan_timeout",
 			envVar:       "WHOSTHERE__SCAN_TIMEOUT",
 			envValue:     "15s",
@@ -476,6 +486,7 @@ func TestFullYAMLConfig_LoadFromFile(t *testing.T) {
 	// 2. It's already tested in individual setting tests (env/flag/yaml)
 	// 3. This test focuses on the full loading path, not individual field validation
 	fullYAML := `
+all_interfaces: true
 scan_timeout: 12s
 scan_interval: 45s
 
@@ -532,6 +543,7 @@ theme:
 		got      any
 		expected any
 	}{
+		{"all_interfaces", cfg.AllInterfaces, true},
 		{"scan_timeout", cfg.ScanTimeout, 12 * time.Second},
 		{"scan_interval", cfg.ScanInterval, 45 * time.Second},
 		{"scanners.mdns.enabled", cfg.Scanners.MDNS.Enabled, false},

@@ -22,8 +22,9 @@ var _ discovery.Scanner = (*Scanner)(nil)
 type Scanner struct {
 	iface *discovery.InterfaceInfo
 
-	logger       discovery.Logger
-	pollInterval time.Duration
+	logger        discovery.Logger
+	pollInterval  time.Duration
+	allInterfaces bool
 }
 
 // New creates an ARP scanner for the specified network interface.
@@ -109,15 +110,10 @@ func (s *Scanner) emitARPEntries(ctx context.Context, out chan<- *discovery.Devi
 			continue
 		}
 
-		if entry.InterfaceName != s.iface.Interface.Name {
+		if !s.allInterfaces && entry.InterfaceName != s.iface.Interface.Name {
 			continue
 		}
 
-		// Filter non-device addresses:
-		// - skip multicast MACs (I/G bit set)
-		// - skip broadcast MAC (FF:FF:FF:FF:FF:FF)
-		// - skip IPv4 broadcast address for our subnet
-		// - skip IPv4 multicast ranges (224.0.0.0/4)
 		if isMulticastMAC(entry.MAC) || isBroadcastMAC(entry.MAC) || isMulticastIPv4(entry.IP) || isBroadcastIPv4(entry.IP, subnet) {
 			continue
 		}
@@ -125,6 +121,7 @@ func (s *Scanner) emitARPEntries(ctx context.Context, out chan<- *discovery.Devi
 		dd := discovery.NewDevice(entry.IP)
 		dd.SetMAC(entry.MAC.String())
 		dd.AddSource(s.Name())
+		dd.SetInterfaceName(entry.InterfaceName)
 
 		if entry.Age > 0 {
 			dd.SetLastSeen(now.Add(-entry.Age))

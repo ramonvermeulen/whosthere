@@ -44,7 +44,7 @@ func BuildEngine(cfg *config.Config, logger discovery.Logger) (*discovery.Engine
 		scanners = append(scanners, s)
 	}
 	if cfg.Scanners.ARP.Enabled {
-		s, err := arp.New(iface, arp.WithLogger(logger))
+		s, err := arp.New(iface, arp.WithLogger(logger), arp.WithAllInterfaces(cfg.AllInterfaces))
 		if err != nil {
 			return nil, err
 		}
