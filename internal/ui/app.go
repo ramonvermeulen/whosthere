@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -41,8 +42,13 @@ type App struct {
 	isReady       bool
 	clipboard     *clipboard.Clipboard
 	logger        *slog.Logger
-	engineCancel  context.CancelFunc
-	engineMu      sync.Mutex
+
+	// Engine lifecycle management for runtime interface switching.
+	// When the user switches network interface, the old engine must stop cleanly
+	// and the new one must start without any stale device data leaking through.
+	engineCancel context.CancelFunc // cancels the context of the active handleEngineEvents goroutine
+	engineMu     sync.Mutex         // prevents concurrent interface switches from racing on shared state
+	engineGen    atomic.Uint64      // generation counter; old goroutines compare against this before upserting devices
 }
 
 func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, error) {
@@ -129,8 +135,9 @@ func (a *App) Run() error {
 	if a.engine != nil && a.cfg != nil {
 		ctx, cancel := context.WithCancel(context.Background())
 		a.engineCancel = cancel
+		gen := a.engineGen.Add(1)
 		a.engine.Start(context.Background())
-		go a.handleEngineEvents(ctx, a.engine)
+		go a.handleEngineEvents(ctx, a.engine, gen)
 	}
 
 	return a.Application.Run()
@@ -193,8 +200,8 @@ func (a *App) startUIRefreshLoop() {
 }
 
 // handleEngineEvents processes events from a specific engine instance.
-// It exits when the context is cancelled or the engine's Events channel is closed.
-func (a *App) handleEngineEvents(ctx context.Context, engine *discovery.Engine) {
+// It exits when the context is cancelled, the generation changes, or the channel closes.
+func (a *App) handleEngineEvents(ctx context.Context, engine *discovery.Engine, gen uint64) {
 	defer func() {
 		if r := recover(); r != nil {
 			a.logger.Error("panic in handleEngineEvents", "panic", r)
@@ -202,7 +209,7 @@ func (a *App) handleEngineEvents(ctx context.Context, engine *discovery.Engine) 
 	}()
 
 	for event := range engine.Events {
-		if ctx.Err() != nil {
+		if ctx.Err() != nil || a.engineGen.Load() != gen {
 			return
 		}
 		switch event.Type {
@@ -211,7 +218,7 @@ func (a *App) handleEngineEvents(ctx context.Context, engine *discovery.Engine) 
 		case discovery.EventScanCompleted:
 			a.emit(events.DiscoveryStopped{})
 		case discovery.EventDeviceDiscovered:
-			if event.Device != nil {
+			if event.Device != nil && a.engineGen.Load() == gen {
 				a.state.UpsertDevice(event.Device)
 			}
 		case discovery.EventError:
@@ -398,6 +405,8 @@ func (a *App) switchInterface(name string) {
 		a.engineCancel()
 	}
 
+	gen := a.engineGen.Add(1)
+
 	if a.engine != nil {
 		oldEngine := a.engine
 		go oldEngine.Stop()
@@ -424,6 +433,5 @@ func (a *App) switchInterface(name string) {
 	a.engineCancel = cancel
 
 	a.engine.Start(context.Background())
-	go a.handleEngineEvents(ctx, engine)
+	go a.handleEngineEvents(ctx, engine, gen)
 }
-
