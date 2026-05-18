@@ -28,17 +28,18 @@ import (
 // Devices are uniquely identified by their IP address. When the same IP is seen
 // by multiple scanners, their data is merged using the Merge method.
 type Device struct {
-	mu           sync.RWMutex
-	ip           net.IP
-	mac          string
-	displayName  string
-	manufacturer string
-	sources      map[string]struct{}
-	firstSeen    time.Time
-	lastSeen     time.Time
-	extraData    map[string]string
-	openPorts    map[string][]int
-	lastPortScan time.Time
+	mu            sync.RWMutex
+	ip            net.IP
+	mac           string
+	displayName   string
+	manufacturer  string
+	interfaceName string
+	sources       map[string]struct{}
+	firstSeen     time.Time
+	lastSeen      time.Time
+	extraData     map[string]string
+	openPorts     map[string][]int
+	lastPortScan  time.Time
 }
 
 // NewDevice creates a Device with the given IP address and initializes all maps.
@@ -114,6 +115,9 @@ func (d *Device) Merge(other *Device) {
 	if d.manufacturer == "" && other.manufacturer != "" {
 		d.manufacturer = other.manufacturer
 	}
+	if d.interfaceName == "" && other.interfaceName != "" {
+		d.interfaceName = other.interfaceName
+	}
 	if d.sources == nil {
 		d.sources = make(map[string]struct{})
 	}
@@ -188,6 +192,20 @@ func (d *Device) Manufacturer() string {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.manufacturer
+}
+
+// InterfaceName returns the network interface this device was discovered on.
+func (d *Device) InterfaceName() string {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.interfaceName
+}
+
+// SetInterfaceName sets the network interface this device was discovered on.
+func (d *Device) SetInterfaceName(name string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.interfaceName = name
 }
 
 // Sources returns a copy of the device's sources map.
@@ -353,16 +371,17 @@ func (d *Device) Copy() *Device {
 	defer d.mu.RUnlock()
 
 	newD := &Device{
-		ip:           append(net.IP(nil), d.ip...),
-		mac:          d.mac,
-		displayName:  d.displayName,
-		manufacturer: d.manufacturer,
-		sources:      make(map[string]struct{}),
-		firstSeen:    d.firstSeen,
-		lastSeen:     d.lastSeen,
-		extraData:    make(map[string]string),
-		openPorts:    make(map[string][]int),
-		lastPortScan: d.lastPortScan,
+		ip:            append(net.IP(nil), d.ip...),
+		mac:           d.mac,
+		displayName:   d.displayName,
+		manufacturer:  d.manufacturer,
+		interfaceName: d.interfaceName,
+		sources:       make(map[string]struct{}),
+		firstSeen:     d.firstSeen,
+		lastSeen:      d.lastSeen,
+		extraData:     make(map[string]string),
+		openPorts:     make(map[string][]int),
+		lastPortScan:  d.lastPortScan,
 	}
 
 	for k := range d.sources {
@@ -385,14 +404,15 @@ func (d *Device) MarshalJSON() ([]byte, error) {
 	defer d.mu.RUnlock()
 
 	type temp struct {
-		IP           string            `json:"ip"`
-		MAC          string            `json:"mac"`
-		DisplayName  string            `json:"displayName"`
-		Manufacturer string            `json:"manufacturer"`
-		Sources      []string          `json:"sources"`
-		FirstSeen    time.Time         `json:"firstSeen"`
-		LastSeen     time.Time         `json:"lastSeen"`
-		ExtraData    map[string]string `json:"extraData"`
+		IP            string            `json:"ip"`
+		MAC           string            `json:"mac"`
+		DisplayName   string            `json:"displayName"`
+		Manufacturer  string            `json:"manufacturer"`
+		InterfaceName string            `json:"interfaceName,omitempty"`
+		Sources       []string          `json:"sources"`
+		FirstSeen     time.Time         `json:"firstSeen"`
+		LastSeen      time.Time         `json:"lastSeen"`
+		ExtraData     map[string]string `json:"extraData"`
 	}
 
 	ipStr := ""
@@ -401,14 +421,15 @@ func (d *Device) MarshalJSON() ([]byte, error) {
 	}
 
 	t := temp{
-		IP:           ipStr,
-		MAC:          d.mac,
-		DisplayName:  d.displayName,
-		Manufacturer: d.manufacturer,
-		Sources:      make([]string, 0, len(d.sources)),
-		FirstSeen:    d.firstSeen,
-		LastSeen:     d.lastSeen,
-		ExtraData:    make(map[string]string, len(d.extraData)),
+		IP:            ipStr,
+		MAC:           d.mac,
+		DisplayName:   d.displayName,
+		Manufacturer:  d.manufacturer,
+		InterfaceName: d.interfaceName,
+		Sources:       make([]string, 0, len(d.sources)),
+		FirstSeen:     d.firstSeen,
+		LastSeen:      d.lastSeen,
+		ExtraData:     make(map[string]string, len(d.extraData)),
 	}
 
 	for source := range d.sources {

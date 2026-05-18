@@ -35,3 +35,14 @@ func WithPollInterval(interval time.Duration) Option {
 		return nil
 	}
 }
+
+// WithAllInterfaces disables interface filtering on the ARP cache.
+// When enabled, the scanner reports devices from all network interfaces
+// instead of only the configured one.
+func WithAllInterfaces(all bool) Option {
+	return func(s *Scanner) error {
+		s.allInterfaces = all
+		return nil
+	}
+}
+

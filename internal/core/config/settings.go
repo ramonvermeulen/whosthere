@@ -101,6 +101,25 @@ func GlobalSettings() []GlobalSetting {
 			},
 		},
 		{
+			YAMLKey:  "all_interfaces",
+			FlagName: "all-interfaces",
+			Usage:    "Show devices from all network interfaces instead of only the active one (e.g. --all-interfaces)",
+			Type:     FlagTypeBool,
+			Sources:  all,
+			Set: func(c *Config, v string) error {
+				b, err := parseBool(v)
+				if err != nil {
+					return err
+				}
+				c.AllInterfaces = b
+				return nil
+			},
+			Get: func(c *Config) any { return c.AllInterfaces },
+			Doc: YAMLDoc{
+				Comment: "When enabled, devices from all network interfaces are shown and persist when switching interfaces\nNote: if two interfaces share the same subnet (e.g. both use 192.168.1.x), devices may get merged\nsince they are identified by IP address. Use with caution on overlapping subnets.",
+			},
+		},
+		{
 			YAMLKey:  "scan_interval",
 			FlagName: "interval",
 			Short:    "n",

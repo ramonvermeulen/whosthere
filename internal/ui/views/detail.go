@@ -145,6 +145,9 @@ func (d *DetailView) Render(s state.ReadOnly) {
 	writeLine("Display Name", device.DisplayName())
 	writeLine("MAC", device.MAC())
 	writeLine("Manufacturer", device.Manufacturer())
+	if iface := device.InterfaceName(); iface != "" {
+		writeLine("Interface", iface)
+	}
 	writeLine("First Seen", formatTime(device.FirstSeen()))
 	writeLine("Last Seen", formatTime(device.LastSeen()))
 	_, _ = fmt.Fprintln(d.info)
