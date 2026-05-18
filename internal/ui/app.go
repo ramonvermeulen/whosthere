@@ -41,6 +41,8 @@ type App struct {
 	isReady       bool
 	clipboard     *clipboard.Clipboard
 	logger        *slog.Logger
+	engineCancel  context.CancelFunc
+	engineMu      sync.Mutex
 }
 
 func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, error) {
@@ -76,6 +78,7 @@ func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, erro
 	a.engine = engine
 	// todo(ramon) handle in BuildEngine -> WithPortScanner(...)
 	a.portScanner = discovery.NewPortScanner(100, engine.Iface)
+	a.state.SetCurrentInterface(engine.Iface.Interface.Name)
 
 	app.SetRoot(a.pages, true)
 	app.SetInputCapture(a.handleGlobalKeys)
@@ -124,8 +127,10 @@ func (a *App) Run() error {
 	}
 
 	if a.engine != nil && a.cfg != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		a.engineCancel = cancel
 		a.engine.Start(context.Background())
-		go a.handleEngineEvents()
+		go a.handleEngineEvents(ctx, a.engine)
 	}
 
 	return a.Application.Run()
@@ -137,12 +142,14 @@ func (a *App) setupPages(cfg *config.Config) {
 	splashPage := views.NewSplashView(a.emit)
 	themePickerModal := views.NewThemeModalView(a.emit)
 	portScanModal := views.NewPortScanModalView(a.emit)
+	interfacePickerModal := views.NewInterfaceModalView(a.emit)
 
 	a.pages.AddPage(routes.RouteDashboard, dashboardPage, true, false)
 	a.pages.AddPage(routes.RouteDetail, detailPage, true, false)
 	a.pages.AddPage(routes.RouteSplash, splashPage, true, false)
 	a.pages.AddPage(routes.RouteThemePicker, themePickerModal, true, false)
 	a.pages.AddPage(routes.RoutePortScan, portScanModal, true, false)
+	a.pages.AddPage(routes.RouteInterfacePicker, interfacePickerModal, true, false)
 
 	initialPage := routes.RouteDashboard
 	if cfg != nil && cfg.Splash.Enabled {
@@ -158,6 +165,9 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Key() {
 	case tcell.KeyCtrlT:
 		a.emit(events.NavigateTo{Route: routes.RouteThemePicker, Overlay: true})
+		return nil
+	case tcell.KeyCtrlI:
+		a.emit(events.NavigateTo{Route: routes.RouteInterfacePicker, Overlay: true})
 		return nil
 	case tcell.KeyRune:
 		if event.Rune() == 'q' || event.Rune() == 'Q' {
@@ -182,14 +192,19 @@ func (a *App) startUIRefreshLoop() {
 	}()
 }
 
-func (a *App) handleEngineEvents() {
+// handleEngineEvents processes events from a specific engine instance.
+// It exits when the context is cancelled or the engine's Events channel is closed.
+func (a *App) handleEngineEvents(ctx context.Context, engine *discovery.Engine) {
 	defer func() {
 		if r := recover(); r != nil {
 			a.logger.Error("panic in handleEngineEvents", "panic", r)
 		}
 	}()
 
-	for event := range a.engine.Events {
+	for event := range engine.Events {
+		if ctx.Err() != nil {
+			return
+		}
 		switch event.Type {
 		case discovery.EventScanStarted:
 			a.emit(events.DiscoveryStarted{})
@@ -343,6 +358,8 @@ func (a *App) handleEvents() {
 					a.logger.Warn("failed to copy to clipboard", "error", err)
 				}
 			}
+		case events.InterfaceSelected:
+			go a.switchInterface(event.Name)
 		}
 		a.rerenderVisibleViews()
 	}
@@ -372,3 +389,39 @@ func (a *App) startPortscan() {
 	device.SetOpenPorts(openPorts)
 	a.emit(events.PortScanStopped{})
 }
+
+func (a *App) switchInterface(name string) {
+	a.engineMu.Lock()
+	defer a.engineMu.Unlock()
+
+	if a.engineCancel != nil {
+		a.engineCancel()
+	}
+
+	if a.engine != nil {
+		oldEngine := a.engine
+		go oldEngine.Stop()
+	}
+
+	a.state.ClearDevices()
+	a.state.SetIsDiscovering(false)
+	a.rerenderVisibleViews()
+
+	a.cfg.NetworkInterface = name
+	engine, err := core.BuildEngine(a.cfg, a.logger)
+	if err != nil {
+		a.logger.Error("failed to build engine for interface", "interface", name, "error", err)
+		return
+	}
+
+	a.engine = engine
+	a.portScanner = discovery.NewPortScanner(100, engine.Iface)
+	a.state.SetCurrentInterface(name)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	a.engineCancel = cancel
+
+	a.engine.Start(context.Background())
+	go a.handleEngineEvents(ctx, engine)
+}
+

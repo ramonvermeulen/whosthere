@@ -139,6 +139,7 @@ func (s *Sweeper) triggerSubnetSweep(ctx context.Context, ips []net.IP) {
 
 	for _, ip := range ips {
 		s.logger.Log(ctx, slog.LevelDebug, "Triggering ARP for IP", "ip", ip.String())
+		s.logger.Log(ctx, slog.LevelDebug, "Triggering ARP for IP", "ip", ip.String())
 		select {
 		case <-ctx.Done():
 			s.logger.Log(ctx, slog.LevelWarn, "ARP sweep interrupted by context cancellation, this can indicate you have a short scan duration configured", "triggered", triggered, "total", total, "remaining", total-triggered)

@@ -67,3 +67,9 @@ type CopyIP struct {
 type CopyMac struct {
 	MAC string
 }
+
+// InterfaceSelected is emitted when a network interface is selected.
+type InterfaceSelected struct {
+	Name string
+}
+

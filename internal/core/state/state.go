@@ -27,6 +27,7 @@ type ReadOnly interface {
 	SearchText() string
 	SearchError() bool
 	NoColor() bool
+	CurrentInterface() string
 }
 
 // AppState holds application-level state shared across views and
@@ -34,17 +35,18 @@ type ReadOnly interface {
 type AppState struct {
 	mu sync.RWMutex
 
-	devices        map[string]*discovery.Device
-	selectedIP     string
-	previousTheme  string
-	version        string
-	filterPattern  string
-	isDiscovering  bool
-	isPortscanning bool
-	cfg            *config.Config
-	searchError    bool
-	searchActive   bool
-	noColor        bool
+	devices          map[string]*discovery.Device
+	selectedIP       string
+	previousTheme    string
+	version          string
+	filterPattern    string
+	isDiscovering    bool
+	isPortscanning   bool
+	cfg              *config.Config
+	searchError      bool
+	searchActive     bool
+	noColor          bool
+	currentInterface string
 }
 
 func NewAppState(cfg *config.Config, version string) *AppState {
@@ -274,3 +276,26 @@ func (s *AppState) NoColor() bool {
 	defer s.mu.RUnlock()
 	return s.noColor
 }
+
+// CurrentInterface returns the active network interface name.
+func (s *AppState) CurrentInterface() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.currentInterface
+}
+
+// SetCurrentInterface sets the active network interface name.
+func (s *AppState) SetCurrentInterface(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.currentInterface = name
+}
+
+// ClearDevices removes all discovered devices and resets selection.
+func (s *AppState) ClearDevices() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.devices = make(map[string]*discovery.Device)
+	s.selectedIP = ""
+}
+
