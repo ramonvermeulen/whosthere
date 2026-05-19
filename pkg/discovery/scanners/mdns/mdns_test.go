@@ -122,7 +122,6 @@ func TestScan_EntryWithInfoFields(t *testing.T) {
 			Info:       "foo=bar",
 			InfoFields: []string{"foo=bar", "baz"},
 		}
-		close(params.Entries)
 		return nil
 	}))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -135,4 +134,47 @@ func TestScan_EntryWithInfoFields(t *testing.T) {
 	require.Equal(t, "testdev", dev.DisplayName())
 	require.Equal(t, "bar", dev.ExtraData()["foo"])
 	require.Equal(t, "true", dev.ExtraData()["baz"])
+}
+
+func TestScan_FiltersEntriesOutsideSelectedInterfaceSubnet(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("192.168.1.10/24")
+	require.NoError(t, err)
+
+	iface := &discovery.InterfaceInfo{
+		Interface: &net.Interface{Name: "en1"},
+		IPv4Net:   ipNet,
+	}
+	s, _ := New(iface, withTestQueryFunc(func(params *hashimdns.QueryParam) error {
+		params.Entries <- &hashimdns.ServiceEntry{
+			AddrV4: net.ParseIP("10.0.0.25"),
+			Name:   "other-subnet.local.",
+		}
+		params.Entries <- &hashimdns.ServiceEntry{
+			AddrV4: net.ParseIP("192.168.1.25"),
+			Name:   "same-subnet.local.",
+		}
+		return nil
+	}))
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	results := make(chan *discovery.Device, 2)
+	err = s.Scan(ctx, results)
+	require.NoError(t, err)
+
+	select {
+	case dev := <-results:
+		require.Equal(t, "192.168.1.25", dev.IP().String())
+		require.Equal(t, "same-subnet.local.", dev.DisplayName())
+		require.Equal(t, "en1", dev.InterfaceName())
+	default:
+		t.Fatal("expected in-subnet mDNS device")
+	}
+
+	select {
+	case dev := <-results:
+		t.Fatalf("unexpected extra device discovered: %s", dev.IP())
+	default:
+	}
 }

@@ -48,28 +48,32 @@ func TestParseHeaders_AppendsTerminatorIfMissing(t *testing.T) {
 
 func TestHandlePacket_UsesSrcIP(t *testing.T) {
 	out := make(chan *discovery.Device, 1)
+	iface := &discovery.InterfaceInfo{Interface: &net.Interface{Name: "en0"}}
 	src := &net.UDPAddr{IP: net.IPv4(10, 0, 0, 2).To4(), Port: 1900}
 	payload := []byte("HTTP/1.1 200 OK\r\nServer: unit-test\r\n\r\n")
 
-	handlePacket(out, src, payload)
+	handlePacket(out, iface, src, payload)
 
 	require.Len(t, out, 1)
 	d := <-out
 	require.Equal(t, "10.0.0.2", d.IP().String())
 	require.Equal(t, "unit-test", d.DisplayName())
+	require.Equal(t, "en0", d.InterfaceName())
 }
 
 func TestHandlePacket_UsesLocationWhenSrcIPMissing(t *testing.T) {
 	out := make(chan *discovery.Device, 1)
+	iface := &discovery.InterfaceInfo{Interface: &net.Interface{Name: "en1"}}
 	src := &net.UDPAddr{IP: nil, Port: 1900}
 	payload := []byte("HTTP/1.1 200 OK\r\nLocation: http://10.0.0.3:80/device.xml\r\nServer: unit-test\r\n\r\n")
 
-	handlePacket(out, src, payload)
+	handlePacket(out, iface, src, payload)
 
 	require.Len(t, out, 1)
 	d := <-out
 	require.Equal(t, "10.0.0.3", d.IP().String())
 	require.Equal(t, "http://10.0.0.3:80/device.xml", d.ExtraData()["location"])
+	require.Equal(t, "en1", d.InterfaceName())
 }
 
 func TestHandlePacket_DoesNotEmitWithoutResolvableIP(t *testing.T) {
@@ -77,7 +81,7 @@ func TestHandlePacket_DoesNotEmitWithoutResolvableIP(t *testing.T) {
 	src := &net.UDPAddr{IP: nil, Port: 1900}
 	payload := []byte("HTTP/1.1 200 OK\r\nServer: unit-test\r\n\r\n")
 
-	handlePacket(out, src, payload)
+	handlePacket(out, nil, src, payload)
 
 	require.Len(t, out, 0)
 }
