@@ -88,30 +88,34 @@ func (h *Header) Render(s state.ReadOnly) {
 	h.link.SetText(linkText)
 }
 
-func renderHeaderMeta(s state.ReadOnly) (string, string) {
+func renderHeaderMeta(s state.ReadOnly) (interfaceText string, linkText string) {
 	if s == nil {
-		return "", askQuestionLabel
+		linkText = askQuestionLabel
+		return
 	}
 
-	interfaceText := strings.TrimSpace(s.CurrentInterface())
+	interfaceText = strings.TrimSpace(s.CurrentInterface())
 	if interfaceText != "" {
 		interfaceText = utils.Truncate(interfaceText, 18)
 		interfaceText = interfaceLabelPrefix + interfaceText
 	}
 
 	if s.NoColor() {
+		linkText = askQuestionLabel
 		if interfaceText == "" {
-			return "", askQuestionLabel
+			return
 		}
-		return interfaceText + " " + Divider, askQuestionLabel
+		interfaceText = interfaceText + " " + Divider
+		return
 	}
 
 	linkColor := utils.ColorToHexTag(tview.Styles.PrimaryTextColor)
-	linkText := "[" + linkColor + "::bu]" + askQuestionLabel + "[-:-:-]"
+	linkText = "[" + linkColor + "::bu]" + askQuestionLabel + "[-:-:-]"
 	if interfaceText == "" {
-		return "", linkText
+		return
 	}
 
 	interfaceColor := utils.ColorToHexTag(tview.Styles.SecondaryTextColor)
-	return "[" + interfaceColor + "::]" + interfaceText + "[-:-:-] " + Divider, linkText
+	interfaceText = "[" + interfaceColor + "::]" + interfaceText + "[-:-:-] " + Divider
+	return
 }
