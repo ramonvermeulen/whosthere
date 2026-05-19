@@ -94,7 +94,7 @@ func (s *Scanner) Scan(ctx context.Context, out chan<- *discovery.Device) error 
 			}
 			return fmt.Errorf("read ssdp: %w", err)
 		}
-		handlePacket(out, src, buf[:n])
+		handlePacket(out, s.iface, src, buf[:n])
 	}
 }
 
@@ -127,7 +127,7 @@ func applyDeadlineFromContext(conn *net.UDPConn, ctx context.Context) error {
 }
 
 // handlePacket parses the packet and emits a Device if an IP can be resolved.
-func handlePacket(out chan<- *discovery.Device, src *net.UDPAddr, payload []byte) {
+func handlePacket(out chan<- *discovery.Device, iface *discovery.InterfaceInfo, src *net.UDPAddr, payload []byte) {
 	loc, server := parseHeaders(payload)
 	ip := ipFromAddr(src)
 	if ip == nil && loc != "" {
@@ -138,6 +138,9 @@ func handlePacket(out chan<- *discovery.Device, src *net.UDPAddr, payload []byte
 	}
 	d := discovery.NewDevice(ip)
 	d.SetDisplayName(server)
+	if iface != nil && iface.Interface != nil {
+		d.SetInterfaceName(iface.Interface.Name)
+	}
 	d.AddSource("ssdp")
 	if loc != "" {
 		d.AddExtraData("location", loc)
