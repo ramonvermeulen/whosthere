@@ -37,7 +37,7 @@ func NewDetailView(emit func(events.Event), queue func(f func())) *DetailView {
 		SetTitle(" Details ")
 
 	statusBar := components.NewStatusBar()
-	statusBar.SetHelp("q: Quit" + components.Divider + "Esc: Back" + components.Divider + "y/Y: Copy IP/MAC" + components.Divider + "e: Edit Alias" + components.Divider + "D: Clear Alias" + components.Divider + "Ctrl+R: Reset Aliases" + components.Divider + "p: Port Scan" + "?: ask")
+	statusBar.SetHelp("q: Quit" + components.Divider + "Esc: Back" + components.Divider + "y/Y: Copy IP/MAC" + components.Divider + "e: Edit Alias" + components.Divider + "D: Clear Alias" + components.Divider + "Ctrl+R: Reset Aliases" + components.Divider + "p: Port Scan")
 
 	main.AddItem(header, 1, 0, false)
 	main.AddItem(info, 0, 1, true)
@@ -83,9 +83,6 @@ func handleInput(p *DetailView) func(ev *tcell.EventKey) *tcell.EventKey {
 			return nil
 		case ev.Rune() == 'Y':
 			p.emit(events.CopyMac{})
-			return nil
-		case ev.Rune() == '?':
-			p.emit(events.AskQuestionRequested{})
 			return nil
 		default:
 			return ev

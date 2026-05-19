@@ -38,7 +38,6 @@ func NewDashboardView(emit func(events.Event), queue func(f func())) *DashboardV
 		"j/k: up/down" + components.Divider +
 			"Enter: details" + components.Divider +
 			"y: copy" + components.Divider +
-			"?: ask" + components.Divider +
 			"Ctrl+I: interface" + components.Divider +
 			"Ctrl+R: reset aliases" + components.Divider +
 			"Ctrl+T: theme" + components.Divider +
@@ -61,10 +60,6 @@ func NewDashboardView(emit func(events.Event), queue func(f func())) *DashboardV
 
 	d.updateFooter(false)
 	t.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
-		if ev != nil && ev.Rune() == '?' {
-			emit(events.AskQuestionRequested{})
-			return nil
-		}
 		return t.HandleInput(ev)
 	})
 	t.SetSelectedFunc(func(row, col int) {
