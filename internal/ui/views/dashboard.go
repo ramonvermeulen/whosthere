@@ -25,7 +25,7 @@ type DashboardView struct {
 }
 
 func NewDashboardView(emit func(events.Event), queue func(f func())) *DashboardView {
-	header := components.NewHeader()
+	header := components.NewHeader(emit)
 	t := components.NewDeviceTable(emit)
 
 	main := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -59,7 +59,9 @@ func NewDashboardView(emit func(events.Event), queue func(f func())) *DashboardV
 	theme.RegisterPrimitive(d)
 
 	d.updateFooter(false)
-	t.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey { return t.HandleInput(ev) })
+	t.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
+		return t.HandleInput(ev)
+	})
 	t.SetSelectedFunc(func(row, col int) {
 		ip := t.SelectedIP()
 		if ip == "" {

@@ -30,7 +30,7 @@ type DetailView struct {
 
 func NewDetailView(emit func(events.Event), queue func(f func())) *DetailView {
 	main := tview.NewFlex().SetDirection(tview.FlexRow)
-	header := components.NewHeader()
+	header := components.NewHeader(emit)
 
 	info := tview.NewTextView().SetDynamicColors(true).SetWrap(true)
 	info.SetBorder(true).
