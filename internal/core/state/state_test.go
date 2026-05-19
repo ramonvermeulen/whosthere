@@ -3,6 +3,7 @@ package state
 import (
 	"net"
 	"testing"
+	"time"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
@@ -181,5 +182,129 @@ func TestSearch(t *testing.T) {
 	state.SetFilterPattern("search")
 	if state.SearchText() != "search" {
 		t.Errorf("expected search text search, got %s", state.SearchText())
+	}
+}
+
+func TestPreferredNameForAliasPrecedence(t *testing.T) {
+	t.Parallel()
+
+	appState := NewAppState(config.DefaultConfig(), "1.0.0")
+
+	device := discovery.NewDevice(net.ParseIP("192.168.1.42"))
+	device.SetMAC("AA:BB:CC:DD:EE:FF")
+	device.SetDisplayName("Detected Device")
+	device.SetManufacturer("Acme")
+
+	if got := appState.PreferredNameFor(device); got != "Detected Device" {
+		t.Fatalf("PreferredNameFor() without alias = %q, want %q", got, "Detected Device")
+	}
+
+	appState.UpsertDevice(device)
+	appState.SetAliasForMAC("aa:bb:cc:dd:ee:ff", "Desk Speaker")
+
+	if got := appState.AliasFor(device); got != "Desk Speaker" {
+		t.Fatalf("AliasFor() = %q, want %q", got, "Desk Speaker")
+	}
+	if got := appState.PreferredNameFor(device); got != "Desk Speaker" {
+		t.Fatalf("PreferredNameFor() with alias = %q, want %q", got, "Desk Speaker")
+	}
+}
+
+func TestPreferredNameForFallsBackToManufacturerAndIP(t *testing.T) {
+	t.Parallel()
+
+	appState := NewAppState(config.DefaultConfig(), "1.0.0")
+
+	device := discovery.NewDevice(net.ParseIP("192.168.1.99"))
+	device.SetManufacturer("Vendor")
+	if got := appState.PreferredNameFor(device); got != "Vendor" {
+		t.Fatalf("PreferredNameFor() manufacturer fallback = %q, want %q", got, "Vendor")
+	}
+
+	device.SetManufacturer("")
+	if got := appState.PreferredNameFor(device); got != "192.168.1.99" {
+		t.Fatalf("PreferredNameFor() IP fallback = %q, want %q", got, "192.168.1.99")
+	}
+}
+
+func TestSetAliasMarksAliasLoaded(t *testing.T) {
+	t.Parallel()
+
+	appState := NewAppState(config.DefaultConfig(), "1.0.0")
+	const mac = "aa:bb:cc:dd:ee:ff"
+	device := discovery.NewDevice(net.ParseIP("192.168.1.10"))
+	device.SetMAC("AA:BB:CC:DD:EE:FF")
+	appState.UpsertDevice(device)
+
+	if appState.HasAliasMetadataForMAC(mac) {
+		t.Fatal("HasAliasMetadataForMAC() = true before caching, want false")
+	}
+
+	appState.ClearAliasForMAC(mac)
+	if !appState.HasAliasMetadataForMAC(mac) {
+		t.Fatal("HasAliasMetadataForMAC() = false after ClearAliasForMAC, want true")
+	}
+}
+
+func TestResetAliasesClearsCache(t *testing.T) {
+	t.Parallel()
+
+	appState := NewAppState(config.DefaultConfig(), "1.0.0")
+	const mac = "aa:bb:cc:dd:ee:ff"
+
+	device := discovery.NewDevice(net.ParseIP("192.168.1.10"))
+	device.SetMAC("AA:BB:CC:DD:EE:FF")
+	appState.UpsertDevice(device)
+	appState.SetAliasForMAC(mac, "Laptop")
+
+	if got := appState.AliasFor(device); got != "Laptop" {
+		t.Fatalf("AliasFor() before reset = %q, want %q", got, "Laptop")
+	}
+
+	appState.ResetAliases()
+
+	if got := appState.AliasFor(device); got != "" {
+		t.Fatalf("AliasFor() after reset = %q, want empty", got)
+	}
+	if appState.HasAliasMetadataForMAC(mac) {
+		t.Fatal("HasAliasMetadataForMAC() after reset = true, want false")
+	}
+}
+
+func TestAliasEditorDraft(t *testing.T) {
+	t.Parallel()
+
+	appState := NewAppState(config.DefaultConfig(), "1.0.0")
+
+	appState.SetAliasEditorDraft("Living Room TV")
+	if got := appState.AliasEditorDraft(); got != "Living Room TV" {
+		t.Fatalf("AliasEditorDraft() = %q, want %q", got, "Living Room TV")
+	}
+
+	appState.ClearAliasEditorDraft()
+	if got := appState.AliasEditorDraft(); got != "" {
+		t.Fatalf("AliasEditorDraft() after clear = %q, want empty", got)
+	}
+}
+
+func TestStatusMessageLifecycle(t *testing.T) {
+	t.Parallel()
+
+	appState := NewAppState(config.DefaultConfig(), "1.0.0")
+
+	appState.SetStatusMessage("alias saved", StatusSeveritySuccess, 50*time.Millisecond)
+	if got := appState.StatusMessage(); got != "alias saved" {
+		t.Fatalf("StatusMessage() = %q, want %q", got, "alias saved")
+	}
+	if got := appState.StatusSeverity(); got != StatusSeveritySuccess {
+		t.Fatalf("StatusSeverity() = %q, want %q", got, StatusSeveritySuccess)
+	}
+
+	time.Sleep(75 * time.Millisecond)
+	if got := appState.StatusMessage(); got != "" {
+		t.Fatalf("StatusMessage() after expiry = %q, want empty", got)
+	}
+	if got := appState.StatusSeverity(); got != StatusSeverityInfo {
+		t.Fatalf("StatusSeverity() after expiry = %q, want %q", got, StatusSeverityInfo)
 	}
 }

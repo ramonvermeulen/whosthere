@@ -37,7 +37,7 @@ func NewDetailView(emit func(events.Event), queue func(f func())) *DetailView {
 		SetTitle(" Details ")
 
 	statusBar := components.NewStatusBar()
-	statusBar.SetHelp("q: Quit" + components.Divider + "Esc: Back" + components.Divider + "y/Y: Copy IP/MAC" + components.Divider + "p: Port Scan" + components.Divider + "?: ask")
+	statusBar.SetHelp("q: Quit" + components.Divider + "Esc: Back" + components.Divider + "y/Y: Copy IP/MAC" + components.Divider + "e: Edit Alias" + components.Divider + "D: Clear Alias" + components.Divider + "Ctrl+R: Reset Aliases" + components.Divider + "p: Port Scan" + "?: ask")
 
 	main.AddItem(header, 1, 0, false)
 	main.AddItem(info, 0, 1, true)
@@ -71,6 +71,12 @@ func handleInput(p *DetailView) func(ev *tcell.EventKey) *tcell.EventKey {
 			return nil
 		case ev.Rune() == 'p':
 			p.emit(events.NavigateTo{Route: routes.RoutePortScan, Overlay: true})
+			return nil
+		case ev.Rune() == 'e':
+			p.emit(events.AliasEditRequested{})
+			return nil
+		case ev.Rune() == 'D':
+			p.emit(events.AliasCleared{})
 			return nil
 		case ev.Rune() == 'y':
 			p.emit(events.CopyIP{})
@@ -144,8 +150,17 @@ func (d *DetailView) Render(s state.ReadOnly) {
 		return t.Format("2006-01-02 15:04:05")
 	}
 
+	name := s.PreferredNameFor(device)
+	alias := s.AliasFor(device)
+
 	writeLine("IP", device.IP().String())
-	writeLine("Display Name", device.DisplayName())
+	writeLine("Name", name)
+	if alias != "" {
+		writeLine("Alias", alias)
+		if detectedName := device.DisplayName(); detectedName != "" {
+			writeLine("Detected Name", detectedName)
+		}
+	}
 	writeLine("MAC", device.MAC())
 	writeLine("Manufacturer", device.Manufacturer())
 	if iface := device.InterfaceName(); iface != "" {

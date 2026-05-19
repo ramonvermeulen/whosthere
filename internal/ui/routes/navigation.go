@@ -7,4 +7,6 @@ const (
 	RouteThemePicker     = "theme-picker"
 	RoutePortScan        = "port-scan"
 	RouteInterfacePicker = "interface-picker"
+	RouteAliasEditor     = "alias-editor"
+	RouteAliasReset      = "alias-reset"
 )

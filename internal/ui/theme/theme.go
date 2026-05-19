@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
@@ -15,6 +16,7 @@ import (
 var log = slog.Default()
 
 var noColor = os.Getenv("NO_COLOR") != "" || os.Getenv("WHOSTHERE__THEME__NO_COLOR") != ""
+var noColorMu sync.RWMutex
 
 var registry = map[string]tview.Theme{
 	config.DefaultThemeName: {
@@ -847,6 +849,7 @@ var registry = map[string]tview.Theme{
 }
 
 var primitives []tview.Primitive
+var primitivesMu sync.RWMutex
 
 // Resolve returns the theme by name. Unknown names fall back to default; "custom" applies overrides atop default.
 func Resolve(tc *config.ThemeConfig) tview.Theme {
@@ -942,12 +945,18 @@ func Names() []string {
 // RegisterPrimitive registers a primitive for theme updates.
 func RegisterPrimitive(p tview.Primitive) {
 	ApplyToPrimitive(p)
+	primitivesMu.Lock()
+	defer primitivesMu.Unlock()
 	primitives = append(primitives, p)
 }
 
 // ApplyThemeToAllRegisteredPrimitives applies the current theme to all registered primitives.
 func ApplyThemeToAllRegisteredPrimitives() {
-	for _, p := range primitives {
+	primitivesMu.RLock()
+	snapshot := append([]tview.Primitive(nil), primitives...)
+	primitivesMu.RUnlock()
+
+	for _, p := range snapshot {
 		ApplyToPrimitive(p)
 	}
 }
@@ -974,6 +983,8 @@ func ApplyToPrimitive(p tview.Primitive) {
 		return
 	}
 
+	currentNoColor := IsNoColor()
+
 	switch v := p.(type) {
 	case *tview.TextView:
 		v.SetTextColor(tview.Styles.PrimaryTextColor)
@@ -993,7 +1004,7 @@ func ApplyToPrimitive(p tview.Primitive) {
 		v.SetBordersColor(tview.Styles.BorderColor)
 		v.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		v.SetBorderColor(tview.Styles.BorderColor)
-		if noColor {
+		if currentNoColor {
 			if tview.Styles.PrimaryTextColor == tcell.ColorDefault {
 				selectedStyle := tcell.StyleDefault.Reverse(true)
 				v.SetSelectedStyle(selectedStyle)
@@ -1022,7 +1033,7 @@ func ApplyToPrimitive(p tview.Primitive) {
 		v.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		v.SetBorderColor(tview.Styles.BorderColor)
 		v.SetTitleColor(tview.Styles.TitleColor)
-		if noColor {
+		if currentNoColor {
 			selectedStyle := tcell.StyleDefault.Reverse(true)
 			v.SetSelectedStyle(selectedStyle)
 		}
@@ -1082,7 +1093,7 @@ func ApplyToPrimitive(p tview.Primitive) {
 			Foreground(tview.Styles.BorderColor).
 			Background(tview.Styles.PrimitiveBackgroundColor))
 		v.SetTitleColor(tview.Styles.TitleColor)
-		if noColor {
+		if currentNoColor {
 			buttonStyle := tcell.StyleDefault.Reverse(true)
 			v.SetButtonActivatedStyle(buttonStyle)
 		}
@@ -1141,9 +1152,13 @@ func IsNoColor() bool {
 	// todo(ramon): fix issue where if NoColor is set via config, this is not detected here
 	// thus for all `--help` output the colors will still be enabled, which is not ideal.
 	// consider if it is worth parsing config earlier to prevent this
+	noColorMu.RLock()
+	defer noColorMu.RUnlock()
 	return noColor
 }
 
 func UpdateNoColor(updateNoColor bool) {
-       noColor = updateNoColor
+	noColorMu.Lock()
+	defer noColorMu.Unlock()
+	noColor = updateNoColor
 }
