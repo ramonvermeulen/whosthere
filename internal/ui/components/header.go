@@ -88,7 +88,7 @@ func (h *Header) Render(s state.ReadOnly) {
 	h.link.SetText(linkText)
 }
 
-func renderHeaderMeta(s state.ReadOnly) (interfaceText string, linkText string) {
+func renderHeaderMeta(s state.ReadOnly) (interfaceText, linkText string) {
 	if s == nil {
 		linkText = askQuestionLabel
 		return
