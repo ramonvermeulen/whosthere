@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"net"
 	"strings"
 	"time"
 
@@ -64,6 +65,7 @@ func (s *Scanner) Scan(ctx context.Context, results chan<- *discovery.Device) er
 		if err := s.queryFunc(params); err != nil {
 			errCh <- err
 		}
+		close(entriesCh)
 		close(errCh)
 	}()
 
@@ -82,8 +84,16 @@ func (s *Scanner) Scan(ctx context.Context, results chan<- *discovery.Device) er
 				}
 			}
 
+			if !s.acceptsEntry(entry) {
+				s.logger.Log(ctx, slog.LevelDebug, "ignoring mDNS device outside selected interface network", "name", entry.Name, "ip", entry.AddrV4.String())
+				continue
+			}
+
 			dev := discovery.NewDevice(entry.AddrV4)
 			dev.SetDisplayName(entry.Name)
+			if s.iface != nil && s.iface.Interface != nil {
+				dev.SetInterfaceName(s.iface.Interface.Name)
+			}
 			dev.AddSource("mdns")
 			if entry.Info != "" {
 				fields := entry.InfoFields
@@ -108,6 +118,31 @@ func (s *Scanner) Scan(ctx context.Context, results chan<- *discovery.Device) er
 			return err
 		}
 	}
+}
+
+func (s *Scanner) acceptsEntry(entry *hashimdns.ServiceEntry) bool {
+	if entry == nil {
+		return false
+	}
+
+	return s.acceptsIPv4(entry.AddrV4)
+}
+
+func (s *Scanner) acceptsIPv4(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+
+	if s.iface == nil || s.iface.IPv4Net == nil {
+		return true
+	}
+
+	ipv4 := ip.To4()
+	if ipv4 == nil {
+		return false
+	}
+
+	return s.iface.IPv4Net.Contains(ipv4)
 }
 
 // splitKeyValue splits a string like "key=value" and returns [key, value], or nil if not present.
