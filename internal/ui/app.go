@@ -28,8 +28,8 @@ import (
 )
 
 const (
-	refreshInterval = 1 * time.Second
-	askQuestionURL  = "https://github.com/ramonvermeulen/whosthere/discussions/new/choose"
+	refreshInterval  = 1 * time.Second
+	askQuestionURL   = "https://github.com/ramonvermeulen/whosthere/discussions/new/choose"
 	statusMessageTTL = 1500 * time.Millisecond
 )
 
@@ -399,6 +399,7 @@ func (a *App) handleEvents() {
 			if err := openURL(askQuestionURL); err != nil {
 				a.logger.Warn("failed to open GitHub Discussions", "url", askQuestionURL, "error", err)
 			}
+			a.resetFocus()
 		case events.InterfaceSelected:
 			go a.switchInterface(event.Name)
 		case events.AliasEditRequested:
