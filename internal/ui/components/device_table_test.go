@@ -17,7 +17,7 @@ func TestDeviceTableRenderUsesPreferredName(t *testing.T) {
 	device.SetMAC("AA:BB:CC:DD:EE:FF")
 	device.SetDisplayName("Detected Host")
 	appState.UpsertDevice(device)
-	appState.SetAlias("aa:bb:cc:dd:ee:ff", "Kitchen Tablet")
+	appState.SetAliasForMAC("aa:bb:cc:dd:ee:ff", "Kitchen Tablet")
 
 	table := NewDeviceTable(nil)
 	table.Render(appState.ReadOnly())
@@ -35,7 +35,7 @@ func TestDeviceTableFilterMatchesAliasAndDetectedName(t *testing.T) {
 	device.SetMAC("AA:BB:CC:DD:EE:11")
 	device.SetDisplayName("Detected Printer")
 	appState.UpsertDevice(device)
-	appState.SetAlias("aa:bb:cc:dd:ee:11", "Office Printer")
+	appState.SetAliasForMAC("aa:bb:cc:dd:ee:11", "Office Printer")
 
 	table := NewDeviceTable(nil)
 	table.Render(appState.ReadOnly())

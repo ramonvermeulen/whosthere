@@ -5,7 +5,7 @@ import (
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 )
 
-func normalizeDeviceMAC(d *discovery.Device) (string, bool) {
+func normalizedDeviceMAC(d *discovery.Device) (string, bool) {
 	if d == nil {
 		return "", false
 	}

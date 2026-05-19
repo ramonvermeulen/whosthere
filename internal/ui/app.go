@@ -236,10 +236,10 @@ func (a *App) handleEngineEvents(ctx context.Context, engine *discovery.Engine, 
 			a.emit(events.DiscoveryStopped{})
 		case discovery.EventDeviceDiscovered:
 			if event.Device != nil {
-				a.cacheAliasForDevice(event.Device)
 				a.engineMu.RLock()
 				if a.engineGen.Load() == gen {
 					a.state.UpsertDevice(event.Device)
+					a.cacheAliasForDevice(event.Device)
 				}
 				a.engineMu.RUnlock()
 			}
@@ -501,8 +501,8 @@ func (a *App) cacheAliasForDevice(device *discovery.Device) {
 		return
 	}
 
-	normalizedMAC, ok := devicemeta.NormalizeMAC(device.MAC())
-	if !ok || a.state.AliasLoaded(normalizedMAC) {
+	normalizedMAC, hasValidMAC := devicemeta.NormalizeMAC(device.MAC())
+	if !hasValidMAC || a.state.HasAliasMetadataForMAC(normalizedMAC) {
 		return
 	}
 
@@ -513,11 +513,11 @@ func (a *App) cacheAliasForDevice(device *discovery.Device) {
 	}
 
 	if found {
-		a.state.SetAlias(normalizedMAC, record.Alias)
+		a.state.SetAliasForMAC(normalizedMAC, record.Alias)
 		return
 	}
 
-	a.state.ClearAlias(normalizedMAC)
+	a.state.ClearAliasForMAC(normalizedMAC)
 }
 
 func (a *App) openAliasEditor() {
@@ -548,10 +548,10 @@ func (a *App) saveAlias(alias string) {
 	}
 
 	if alias == "" {
-		a.state.ClearAlias(normalizedMAC)
+		a.state.ClearAliasForMAC(normalizedMAC)
 		a.state.SetStatusMessage("Alias cleared", state.StatusSeveritySuccess, statusMessageTTL)
 	} else {
-		a.state.SetAlias(normalizedMAC, alias)
+		a.state.SetAliasForMAC(normalizedMAC, alias)
 		a.state.SetStatusMessage("Alias saved", state.StatusSeveritySuccess, statusMessageTTL)
 	}
 
@@ -572,7 +572,7 @@ func (a *App) clearAlias() {
 		return
 	}
 
-	a.state.ClearAlias(normalizedMAC)
+	a.state.ClearAliasForMAC(normalizedMAC)
 	a.state.SetStatusMessage("Alias cleared", state.StatusSeveritySuccess, statusMessageTTL)
 }
 

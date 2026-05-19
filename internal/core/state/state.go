@@ -50,7 +50,7 @@ const (
 type AppState struct {
 	mu sync.RWMutex
 
-	devices          map[string]*discovery.Device
+	devices          map[string]*deviceEntry
 	selectedIP       string
 	previousTheme    string
 	version          string
@@ -62,8 +62,6 @@ type AppState struct {
 	searchActive     bool
 	noColor          bool
 	currentInterface string
-	deviceAliases    map[string]string
-	aliasLoaded      map[string]bool
 	aliasEditorDraft string
 	statusMessage    string
 	statusSeverity   StatusSeverity
@@ -72,12 +70,10 @@ type AppState struct {
 
 func NewAppState(cfg *config.Config, version string) *AppState {
 	s := &AppState{
-		devices:       make(map[string]*discovery.Device),
-		version:       version,
-		cfg:           cfg,
-		noColor:       theme.IsNoColor() || (cfg != nil && cfg.Theme.NoColor),
-		deviceAliases: map[string]string{},
-		aliasLoaded:   map[string]bool{},
+		devices: make(map[string]*deviceEntry),
+		version: version,
+		cfg:     cfg,
+		noColor: theme.IsNoColor() || (cfg != nil && cfg.Theme.NoColor),
 	}
 	theme.UpdateNoColor(s.noColor)
 
@@ -103,13 +99,12 @@ func (s *AppState) UpsertDevice(d *discovery.Device) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if existing, ok := s.devices[key]; ok {
-		existing.Merge(d)
-		s.devices[key] = existing
-	} else {
-		// Stores a copy to prevent race conditions between discovery engine and UI rendering
-		s.devices[key] = d.Copy()
+	if existingEntry, exists := s.devices[key]; exists {
+		existingEntry.Merge(d)
+		return
 	}
+
+	s.devices[key] = newDeviceEntry(d)
 }
 
 // DevicesSnapshot returns a copy of all devices for rendering.
@@ -118,8 +113,11 @@ func (s *AppState) DevicesSnapshot() []*discovery.Device {
 	defer s.mu.RUnlock()
 
 	out := make([]*discovery.Device, 0, len(s.devices))
-	for _, d := range s.devices {
-		out = append(out, d)
+	for _, entry := range s.devices {
+		if entry == nil || entry.Device() == nil {
+			continue
+		}
+		out = append(out, entry.Device())
 	}
 	sort.Slice(out, func(i, j int) bool {
 		return discovery.CompareIPs(out[i].IP(), out[j].IP())
@@ -142,8 +140,12 @@ func (s *AppState) Selected() (*discovery.Device, bool) {
 	if s.selectedIP == "" {
 		return nil, false
 	}
-	d, ok := s.devices[s.selectedIP]
-	return d, ok
+	entry, ok := s.devices[s.selectedIP]
+	if !ok || entry == nil || entry.Device() == nil {
+		return nil, false
+	}
+
+	return entry.Device(), true
 }
 
 // SelectedIP returns the currently selected device IP, if any.
@@ -155,14 +157,19 @@ func (s *AppState) SelectedIP() string {
 
 // AliasFor returns the cached alias for a device, if present.
 func (s *AppState) AliasFor(d *discovery.Device) string {
-	normalizedMAC, ok := normalizeDeviceMAC(d)
-	if !ok {
+	if d == nil {
 		return ""
 	}
 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.deviceAliases[normalizedMAC]
+
+	entry, ok := s.findDeviceEntryLocked(d)
+	if !ok {
+		return ""
+	}
+
+	return entry.Alias()
 }
 
 // PreferredNameFor returns the best available display name for a device.
@@ -171,20 +178,14 @@ func (s *AppState) PreferredNameFor(d *discovery.Device) string {
 		return ""
 	}
 
-	if alias := s.AliasFor(d); alias != "" {
-		return alias
-	}
-	if name := d.DisplayName(); name != "" {
-		return name
-	}
-	if manufacturer := d.Manufacturer(); manufacturer != "" {
-		return manufacturer
-	}
-	if ip := d.IP(); ip != nil {
-		return ip.String()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if entry, ok := s.findDeviceEntryLocked(d); ok {
+		return entry.PreferredName()
 	}
 
-	return ""
+	return (&deviceEntry{device: d}).PreferredName()
 }
 
 // SetCurrentTheme sets the current theme.
@@ -288,8 +289,12 @@ func (s *AppState) GetDevice(ip string) (*discovery.Device, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	device, ok := s.devices[ip]
-	return device, ok
+	entry, ok := s.devices[ip]
+	if !ok || entry == nil || entry.Device() == nil {
+		return nil, false
+	}
+
+	return entry.Device(), true
 }
 
 // SearchActive returns the search active state.
@@ -425,31 +430,35 @@ func (s *AppState) StatusSeverity() StatusSeverity {
 	return severity
 }
 
-// AliasLoaded reports whether alias metadata for a normalized MAC is cached.
-func (s *AppState) AliasLoaded(normalizedMAC string) bool {
+// HasAliasMetadataForMAC reports whether alias metadata for a normalized MAC is cached.
+func (s *AppState) HasAliasMetadataForMAC(normalizedMAC string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.aliasLoaded[normalizedMAC]
+
+	for _, entry := range s.devices {
+		if entry != nil && entry.HasMAC(normalizedMAC) {
+			return entry.AliasMetadataLoaded()
+		}
+	}
+
+	return false
 }
 
-// SetAlias caches an alias for a normalized MAC address.
-func (s *AppState) SetAlias(normalizedMAC, alias string) {
+// SetAliasForMAC caches an alias for all devices with the given normalized MAC address.
+func (s *AppState) SetAliasForMAC(normalizedMAC, alias string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	alias = strings.TrimSpace(alias)
-	s.aliasLoaded[normalizedMAC] = true
-	if alias == "" {
-		delete(s.deviceAliases, normalizedMAC)
-		return
+	for _, entry := range s.devices {
+		if entry != nil && entry.HasMAC(normalizedMAC) {
+			entry.SetAlias(alias)
+		}
 	}
-
-	s.deviceAliases[normalizedMAC] = alias
 }
 
-// ClearAlias removes the cached alias for a normalized MAC address.
-func (s *AppState) ClearAlias(normalizedMAC string) {
-	s.SetAlias(normalizedMAC, "")
+// ClearAliasForMAC removes the cached alias for all devices with the given normalized MAC address.
+func (s *AppState) ClearAliasForMAC(normalizedMAC string) {
+	s.SetAliasForMAC(normalizedMAC, "")
 }
 
 // ResetAliases clears all cached aliases and loaded markers.
@@ -457,14 +466,42 @@ func (s *AppState) ResetAliases() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.deviceAliases = map[string]string{}
-	s.aliasLoaded = map[string]bool{}
+	for _, entry := range s.devices {
+		if entry != nil {
+			entry.ResetAlias()
+		}
+	}
 }
 
 // ClearDevices removes all discovered devices and resets selection.
 func (s *AppState) ClearDevices() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.devices = make(map[string]*discovery.Device)
+	s.devices = make(map[string]*deviceEntry)
 	s.selectedIP = ""
+}
+
+func (s *AppState) findDeviceEntryLocked(device *discovery.Device) (*deviceEntry, bool) {
+	if device == nil {
+		return nil, false
+	}
+
+	if ip := device.IP(); ip != nil {
+		if entry, ok := s.devices[ip.String()]; ok {
+			return entry, true
+		}
+	}
+
+	normalizedMAC, hasValidMAC := normalizedDeviceMAC(device)
+	if !hasValidMAC {
+		return nil, false
+	}
+
+	for _, entry := range s.devices {
+		if entry != nil && entry.HasMAC(normalizedMAC) {
+			return entry, true
+		}
+	}
+
+	return nil, false
 }

@@ -199,7 +199,8 @@ func TestPreferredNameForAliasPrecedence(t *testing.T) {
 		t.Fatalf("PreferredNameFor() without alias = %q, want %q", got, "Detected Device")
 	}
 
-	appState.SetAlias("aa:bb:cc:dd:ee:ff", "Desk Speaker")
+	appState.UpsertDevice(device)
+	appState.SetAliasForMAC("aa:bb:cc:dd:ee:ff", "Desk Speaker")
 
 	if got := appState.AliasFor(device); got != "Desk Speaker" {
 		t.Fatalf("AliasFor() = %q, want %q", got, "Desk Speaker")
@@ -231,14 +232,17 @@ func TestSetAliasMarksAliasLoaded(t *testing.T) {
 
 	appState := NewAppState(config.DefaultConfig(), "1.0.0")
 	const mac = "aa:bb:cc:dd:ee:ff"
+	device := discovery.NewDevice(net.ParseIP("192.168.1.10"))
+	device.SetMAC("AA:BB:CC:DD:EE:FF")
+	appState.UpsertDevice(device)
 
-	if appState.AliasLoaded(mac) {
-		t.Fatal("AliasLoaded() = true before caching, want false")
+	if appState.HasAliasMetadataForMAC(mac) {
+		t.Fatal("HasAliasMetadataForMAC() = true before caching, want false")
 	}
 
-	appState.ClearAlias(mac)
-	if !appState.AliasLoaded(mac) {
-		t.Fatal("AliasLoaded() = false after ClearAlias, want true")
+	appState.ClearAliasForMAC(mac)
+	if !appState.HasAliasMetadataForMAC(mac) {
+		t.Fatal("HasAliasMetadataForMAC() = false after ClearAliasForMAC, want true")
 	}
 }
 
@@ -250,7 +254,8 @@ func TestResetAliasesClearsCache(t *testing.T) {
 
 	device := discovery.NewDevice(net.ParseIP("192.168.1.10"))
 	device.SetMAC("AA:BB:CC:DD:EE:FF")
-	appState.SetAlias(mac, "Laptop")
+	appState.UpsertDevice(device)
+	appState.SetAliasForMAC(mac, "Laptop")
 
 	if got := appState.AliasFor(device); got != "Laptop" {
 		t.Fatalf("AliasFor() before reset = %q, want %q", got, "Laptop")
@@ -261,8 +266,8 @@ func TestResetAliasesClearsCache(t *testing.T) {
 	if got := appState.AliasFor(device); got != "" {
 		t.Fatalf("AliasFor() after reset = %q, want empty", got)
 	}
-	if appState.AliasLoaded(mac) {
-		t.Fatal("AliasLoaded() after reset = true, want false")
+	if appState.HasAliasMetadataForMAC(mac) {
+		t.Fatal("HasAliasMetadataForMAC() after reset = true, want false")
 	}
 }
 
