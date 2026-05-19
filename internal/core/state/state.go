@@ -34,6 +34,7 @@ type ReadOnly interface {
 	CurrentInterface() string
 	StatusMessage() string
 	StatusSeverity() StatusSeverity
+	AliasEditorDraft() string
 }
 
 type StatusSeverity string
@@ -63,6 +64,7 @@ type AppState struct {
 	currentInterface string
 	deviceAliases    map[string]string
 	aliasLoaded      map[string]bool
+	aliasEditorDraft string
 	statusMessage    string
 	statusSeverity   StatusSeverity
 	statusUntil      time.Time
@@ -344,6 +346,25 @@ func (s *AppState) SetCurrentInterface(name string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.currentInterface = name
+}
+
+// SetAliasEditorDraft updates the current alias editor draft.
+func (s *AppState) SetAliasEditorDraft(alias string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.aliasEditorDraft = alias
+}
+
+// ClearAliasEditorDraft removes the current alias editor draft.
+func (s *AppState) ClearAliasEditorDraft() {
+	s.SetAliasEditorDraft("")
+}
+
+// AliasEditorDraft returns the current alias editor draft.
+func (s *AppState) AliasEditorDraft() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.aliasEditorDraft
 }
 
 // SetStatusMessage sets a transient status message until the given duration expires.

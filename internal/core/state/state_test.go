@@ -266,6 +266,22 @@ func TestResetAliasesClearsCache(t *testing.T) {
 	}
 }
 
+func TestAliasEditorDraft(t *testing.T) {
+	t.Parallel()
+
+	appState := NewAppState(config.DefaultConfig(), "1.0.0")
+
+	appState.SetAliasEditorDraft("Living Room TV")
+	if got := appState.AliasEditorDraft(); got != "Living Room TV" {
+		t.Fatalf("AliasEditorDraft() = %q, want %q", got, "Living Room TV")
+	}
+
+	appState.ClearAliasEditorDraft()
+	if got := appState.AliasEditorDraft(); got != "" {
+		t.Fatalf("AliasEditorDraft() after clear = %q, want empty", got)
+	}
+}
+
 func TestStatusMessageLifecycle(t *testing.T) {
 	t.Parallel()
 

@@ -81,6 +81,11 @@ type AliasSubmitted struct {
 	Alias string
 }
 
+// AliasDraftChanged updates the in-progress alias editor text.
+type AliasDraftChanged struct {
+	Alias string
+}
+
 // AliasCleared removes the alias for the selected device.
 type AliasCleared struct{}
 

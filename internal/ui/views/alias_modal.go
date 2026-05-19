@@ -16,9 +16,8 @@ var _ View = &AliasModalView{}
 // AliasModalView is a modal overlay for editing the selected device alias.
 type AliasModalView struct {
 	*tview.Flex
-	input      *tview.InputField
-	footer     *tview.TextView
-	currentMAC string
+	input  *tview.InputField
+	footer *tview.TextView
 }
 
 func NewAliasModalView(emit func(events.Event)) *AliasModalView {
@@ -26,6 +25,9 @@ func NewAliasModalView(emit func(events.Event)) *AliasModalView {
 		SetLabel("Alias: ").
 		SetFieldWidth(36)
 	input.SetBorder(true).SetTitle(" Device Alias ")
+	input.SetChangedFunc(func(text string) {
+		emit(events.AliasDraftChanged{Alias: text})
+	})
 	input.SetDoneFunc(func(key tcell.Key) {
 		switch key {
 		case tcell.KeyEnter:
@@ -69,12 +71,6 @@ func NewAliasModalView(emit func(events.Event)) *AliasModalView {
 
 func (v *AliasModalView) FocusTarget() tview.Primitive { return v.input }
 
-// Prepare resets the editor for a specific device and alias.
-func (v *AliasModalView) Prepare(deviceMAC, alias string) {
-	v.currentMAC = deviceMAC
-	v.input.SetText(alias)
-}
-
 func (v *AliasModalView) Render(s state.ReadOnly) {
 	device, ok := s.Selected()
 	if !ok {
@@ -87,9 +83,7 @@ func (v *AliasModalView) Render(s state.ReadOnly) {
 		title = fmt.Sprintf(" Device Alias (%s) ", mac)
 	}
 	v.input.SetTitle(title)
-
-	if mac := device.MAC(); mac != "" && mac != v.currentMAC {
-		v.currentMAC = mac
-		v.input.SetText(s.AliasFor(device))
+	if draft := s.AliasEditorDraft(); v.input.GetText() != draft {
+		v.input.SetText(draft)
 	}
 }

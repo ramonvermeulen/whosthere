@@ -45,7 +45,6 @@ type App struct {
 	clipboard     *clipboard.Clipboard
 	logger        *slog.Logger
 	metaStore     devicemeta.Store
-	aliasEditor   *views.AliasModalView
 	stopOnce      sync.Once
 
 	// Engine lifecycle management for runtime interface switching.
@@ -172,7 +171,6 @@ func (a *App) setupPages(cfg *config.Config) {
 	a.pages.AddPage(routes.RouteInterfacePicker, interfacePickerModal, true, false)
 	a.pages.AddPage(routes.RouteAliasEditor, aliasModal, true, false)
 	a.pages.AddPage(routes.RouteAliasReset, resetAliasesModal, true, false)
-	a.aliasEditor = aliasModal
 
 	initialPage := routes.RouteDashboard
 	if cfg != nil && cfg.Splash.Enabled {
@@ -341,6 +339,9 @@ func (a *App) handleEvents() {
 			a.state.SetPreviousTheme(a.state.CurrentTheme())
 		case events.HideView:
 			front, _ := a.pages.GetFrontPage()
+			if front == routes.RouteAliasEditor {
+				a.state.ClearAliasEditorDraft()
+			}
 			a.pages.HidePage(front)
 			a.resetFocus()
 		case events.DiscoveryStarted:
@@ -359,6 +360,8 @@ func (a *App) handleEvents() {
 			a.state.SetSearchError(event.Error)
 		case events.SearchFinished:
 			a.state.SetSearchActive(false)
+		case events.AliasDraftChanged:
+			a.state.SetAliasEditorDraft(event.Alias)
 		case events.CopyIP:
 			var ip string
 			if event.IP != "" {
@@ -528,9 +531,7 @@ func (a *App) openAliasEditor() {
 		return
 	}
 
-	if a.aliasEditor != nil {
-		a.aliasEditor.Prepare(device.MAC(), a.state.AliasFor(device))
-	}
+	a.state.SetAliasEditorDraft(a.state.AliasFor(device))
 	a.emit(events.NavigateTo{Route: routes.RouteAliasEditor, Overlay: true})
 }
 
@@ -554,6 +555,7 @@ func (a *App) saveAlias(alias string) {
 		a.state.SetStatusMessage("Alias saved", state.StatusSeveritySuccess, statusMessageTTL)
 	}
 
+	a.state.ClearAliasEditorDraft()
 	a.emit(events.HideView{})
 	a.logger.Info("device alias saved", "mac", normalizedMAC, "ip", device.IP().String())
 }
