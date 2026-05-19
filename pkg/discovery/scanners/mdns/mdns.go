@@ -66,7 +66,6 @@ func (s *Scanner) Scan(ctx context.Context, results chan<- *discovery.Device) er
 			errCh <- err
 		}
 		close(entriesCh)
-		close(errCh)
 	}()
 
 	for {
@@ -113,9 +112,6 @@ func (s *Scanner) Scan(ctx context.Context, results chan<- *discovery.Device) er
 			case <-ctx.Done():
 				return ctx.Err()
 			}
-
-		case err := <-errCh:
-			return err
 		}
 	}
 }
