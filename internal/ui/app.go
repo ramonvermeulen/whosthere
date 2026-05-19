@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -26,6 +28,7 @@ import (
 
 const (
 	refreshInterval = 1 * time.Second
+	askQuestionURL  = "https://github.com/ramonvermeulen/whosthere/discussions/new/choose"
 )
 
 // App represents the main TUI application.
@@ -369,6 +372,10 @@ func (a *App) handleEvents() {
 					a.logger.Warn("failed to copy to clipboard", "error", err)
 				}
 			}
+		case events.AskQuestionRequested:
+			if err := openURL(askQuestionURL); err != nil {
+				a.logger.Warn("failed to open GitHub Discussions", "url", askQuestionURL, "error", err)
+			}
 		case events.InterfaceSelected:
 			go a.switchInterface(event.Name)
 		}
@@ -440,4 +447,19 @@ func (a *App) switchInterface(name string) {
 
 	a.engine.Start(context.Background())
 	go a.handleEngineEvents(ctx, engine, gen)
+}
+
+func openURL(target string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", target)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", target)
+	default:
+		cmd = exec.Command("xdg-open", target)
+	}
+
+	return cmd.Start()
 }

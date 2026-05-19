@@ -30,14 +30,14 @@ type DetailView struct {
 
 func NewDetailView(emit func(events.Event), queue func(f func())) *DetailView {
 	main := tview.NewFlex().SetDirection(tview.FlexRow)
-	header := components.NewHeader()
+	header := components.NewHeader(emit)
 
 	info := tview.NewTextView().SetDynamicColors(true).SetWrap(true)
 	info.SetBorder(true).
 		SetTitle(" Details ")
 
 	statusBar := components.NewStatusBar()
-	statusBar.SetHelp("q: Quit" + components.Divider + "Esc: Back" + components.Divider + "y/Y: Copy IP/MAC" + components.Divider + "p: Port Scan")
+	statusBar.SetHelp("q: Quit" + components.Divider + "Esc: Back" + components.Divider + "y/Y: Copy IP/MAC" + components.Divider + "p: Port Scan" + components.Divider + "?: ask")
 
 	main.AddItem(header, 1, 0, false)
 	main.AddItem(info, 0, 1, true)
@@ -77,6 +77,9 @@ func handleInput(p *DetailView) func(ev *tcell.EventKey) *tcell.EventKey {
 			return nil
 		case ev.Rune() == 'Y':
 			p.emit(events.CopyMac{})
+			return nil
+		case ev.Rune() == '?':
+			p.emit(events.AskQuestionRequested{})
 			return nil
 		default:
 			return ev

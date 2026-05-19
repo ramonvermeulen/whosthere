@@ -68,8 +68,10 @@ type CopyMac struct {
 	MAC string
 }
 
+// AskQuestionRequested opens the GitHub Discussions page for asking a question.
+type AskQuestionRequested struct{}
+
 // InterfaceSelected is emitted when a network interface is selected.
 type InterfaceSelected struct {
 	Name string
 }
-
