@@ -24,6 +24,7 @@ type DeviceTable struct {
 	filterRE    *regexp.Regexp
 	searching   bool
 	searchInput string
+	state       state.ReadOnly
 
 	emit func(events.Event)
 }
@@ -167,6 +168,7 @@ func (dt *DeviceTable) applySearch(pattern string) {
 
 // Render updates the table with the latest devices from state.
 func (dt *DeviceTable) Render(st state.ReadOnly) {
+	dt.state = st
 	dt.devices = st.DevicesSnapshot()
 	_ = dt.SetFilter(st.FilterPattern())
 }
@@ -222,18 +224,27 @@ func (dt *DeviceTable) moveSelection(delta int) {
 }
 
 type tableRow struct {
-	ip, hostname, mac, manufacturer, lastSeen string
+	ip, hostname, mac, manufacturer, lastSeen, alias, detectedName string
 }
 
 func (dt *DeviceTable) buildRows() []tableRow {
 	rows := make([]tableRow, 0, len(dt.devices))
 	for _, d := range dt.devices {
+		hostname := d.DisplayName()
+		alias := ""
+		if dt.state != nil {
+			hostname = dt.state.PreferredNameFor(d)
+			alias = dt.state.AliasFor(d)
+		}
+
 		row := tableRow{
 			ip:           d.IP().String(),
-			hostname:     d.DisplayName(),
+			hostname:     hostname,
 			mac:          d.MAC(),
 			manufacturer: d.Manufacturer(),
 			lastSeen:     utils.FmtDuration(time.Since(d.LastSeen())),
+			alias:        alias,
+			detectedName: d.DisplayName(),
 		}
 		if dt.filterRE != nil && !dt.rowMatches(&row) {
 			continue
@@ -248,7 +259,7 @@ func (dt *DeviceTable) refresh() {
 	dt.Clear()
 	const maxColWidth = 30
 
-	headers := []string{"IP", "Display Name", "MAC", "Manufacturer", "Last Seen"}
+	headers := []string{"IP", "Name", "MAC", "Manufacturer", "Last Seen"}
 
 	for i, h := range headers {
 		text := utils.Truncate(h, maxColWidth)
@@ -306,5 +317,7 @@ func (dt *DeviceTable) rowMatches(r *tableRow) bool {
 		dt.filterRE.MatchString(r.hostname) ||
 		dt.filterRE.MatchString(r.mac) ||
 		dt.filterRE.MatchString(r.manufacturer) ||
+		dt.filterRE.MatchString(r.alias) ||
+		dt.filterRE.MatchString(r.detectedName) ||
 		dt.filterRE.MatchString(r.lastSeen)
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/ramonvermeulen/whosthere/internal/core"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
+	"github.com/ramonvermeulen/whosthere/internal/core/devicemeta"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
 	"github.com/ramonvermeulen/whosthere/internal/ui/events"
 	"github.com/ramonvermeulen/whosthere/internal/ui/routes"
@@ -25,7 +26,8 @@ import (
 )
 
 const (
-	refreshInterval = 1 * time.Second
+	refreshInterval  = 1 * time.Second
+	statusMessageTTL = 1500 * time.Millisecond
 )
 
 // App represents the main TUI application.
@@ -42,6 +44,8 @@ type App struct {
 	isReady       bool
 	clipboard     *clipboard.Clipboard
 	logger        *slog.Logger
+	metaStore     devicemeta.Store
+	stopOnce      sync.Once
 
 	// Engine lifecycle management for runtime interface switching.
 	// When the user switches network interface, the old engine must stop cleanly
@@ -59,6 +63,11 @@ func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, erro
 		logger = slog.Default()
 	}
 
+	metaStore, err := devicemeta.OpenDefault()
+	if err != nil {
+		return nil, fmt.Errorf("open device metadata store: %w", err)
+	}
+
 	a := &App{
 		Application: app,
 		state:       appState,
@@ -66,6 +75,7 @@ func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, erro
 		events:      make(chan events.Event, 100),
 		clipboard:   clipboard.New(clipboard.ClipboardOptions{Primary: false}),
 		logger:      logger,
+		metaStore:   metaStore,
 	}
 	a.setupSignalHandler()
 
@@ -150,6 +160,8 @@ func (a *App) setupPages(cfg *config.Config) {
 	themePickerModal := views.NewThemeModalView(a.emit)
 	portScanModal := views.NewPortScanModalView(a.emit)
 	interfacePickerModal := views.NewInterfaceModalView(a.emit)
+	aliasModal := views.NewAliasModalView(a.emit)
+	resetAliasesModal := views.NewResetAliasesModalView(a.emit)
 
 	a.pages.AddPage(routes.RouteDashboard, dashboardPage, true, false)
 	a.pages.AddPage(routes.RouteDetail, detailPage, true, false)
@@ -157,6 +169,8 @@ func (a *App) setupPages(cfg *config.Config) {
 	a.pages.AddPage(routes.RouteThemePicker, themePickerModal, true, false)
 	a.pages.AddPage(routes.RoutePortScan, portScanModal, true, false)
 	a.pages.AddPage(routes.RouteInterfacePicker, interfacePickerModal, true, false)
+	a.pages.AddPage(routes.RouteAliasEditor, aliasModal, true, false)
+	a.pages.AddPage(routes.RouteAliasReset, resetAliasesModal, true, false)
 
 	initialPage := routes.RouteDashboard
 	if cfg != nil && cfg.Splash.Enabled {
@@ -175,6 +189,9 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case tcell.KeyCtrlI:
 		a.emit(events.NavigateTo{Route: routes.RouteInterfacePicker, Overlay: true})
+		return nil
+	case tcell.KeyCtrlR:
+		a.emit(events.AliasesResetRequested{})
 		return nil
 	case tcell.KeyRune:
 		if event.Rune() == 'q' || event.Rune() == 'Q' {
@@ -222,6 +239,7 @@ func (a *App) handleEngineEvents(ctx context.Context, engine *discovery.Engine, 
 				a.engineMu.RLock()
 				if a.engineGen.Load() == gen {
 					a.state.UpsertDevice(event.Device)
+					a.cacheAliasForDevice(event.Device)
 				}
 				a.engineMu.RUnlock()
 			}
@@ -321,6 +339,9 @@ func (a *App) handleEvents() {
 			a.state.SetPreviousTheme(a.state.CurrentTheme())
 		case events.HideView:
 			front, _ := a.pages.GetFrontPage()
+			if front == routes.RouteAliasEditor {
+				a.state.ClearAliasEditorDraft()
+			}
 			a.pages.HidePage(front)
 			a.resetFocus()
 		case events.DiscoveryStarted:
@@ -339,6 +360,8 @@ func (a *App) handleEvents() {
 			a.state.SetSearchError(event.Error)
 		case events.SearchFinished:
 			a.state.SetSearchActive(false)
+		case events.AliasDraftChanged:
+			a.state.SetAliasEditorDraft(event.Alias)
 		case events.CopyIP:
 			var ip string
 			if event.IP != "" {
@@ -371,9 +394,40 @@ func (a *App) handleEvents() {
 			}
 		case events.InterfaceSelected:
 			go a.switchInterface(event.Name)
+		case events.AliasEditRequested:
+			a.openAliasEditor()
+		case events.AliasSubmitted:
+			a.saveAlias(event.Alias)
+		case events.AliasCleared:
+			a.clearAlias()
+		case events.AliasesResetRequested:
+			a.emit(events.NavigateTo{Route: routes.RouteAliasReset, Overlay: true})
+		case events.AliasesResetConfirmed:
+			a.resetAliases()
 		}
 		a.rerenderVisibleViews()
 	}
+}
+
+// Stop shuts down app-owned resources before stopping the TUI application.
+func (a *App) Stop() {
+	a.stopOnce.Do(func() {
+		if a.refreshTicker != nil {
+			a.refreshTicker.Stop()
+		}
+		if a.engineCancel != nil {
+			a.engineCancel()
+		}
+		if a.engine != nil {
+			go a.engine.Stop()
+		}
+		if a.metaStore != nil {
+			if err := a.metaStore.Close(); err != nil {
+				a.logger.Warn("failed to close metadata store", "error", err)
+			}
+		}
+		a.Application.Stop()
+	})
 }
 
 func (a *App) startPortscan() {
@@ -440,4 +494,116 @@ func (a *App) switchInterface(name string) {
 
 	a.engine.Start(context.Background())
 	go a.handleEngineEvents(ctx, engine, gen)
+}
+
+func (a *App) cacheAliasForDevice(device *discovery.Device) {
+	if device == nil || a.metaStore == nil {
+		return
+	}
+
+	normalizedMAC, hasValidMAC := devicemeta.NormalizeMAC(device.MAC())
+	if !hasValidMAC || a.state.HasAliasMetadataForMAC(normalizedMAC) {
+		return
+	}
+
+	record, found, err := a.metaStore.Get(normalizedMAC)
+	if err != nil {
+		a.logger.Warn("failed to load device alias", "mac", normalizedMAC, "error", err)
+		return
+	}
+
+	if found {
+		a.state.SetAliasForMAC(normalizedMAC, record.Alias)
+		return
+	}
+
+	a.state.ClearAliasForMAC(normalizedMAC)
+}
+
+func (a *App) openAliasEditor() {
+	device, ok := a.state.Selected()
+	if !ok {
+		return
+	}
+
+	if _, validMAC := devicemeta.NormalizeMAC(device.MAC()); !validMAC {
+		a.logger.Warn("cannot edit alias for device without a valid MAC", "ip", device.IP().String())
+		return
+	}
+
+	a.state.SetAliasEditorDraft(a.state.AliasFor(device))
+	a.emit(events.NavigateTo{Route: routes.RouteAliasEditor, Overlay: true})
+}
+
+func (a *App) saveAlias(alias string) {
+	device, normalizedMAC, ok := a.selectedDeviceMAC()
+	if !ok {
+		return
+	}
+
+	if err := a.metaStore.SetAlias(normalizedMAC, alias); err != nil {
+		a.logger.Error("failed to save device alias", "mac", normalizedMAC, "error", err)
+		a.state.SetStatusMessage("Failed to save alias", state.StatusSeverityError, statusMessageTTL)
+		return
+	}
+
+	if alias == "" {
+		a.state.ClearAliasForMAC(normalizedMAC)
+		a.state.SetStatusMessage("Alias cleared", state.StatusSeveritySuccess, statusMessageTTL)
+	} else {
+		a.state.SetAliasForMAC(normalizedMAC, alias)
+		a.state.SetStatusMessage("Alias saved", state.StatusSeveritySuccess, statusMessageTTL)
+	}
+
+	a.state.ClearAliasEditorDraft()
+	a.emit(events.HideView{})
+	a.logger.Info("device alias saved", "mac", normalizedMAC, "ip", device.IP().String())
+}
+
+func (a *App) clearAlias() {
+	_, normalizedMAC, ok := a.selectedDeviceMAC()
+	if !ok {
+		return
+	}
+
+	if err := a.metaStore.ClearAlias(normalizedMAC); err != nil {
+		a.logger.Error("failed to clear device alias", "mac", normalizedMAC, "error", err)
+		a.state.SetStatusMessage("Failed to clear alias", state.StatusSeverityError, statusMessageTTL)
+		return
+	}
+
+	a.state.ClearAliasForMAC(normalizedMAC)
+	a.state.SetStatusMessage("Alias cleared", state.StatusSeveritySuccess, statusMessageTTL)
+}
+
+func (a *App) resetAliases() {
+	if a.metaStore == nil {
+		return
+	}
+
+	if err := a.metaStore.ResetAliases(); err != nil {
+		a.logger.Error("failed to reset aliases", "error", err)
+		a.state.SetStatusMessage("Failed to reset aliases", state.StatusSeverityError, statusMessageTTL)
+		return
+	}
+
+	a.state.ResetAliases()
+	a.state.SetStatusMessage("All aliases cleared", state.StatusSeveritySuccess, statusMessageTTL)
+	a.emit(events.HideView{})
+	a.logger.Info("all device aliases cleared")
+}
+
+func (a *App) selectedDeviceMAC() (*discovery.Device, string, bool) {
+	device, ok := a.state.Selected()
+	if !ok {
+		return nil, "", false
+	}
+
+	normalizedMAC, validMAC := devicemeta.NormalizeMAC(device.MAC())
+	if !validMAC {
+		a.logger.Warn("selected device has no valid MAC address", "ip", device.IP().String())
+		return nil, "", false
+	}
+
+	return device, normalizedMAC, true
 }

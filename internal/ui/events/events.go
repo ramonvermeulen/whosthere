@@ -73,3 +73,24 @@ type InterfaceSelected struct {
 	Name string
 }
 
+// AliasEditRequested opens the alias editor for the selected device.
+type AliasEditRequested struct{}
+
+// AliasSubmitted saves the currently entered alias for the selected device.
+type AliasSubmitted struct {
+	Alias string
+}
+
+// AliasDraftChanged updates the in-progress alias editor text.
+type AliasDraftChanged struct {
+	Alias string
+}
+
+// AliasCleared removes the alias for the selected device.
+type AliasCleared struct{}
+
+// AliasesResetRequested opens the reset-all-aliases confirmation modal.
+type AliasesResetRequested struct{}
+
+// AliasesResetConfirmed clears all persisted aliases.
+type AliasesResetConfirmed struct{}
