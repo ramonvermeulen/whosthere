@@ -1,6 +1,7 @@
 package devicemeta
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	bolt "go.etcd.io/bbolt"
+	bolterrors "go.etcd.io/bbolt/errors"
 )
 
 var ErrInvalidMAC = errors.New("invalid MAC address")
@@ -60,7 +62,7 @@ func (s *boltStore) init() error {
 		if len(version) == 0 {
 			return meta.Put(schemaVersionKey, currentSchemaValue)
 		}
-		if string(version) != string(currentSchemaValue) {
+		if !bytes.Equal(version, currentSchemaValue) {
 			return fmt.Errorf("unsupported metadata schema version %q", version)
 		}
 
@@ -174,7 +176,7 @@ func (s *boltStore) ClearAlias(mac string) error {
 
 func (s *boltStore) ResetAliases() error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		if err := tx.DeleteBucket(devicesBucket); err != nil && !errors.Is(err, bolt.ErrBucketNotFound) {
+		if err := tx.DeleteBucket(devicesBucket); err != nil && !errors.Is(err, bolterrors.ErrBucketNotFound) {
 			return fmt.Errorf("delete devices bucket: %w", err)
 		}
 
