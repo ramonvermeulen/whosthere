@@ -96,7 +96,7 @@ func TestDeviceTableSelectedRowUsesThemeAccentStyle(t *testing.T) {
 	table.Draw(screen)
 
 	x, y, _ := table.GetCell(1, 0).GetLastPosition()
-	_, _, style, _ := screen.GetContent(x, y)
+	_, style, _ := screen.Get(x, y)
 	foreground, background, attrs := style.Decompose()
 
 	if foreground != tview.Styles.InverseTextColor {

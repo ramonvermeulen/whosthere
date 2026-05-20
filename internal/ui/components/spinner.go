@@ -43,7 +43,7 @@ func (s *Spinner) setText(text string) {
 	s.mu.Lock()
 	s.text = text
 	s.mu.Unlock()
-	s.TextView.SetText(text)
+	s.SetText(text)
 }
 
 func formatSpinnerText(frame, suffix string) string {

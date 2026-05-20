@@ -3,6 +3,7 @@ package components
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
@@ -66,7 +67,7 @@ func TestStatusBarUsesSecondaryColorForSpinner(t *testing.T) {
 	bar.SetRect(0, 0, 40, 1)
 	bar.Draw(screen)
 
-	_, _, style, _ := screen.GetContent(0, 0)
+	_, style, _ := screen.Get(0, 0)
 	foreground, _, _ := style.Decompose()
 	if foreground != tview.Styles.SecondaryTextColor {
 		t.Fatalf("expected spinner to use secondary text color, got %v", foreground)
@@ -87,11 +88,12 @@ func newSimulationScreen(t *testing.T) tcell.SimulationScreen {
 func readScreenLine(screen tcell.SimulationScreen, y, width int) string {
 	var b strings.Builder
 	for x := 0; x < width; x++ {
-		mainc, _, _, _ := screen.GetContent(x, y)
-		if mainc == 0 {
-			mainc = ' '
+		text, _, _ := screen.Get(x, y)
+		if text == "" {
+			text = " "
 		}
-		b.WriteRune(mainc)
+		r, _ := utf8.DecodeRuneInString(text)
+		b.WriteRune(r)
 	}
 	return b.String()
 }
