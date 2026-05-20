@@ -1,71 +1,130 @@
 package components
 
 import (
+	"strings"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
 	"github.com/ramonvermeulen/whosthere/internal/ui/theme"
 	"github.com/rivo/tview"
 )
 
+const statusBarGap = 1
+
 var _ UIComponent = &StatusBar{}
 
-// StatusBar combines a Spinner with a right-aligned help text into a single flex row.
+// StatusBar renders spinner/status text followed by the footer help line.
 type StatusBar struct {
-	*tview.Flex
-	spinner  *Spinner
-	help     *tview.TextView
-	helpText string
+	*tview.Box
+	spinner      *Spinner
+	helpText     string
+	displayText  string
+	displayColor tcell.Color
+	noColor      bool
 }
 
 func NewStatusBar() *StatusBar {
-	sp := NewSpinner()
-	help := tview.NewTextView().
-		SetTextAlign(tview.AlignRight)
-	row := tview.NewFlex().
-		SetDirection(tview.FlexColumn).
-		AddItem(sp, 0, 1, false).
-		AddItem(help, 0, 2, false)
-
-	theme.RegisterPrimitive(help)
-	theme.RegisterPrimitive(row)
-
-	return &StatusBar{
-		Flex:    row,
-		spinner: sp,
-		help:    help,
+	sb := &StatusBar{
+		Box:          tview.NewBox(),
+		spinner:      NewSpinner(),
+		displayColor: tview.Styles.PrimaryTextColor,
 	}
+
+	theme.RegisterPrimitive(sb)
+	return sb
 }
 
 func (s *StatusBar) Spinner() *Spinner { return s.spinner }
 
 func (s *StatusBar) SetHelp(text string) {
-	if s == nil || s.help == nil {
+	if s == nil {
 		return
 	}
 	s.helpText = text
-	s.help.SetText(text)
+}
+
+// Draw implements tview.Primitive.
+func (s *StatusBar) Draw(screen tcell.Screen) {
+	if s == nil || s.Box == nil {
+		return
+	}
+
+	s.Box.Draw(screen)
+	x, y, width, height := s.GetInnerRect()
+	if width <= 0 || height <= 0 {
+		return
+	}
+
+	spinnerText := s.spinner.Text()
+	spinnerWidth := tview.TaggedStringWidth(spinnerText)
+	spinnerColor := tview.Styles.SecondaryTextColor
+	if s.noColor {
+		spinnerColor = tview.Styles.PrimaryTextColor
+	}
+
+	if spinnerText != "" {
+		tview.Print(screen, spinnerText, x, y, width, tview.AlignLeft, spinnerColor)
+	}
+
+	textX := x
+	textWidth := width
+	if spinnerText != "" {
+		textX += spinnerWidth + statusBarGap
+		textWidth -= spinnerWidth + statusBarGap
+	}
+	if textWidth <= 0 || s.displayText == "" {
+		return
+	}
+
+	tview.Print(screen, truncateToWidth(s.displayText, textWidth), textX, y, textWidth, tview.AlignLeft, s.displayColor)
 }
 
 // Render implements UIComponent.
 func (s *StatusBar) Render(st state.ReadOnly) {
-	if s == nil || s.help == nil {
+	if s == nil {
 		return
 	}
+
+	s.displayText = s.helpText
+	s.displayColor = tview.Styles.PrimaryTextColor
+	s.noColor = false
 
 	if st == nil {
-		s.help.SetText(s.helpText)
-		s.help.SetTextColor(tview.Styles.PrimaryTextColor)
 		return
 	}
 
+	s.noColor = st.NoColor()
 	if message := st.StatusMessage(); message != "" {
-		s.help.SetText(message)
-		s.help.SetTextColor(statusSeverityColor(st))
+		s.displayText = message
+		s.displayColor = statusSeverityColor(st)
 		return
 	}
 
-	s.help.SetText(s.helpText)
-	s.help.SetTextColor(tview.Styles.PrimaryTextColor)
+	s.displayText = s.helpText
+	s.displayColor = tview.Styles.PrimaryTextColor
+}
+
+func truncateToWidth(text string, width int) string {
+	if width <= 0 || text == "" {
+		return ""
+	}
+	if tview.TaggedStringWidth(text) <= width {
+		return text
+	}
+	if width == 1 {
+		return "…"
+	}
+
+	runes := []rune(text)
+	for len(runes) > 0 {
+		candidate := strings.TrimRight(string(runes), " ") + " …"
+		if tview.TaggedStringWidth(candidate) <= width {
+			return candidate
+		}
+		runes = runes[:len(runes)-1]
+	}
+
+	return "…"
 }
 
 func statusSeverityColor(st state.ReadOnly) tcell.Color {
