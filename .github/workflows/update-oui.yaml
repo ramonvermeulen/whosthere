@@ -1,0 +1,42 @@
+name: Update OUI Table
+
+on:
+  schedule:
+    # Quarterly on the first day of January, April, July, and October at 04:00 UTC.
+    - cron: "0 4 1 1,4,7,10 *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-oui:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v5
+        with:
+          go-version-file: go.mod
+
+      - name: Refresh embedded OUI table
+        run: ./scripts/update-oui.sh
+
+      - name: Verify OUI package
+        run: go test ./pkg/discovery/oui
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          branch: chore/update-oui-table
+          delete-branch: true
+          commit-message: "chore(oui): refresh IEEE OUI table"
+          title: "chore(oui): refresh IEEE OUI table"
+          body: |
+            Automated OUI table refresh from the IEEE registry.
+
+            This PR was created by the scheduled OUI update workflow.
