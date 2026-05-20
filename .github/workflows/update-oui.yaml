@@ -29,7 +29,33 @@ jobs:
       - name: Verify OUI package
         run: go test ./pkg/discovery/oui
 
+      - name: Detect OUI table changes
+        id: changes
+        run: |
+          if git diff --quiet -- pkg/discovery/oui/oui.csv; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Remove stale update branch
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="chore/update-oui-table"
+
+          if ! git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
+            exit 0
+          fi
+
+          open_prs="$(gh pr list --head "${branch}" --state open --json number --jq 'length')"
+          if [ "${open_prs}" = "0" ]; then
+            git push origin --delete "${branch}"
+          fi
+
       - name: Create pull request
+        if: steps.changes.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           branch: chore/update-oui-table
