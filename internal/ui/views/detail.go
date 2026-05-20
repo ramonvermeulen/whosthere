@@ -211,10 +211,10 @@ func (d *DetailView) Render(s state.ReadOnly) {
 
 	switch {
 	case s.IsPortscanning():
-		d.statusBar.Spinner().SetSuffix(" Port scanning...")
+		d.statusBar.Spinner().SetSuffix(" Port scanning")
 		d.statusBar.Spinner().Start(d.queue)
 	case s.IsDiscovering():
-		d.statusBar.Spinner().SetSuffix(" Discovering Devices...")
+		d.statusBar.Spinner().SetSuffix(" Discovering Devices")
 		d.statusBar.Spinner().Start(d.queue)
 	default:
 		d.statusBar.Spinner().Stop(d.queue)

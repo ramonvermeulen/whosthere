@@ -33,7 +33,7 @@ func NewDashboardView(emit func(events.Event), queue func(f func())) *DashboardV
 	main.AddItem(t, 0, 1, true)
 
 	statusBar := components.NewStatusBar()
-	statusBar.Spinner().SetSuffix(" Discovering Devices...")
+	statusBar.Spinner().SetSuffix(" Discovering Devices")
 	statusBar.SetHelp(
 		"j/k: up/down" + components.Divider +
 			"Enter: details" + components.Divider +
