@@ -58,15 +58,15 @@ func runDaemon(cmd *cobra.Command, _ []string) error {
 	}
 
 	http.HandleFunc("/devices", func(w http.ResponseWriter, r *http.Request) {
-		logger.Log(ctx, slog.LevelDebug, "received request", "method", r.Method, "path", r.URL.Path)
+		logger.Log(ctx, slog.LevelInfo, "received request", "method", r.Method, "path", r.URL.Path)
 		handleDevices(w, r, appState)
 	})
 	http.HandleFunc("/devices/", func(w http.ResponseWriter, r *http.Request) {
-		logger.Log(ctx, slog.LevelDebug, "received request", "method", r.Method, "path", r.URL.Path)
+		logger.Log(ctx, slog.LevelInfo, "received request", "method", r.Method, "path", r.URL.Path)
 		handleDeviceByIP(w, r, appState)
 	})
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		logger.Log(ctx, slog.LevelDebug, "received request", "method", r.Method, "path", r.URL.Path)
+		logger.Log(ctx, slog.LevelInfo, "received request", "method", r.Method, "path", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	})

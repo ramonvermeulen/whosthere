@@ -5,7 +5,7 @@
 Set Padding 30
 Set Shell zsh
 Output demo.gif
-Set FontSize 19
+Set FontSize 17
 Set Width 1920
 Set Height 1080
 Set WindowBar Colorful
