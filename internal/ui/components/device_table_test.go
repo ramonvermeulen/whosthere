@@ -3,10 +3,13 @@ package components
 import (
 	"net"
 	"testing"
+	"time"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/rivo/tview"
 )
 
 func TestDeviceTableRenderUsesPreferredName(t *testing.T) {
@@ -52,5 +55,57 @@ func TestDeviceTableFilterMatchesAliasAndDetectedName(t *testing.T) {
 	}
 	if table.GetRowCount() != 2 {
 		t.Fatalf("row count after detected-name filter = %d, want 2", table.GetRowCount())
+	}
+}
+
+func TestLastSeenColorUsesFreshnessBuckets(t *testing.T) {
+	t.Parallel()
+
+	if got := lastSeenColor(20*time.Second, false); got != tview.Styles.ContrastSecondaryTextColor {
+		t.Fatalf("fresh last-seen color = %v, want %v", got, tview.Styles.ContrastSecondaryTextColor)
+	}
+
+	if got := lastSeenColor(2*time.Minute, false); got != tview.Styles.TertiaryTextColor {
+		t.Fatalf("normal last-seen color = %v, want %v", got, tview.Styles.TertiaryTextColor)
+	}
+
+	if got := lastSeenColor(10*time.Minute, false); got != tview.Styles.TertiaryTextColor {
+		t.Fatalf("stale last-seen color = %v, want %v", got, tview.Styles.TertiaryTextColor)
+	}
+
+	if got := lastSeenColor(20*time.Second, true); got != tview.Styles.PrimaryTextColor {
+		t.Fatalf("no-color last-seen color = %v, want %v", got, tview.Styles.PrimaryTextColor)
+	}
+}
+
+func TestDeviceTableSelectedRowUsesThemeAccentStyle(t *testing.T) {
+	device := discovery.NewDevice(net.ParseIP("192.168.1.10"))
+
+	table := NewDeviceTable(nil)
+	table.devices = []*discovery.Device{device}
+	table.applyThemeStyles()
+	table.refresh()
+	table.SetRect(0, 0, 80, 10)
+
+	screen := tcell.NewSimulationScreen("UTF-8")
+	if err := screen.Init(); err != nil {
+		t.Fatalf("init screen: %v", err)
+	}
+	defer screen.Fini()
+
+	table.Draw(screen)
+
+	x, y, _ := table.GetCell(1, 0).GetLastPosition()
+	_, _, style, _ := screen.GetContent(x, y)
+	foreground, background, attrs := style.Decompose()
+
+	if foreground != tview.Styles.InverseTextColor {
+		t.Fatalf("selected row foreground = %v, want %v", foreground, tview.Styles.InverseTextColor)
+	}
+	if background != tview.Styles.SecondaryTextColor {
+		t.Fatalf("selected row background = %v, want %v", background, tview.Styles.SecondaryTextColor)
+	}
+	if attrs&tcell.AttrBold == 0 {
+		t.Fatalf("selected row attrs = %v, want bold", attrs)
 	}
 }

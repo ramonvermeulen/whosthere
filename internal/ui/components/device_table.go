@@ -17,6 +17,11 @@ import (
 
 var _ UIComponent = &DeviceTable{}
 
+const (
+	recentLastSeenThreshold = time.Minute
+	staleLastSeenThreshold  = time.Minute
+)
+
 // DeviceTable wraps a tview.Table for displaying discovered devices.
 type DeviceTable struct {
 	*tview.Table
@@ -170,6 +175,7 @@ func (dt *DeviceTable) applySearch(pattern string) {
 func (dt *DeviceTable) Render(st state.ReadOnly) {
 	dt.state = st
 	dt.devices = st.DevicesSnapshot()
+	dt.applyThemeStyles()
 	_ = dt.SetFilter(st.FilterPattern())
 }
 
@@ -225,6 +231,7 @@ func (dt *DeviceTable) moveSelection(delta int) {
 
 type tableRow struct {
 	ip, hostname, mac, manufacturer, lastSeen, alias, detectedName string
+	lastSeenAge                                                    time.Duration
 }
 
 func (dt *DeviceTable) buildRows() []tableRow {
@@ -243,6 +250,7 @@ func (dt *DeviceTable) buildRows() []tableRow {
 			mac:          d.MAC(),
 			manufacturer: d.Manufacturer(),
 			lastSeen:     utils.FmtDuration(time.Since(d.LastSeen())),
+			lastSeenAge:  time.Since(d.LastSeen()),
 			alias:        alias,
 			detectedName: d.DisplayName(),
 		}
@@ -290,7 +298,9 @@ func (dt *DeviceTable) refresh() {
 		dt.SetCell(r, 1, tview.NewTableCell(hostText).SetExpansion(1))
 		dt.SetCell(r, 2, tview.NewTableCell(macText).SetExpansion(1))
 		dt.SetCell(r, 3, tview.NewTableCell(manuText).SetExpansion(1))
-		dt.SetCell(r, 4, tview.NewTableCell(seenText).SetExpansion(1))
+		dt.SetCell(r, 4, tview.NewTableCell(seenText).
+			SetTextColor(lastSeenColor(rowData.lastSeenAge, dt.noColor())).
+			SetExpansion(1))
 	}
 	// Restore selection if possible, otherwise select first.
 	if dt.GetRowCount() > 1 {
@@ -320,4 +330,39 @@ func (dt *DeviceTable) rowMatches(r *tableRow) bool {
 		dt.filterRE.MatchString(r.alias) ||
 		dt.filterRE.MatchString(r.detectedName) ||
 		dt.filterRE.MatchString(r.lastSeen)
+}
+
+func (dt *DeviceTable) applyThemeStyles() {
+	if dt == nil || dt.Table == nil {
+		return
+	}
+
+	if dt.noColor() {
+		dt.SetSelectedStyle(tcell.StyleDefault.Reverse(true))
+		return
+	}
+
+	dt.SetSelectedStyle(tcell.StyleDefault.
+		Foreground(tview.Styles.InverseTextColor).
+		Background(tview.Styles.SecondaryTextColor).
+		Attributes(tcell.AttrBold))
+}
+
+func (dt *DeviceTable) noColor() bool {
+	return dt.state != nil && dt.state.NoColor()
+}
+
+func lastSeenColor(age time.Duration, noColor bool) tcell.Color {
+	if noColor {
+		return tview.Styles.PrimaryTextColor
+	}
+
+	switch {
+	case age <= recentLastSeenThreshold:
+		return tview.Styles.ContrastSecondaryTextColor
+	case age >= staleLastSeenThreshold:
+		return tview.Styles.TertiaryTextColor
+	default:
+		return tview.Styles.PrimaryTextColor
+	}
 }
