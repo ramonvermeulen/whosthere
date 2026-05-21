@@ -198,6 +198,15 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case tcell.KeyRune:
 		if event.Rune() == 'q' || event.Rune() == 'Q' {
+			// If focus is currently on an input field (e.g. alias editor),
+			// let the focused primitive handle the rune instead of treating
+			// it as a global quit. This prevents typing 'q' while editing
+			// from exiting the application.
+			if p := a.GetFocus(); p != nil {
+				if _, ok := p.(*tview.InputField); ok {
+					return event
+				}
+			}
 			a.Stop()
 			return nil
 		}
