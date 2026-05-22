@@ -11,7 +11,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	go.etcd.io/bbolt v1.4.3
-	golang.org/x/net v0.54.0
+	golang.org/x/net v0.55.0
 	golang.org/x/sys v0.45.0
 	golang.org/x/term v0.43.0
 )
