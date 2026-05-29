@@ -185,7 +185,7 @@ func TestSearch(t *testing.T) {
 	}
 }
 
-func TestPreferredNameForAliasPrecedence(t *testing.T) {
+func TestAliasOrDetectedNameForAliasPrecedence(t *testing.T) {
 	t.Parallel()
 
 	appState := NewAppState(config.DefaultConfig(), "1.0.0")
@@ -195,8 +195,8 @@ func TestPreferredNameForAliasPrecedence(t *testing.T) {
 	device.SetDisplayName("Detected Device")
 	device.SetManufacturer("Acme")
 
-	if got := appState.PreferredNameFor(device); got != "Detected Device" {
-		t.Fatalf("PreferredNameFor() without alias = %q, want %q", got, "Detected Device")
+	if got := appState.AliasOrDetectedNameFor(device); got != "Detected Device" {
+		t.Fatalf("AliasOrDetectedNameFor() without alias = %q, want %q", got, "Detected Device")
 	}
 
 	appState.UpsertDevice(device)
@@ -205,26 +205,74 @@ func TestPreferredNameForAliasPrecedence(t *testing.T) {
 	if got := appState.AliasFor(device); got != "Desk Speaker" {
 		t.Fatalf("AliasFor() = %q, want %q", got, "Desk Speaker")
 	}
-	if got := appState.PreferredNameFor(device); got != "Desk Speaker" {
-		t.Fatalf("PreferredNameFor() with alias = %q, want %q", got, "Desk Speaker")
+	if got := appState.AliasOrDetectedNameFor(device); got != "Desk Speaker" {
+		t.Fatalf("AliasOrDetectedNameFor() with alias = %q, want %q", got, "Desk Speaker")
 	}
 }
 
-func TestPreferredNameForFallsBackToManufacturerAndIP(t *testing.T) {
+func TestAliasOrDetectedNameForFallsBackToManufacturerAndIP(t *testing.T) {
 	t.Parallel()
 
 	appState := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	device := discovery.NewDevice(net.ParseIP("192.168.1.99"))
 	device.SetManufacturer("Vendor")
-	if got := appState.PreferredNameFor(device); got != "Vendor" {
-		t.Fatalf("PreferredNameFor() manufacturer fallback = %q, want %q", got, "Vendor")
+	if got := appState.AliasOrDetectedNameFor(device); got != "Vendor" {
+		t.Fatalf("AliasOrDetectedNameFor() manufacturer fallback = %q, want %q", got, "Vendor")
 	}
 
 	device.SetManufacturer("")
-	if got := appState.PreferredNameFor(device); got != "192.168.1.99" {
-		t.Fatalf("PreferredNameFor() IP fallback = %q, want %q", got, "192.168.1.99")
+	if got := appState.AliasOrDetectedNameFor(device); got != "192.168.1.99" {
+		t.Fatalf("AliasOrDetectedNameFor() IP fallback = %q, want %q", got, "192.168.1.99")
 	}
+}
+
+func TestDetectedNameForIgnoresAliasAndFallsBackToManufacturerAndIP(t *testing.T) {
+	t.Parallel()
+
+	t.Run("manufacturer fallback", func(t *testing.T) {
+		t.Parallel()
+
+		appState := NewAppState(config.DefaultConfig(), "1.0.0")
+		device := discovery.NewDevice(net.ParseIP("192.168.1.99"))
+		device.SetMAC("AA:BB:CC:DD:EE:99")
+		device.SetManufacturer("Vendor")
+		appState.UpsertDevice(device)
+		appState.SetAliasForMAC("aa:bb:cc:dd:ee:99", "Desk Speaker")
+
+		if got := appState.DetectedNameFor(device); got != "Vendor" {
+			t.Fatalf("DetectedNameFor() manufacturer fallback = %q, want %q", got, "Vendor")
+		}
+	})
+
+	t.Run("ip fallback", func(t *testing.T) {
+		t.Parallel()
+
+		appState := NewAppState(config.DefaultConfig(), "1.0.0")
+		device := discovery.NewDevice(net.ParseIP("192.168.1.99"))
+		device.SetMAC("AA:BB:CC:DD:EE:99")
+		appState.UpsertDevice(device)
+		appState.SetAliasForMAC("aa:bb:cc:dd:ee:99", "Desk Speaker")
+
+		if got := appState.DetectedNameFor(device); got != "192.168.1.99" {
+			t.Fatalf("DetectedNameFor() IP fallback = %q, want %q", got, "192.168.1.99")
+		}
+	})
+
+	t.Run("detected display name", func(t *testing.T) {
+		t.Parallel()
+
+		appState := NewAppState(config.DefaultConfig(), "1.0.0")
+		device := discovery.NewDevice(net.ParseIP("192.168.1.99"))
+		device.SetMAC("AA:BB:CC:DD:EE:99")
+		device.SetDisplayName("Detected Device")
+		appState.UpsertDevice(device)
+		appState.SetAliasForMAC("aa:bb:cc:dd:ee:99", "Desk Speaker")
+
+		if got := appState.DetectedNameFor(device); got != "Detected Device" {
+			t.Fatalf("DetectedNameFor() detected name = %q, want %q", got, "Detected Device")
+		}
+	})
 }
 
 func TestSetAliasMarksAliasLoaded(t *testing.T) {

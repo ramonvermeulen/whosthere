@@ -147,16 +147,13 @@ func (d *DetailView) Render(s state.ReadOnly) {
 		return t.Format("2006-01-02 15:04:05")
 	}
 
-	name := s.PreferredNameFor(device)
 	alias := s.AliasFor(device)
+	name := s.DetectedNameFor(device)
 
 	writeLine("IP", device.IP().String())
 	writeLine("Name", name)
 	if alias != "" {
 		writeLine("Alias", alias)
-		if detectedName := device.DisplayName(); detectedName != "" {
-			writeLine("Detected Name", detectedName)
-		}
 	}
 	writeLine("MAC", device.MAC())
 	writeLine("Manufacturer", device.Manufacturer())
