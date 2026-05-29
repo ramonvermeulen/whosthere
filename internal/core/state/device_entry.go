@@ -63,10 +63,6 @@ func (e *deviceEntry) SetAlias(alias string) {
 	e.alias = strings.TrimSpace(alias)
 }
 
-func (e *deviceEntry) ClearAlias() {
-	e.SetAlias("")
-}
-
 func (e *deviceEntry) ResetAlias() {
 	if e == nil {
 		return
@@ -80,14 +76,11 @@ func (e *deviceEntry) AliasMetadataLoaded() bool {
 	return e != nil && e.aliasMetadataLoaded
 }
 
-func (e *deviceEntry) PreferredName() string {
+func (e *deviceEntry) DetectedName() string {
 	if e == nil || e.device == nil {
 		return ""
 	}
 
-	if e.alias != "" {
-		return e.alias
-	}
 	if discoveredName := e.device.DisplayName(); discoveredName != "" {
 		return discoveredName
 	}

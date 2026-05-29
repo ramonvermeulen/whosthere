@@ -240,7 +240,7 @@ func (dt *DeviceTable) buildRows() []tableRow {
 		hostname := d.DisplayName()
 		alias := ""
 		if dt.state != nil {
-			hostname = dt.state.PreferredNameFor(d)
+			hostname = dt.state.AliasOrDetectedNameFor(d)
 			alias = dt.state.AliasFor(d)
 		}
 
@@ -267,7 +267,7 @@ func (dt *DeviceTable) refresh() {
 	dt.Clear()
 	const maxColWidth = 30
 
-	headers := []string{"IP", "Name", "MAC", "Manufacturer", "Last Seen"}
+	headers := []string{"IP", "Alias/Name", "MAC", "Manufacturer", "Last Seen"}
 
 	for i, h := range headers {
 		text := utils.Truncate(h, maxColWidth)

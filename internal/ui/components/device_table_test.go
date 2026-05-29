@@ -30,6 +30,17 @@ func TestDeviceTableRenderUsesPreferredName(t *testing.T) {
 	}
 }
 
+func TestDeviceTableRenderUsesAliasNameHeader(t *testing.T) {
+	t.Parallel()
+
+	table := NewDeviceTable(nil)
+	table.Render(state.NewAppState(config.DefaultConfig(), "1.0.0").ReadOnly())
+
+	if got := table.GetCell(0, 1).Text; got != "Alias/Name" {
+		t.Fatalf("table header cell = %q, want %q", got, "Alias/Name")
+	}
+}
+
 func TestDeviceTableFilterMatchesAliasAndDetectedName(t *testing.T) {
 	t.Parallel()
 

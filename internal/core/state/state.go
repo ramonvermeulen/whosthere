@@ -18,7 +18,8 @@ type ReadOnly interface {
 	Selected() (*discovery.Device, bool)
 	SelectedIP() string
 	AliasFor(d *discovery.Device) string
-	PreferredNameFor(d *discovery.Device) string
+	DetectedNameFor(d *discovery.Device) string
+	AliasOrDetectedNameFor(d *discovery.Device) string
 	CurrentTheme() string
 	PreviousTheme() string
 	Version() string
@@ -172,8 +173,8 @@ func (s *AppState) AliasFor(d *discovery.Device) string {
 	return entry.Alias()
 }
 
-// PreferredNameFor returns the best available display name for a device.
-func (s *AppState) PreferredNameFor(d *discovery.Device) string {
+// AliasOrDetectedNameFor returns the detected name with alias override.
+func (s *AppState) AliasOrDetectedNameFor(d *discovery.Device) string {
 	if d == nil {
 		return ""
 	}
@@ -182,10 +183,29 @@ func (s *AppState) PreferredNameFor(d *discovery.Device) string {
 	defer s.mu.RUnlock()
 
 	if entry, ok := s.findDeviceEntryLocked(d); ok {
-		return entry.PreferredName()
+		if alias := entry.Alias(); alias != "" {
+			return alias
+		}
+		return entry.DetectedName()
 	}
 
-	return (&deviceEntry{device: d}).PreferredName()
+	return (&deviceEntry{device: d}).DetectedName()
+}
+
+// DetectedNameFor returns the device name without alias precedence.
+func (s *AppState) DetectedNameFor(d *discovery.Device) string {
+	if d == nil {
+		return ""
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if entry, ok := s.findDeviceEntryLocked(d); ok {
+		return entry.DetectedName()
+	}
+
+	return (&deviceEntry{device: d}).DetectedName()
 }
 
 // SetCurrentTheme sets the current theme.
