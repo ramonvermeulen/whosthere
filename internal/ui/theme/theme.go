@@ -1004,6 +1004,7 @@ func ApplyToPrimitive(p tview.Primitive) {
 		v.SetBordersColor(tview.Styles.BorderColor)
 		v.SetBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
 		v.SetBorderColor(tview.Styles.BorderColor)
+		v.SetTitleColor(tview.Styles.TitleColor)
 		if currentNoColor {
 			if tview.Styles.PrimaryTextColor == tcell.ColorDefault {
 				selectedStyle := tcell.StyleDefault.Reverse(true)
