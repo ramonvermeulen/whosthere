@@ -43,6 +43,68 @@ func TestUpsertDevice(t *testing.T) {
 	}
 }
 
+func TestUpsertDeviceMergesByMACWhenIPChanges(t *testing.T) {
+	state := NewAppState(config.DefaultConfig(), "1.0.0")
+
+	first := discovery.NewDevice(net.ParseIP("192.168.1.10"))
+	first.SetMAC("aa:bb:cc:dd:ee:ff")
+	first.SetDisplayName("stored")
+	state.UpsertDevice(first)
+
+	second := discovery.NewDevice(net.ParseIP("192.168.1.20"))
+	second.SetMAC("aa:bb:cc:dd:ee:ff")
+	second.SetManufacturer("Acme")
+	state.UpsertDevice(second)
+
+	devices := state.DevicesSnapshot()
+	if len(devices) != 1 {
+		t.Fatalf("expected 1 merged device, got %d", len(devices))
+	}
+	if got := devices[0].IP().String(); got != "192.168.1.20" {
+		t.Fatalf("merged device IP = %q, want %q", got, "192.168.1.20")
+	}
+	if got := devices[0].DisplayName(); got != "stored" {
+		t.Fatalf("merged device display name = %q, want %q", got, "stored")
+	}
+	if got := devices[0].Manufacturer(); got != "Acme" {
+		t.Fatalf("merged device manufacturer = %q, want %q", got, "Acme")
+	}
+}
+
+func TestRemovePersistedOnlyDevicesKeepsObservedDevices(t *testing.T) {
+	appState := NewAppState(config.DefaultConfig(), "1.0.0")
+
+	persistedOnly := discovery.NewDevice(net.ParseIP("192.168.1.10"))
+	persistedOnly.SetMAC("aa:bb:cc:dd:ee:01")
+	appState.UpsertPersistedDevice(persistedOnly)
+
+	observed := discovery.NewDevice(net.ParseIP("192.168.1.20"))
+	observed.SetMAC("aa:bb:cc:dd:ee:02")
+	appState.UpsertDevice(observed)
+
+	both := discovery.NewDevice(net.ParseIP("192.168.1.30"))
+	both.SetMAC("aa:bb:cc:dd:ee:03")
+	appState.UpsertPersistedDevice(both)
+	appState.UpsertDevice(both)
+
+	appState.RemovePersistedOnlyDevices()
+
+	devices := appState.DevicesSnapshot()
+	if len(devices) != 2 {
+		t.Fatalf("expected 2 devices after removing persisted-only entries, got %d", len(devices))
+	}
+
+	if _, ok := appState.GetDevice("192.168.1.10"); ok {
+		t.Fatal("persisted-only device should have been removed")
+	}
+	if _, ok := appState.GetDevice("192.168.1.20"); !ok {
+		t.Fatal("observed device should remain")
+	}
+	if _, ok := appState.GetDevice("192.168.1.30"); !ok {
+		t.Fatal("device with both observed and persisted provenance should remain")
+	}
+}
+
 func TestDevicesSnapshot(t *testing.T) {
 	state := NewAppState(config.DefaultConfig(), "1.0.0")
 

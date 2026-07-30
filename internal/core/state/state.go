@@ -89,6 +89,15 @@ func NewAppState(cfg *config.Config, version string) *AppState {
 
 // UpsertDevice merges a device into the canonical device map.
 func (s *AppState) UpsertDevice(d *discovery.Device) {
+	s.upsertDevice(d, provenanceObserved)
+}
+
+// UpsertPersistedDevice merges a rehydrated persisted device into the canonical device map.
+func (s *AppState) UpsertPersistedDevice(d *discovery.Device) {
+	s.upsertDevice(d, provenancePersisted)
+}
+
+func (s *AppState) upsertDevice(d *discovery.Device, provenance deviceProvenance) {
 	if d.IP() == nil {
 		return
 	}
@@ -101,11 +110,27 @@ func (s *AppState) UpsertDevice(d *discovery.Device) {
 	defer s.mu.Unlock()
 
 	if existingEntry, exists := s.devices[key]; exists {
-		existingEntry.Merge(d)
+		existingEntry.Merge(d, provenance)
 		return
 	}
 
-	s.devices[key] = newDeviceEntry(d)
+	if normalizedMAC, hasValidMAC := normalizedDeviceMAC(d); hasValidMAC {
+		for existingKey, entry := range s.devices {
+			if entry == nil || !entry.HasMAC(normalizedMAC) {
+				continue
+			}
+
+			entry.Merge(d, provenance)
+			entry.Device().SetIP(d.IP())
+			if existingKey != key {
+				delete(s.devices, existingKey)
+				s.devices[key] = entry
+			}
+			return
+		}
+	}
+
+	s.devices[key] = newDeviceEntryWithProvenance(d, provenance)
 }
 
 // DevicesSnapshot returns a copy of all devices for rendering.
@@ -499,6 +524,25 @@ func (s *AppState) ClearDevices() {
 	defer s.mu.Unlock()
 	s.devices = make(map[string]*deviceEntry)
 	s.selectedIP = ""
+}
+
+// RemovePersistedOnlyDevices removes devices that were only rehydrated from persistence
+// and were not observed live during the current runtime session.
+func (s *AppState) RemovePersistedOnlyDevices() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for ip, entry := range s.devices {
+		if entry != nil && entry.IsPersistedOnly() {
+			delete(s.devices, ip)
+		}
+	}
+
+	if s.selectedIP != "" {
+		if _, exists := s.devices[s.selectedIP]; !exists {
+			s.selectedIP = ""
+		}
+	}
 }
 
 func (s *AppState) findDeviceEntryLocked(device *discovery.Device) (*deviceEntry, bool) {

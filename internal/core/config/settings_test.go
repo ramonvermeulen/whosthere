@@ -25,6 +25,16 @@ type settingTestCase struct {
 func getSettingTestCases() []settingTestCase {
 	return []settingTestCase{
 		{
+			yamlKey:      "mode",
+			envVar:       "WHOSTHERE__MODE",
+			envValue:     "persistent",
+			expectedEnv:  ModePersistent,
+			flagValue:    "session",
+			expectedFlag: ModeSession,
+			yamlValue:    "persistent",
+			expectedYAML: ModePersistent,
+		},
+		{
 			yamlKey:      "network_interface",
 			envVar:       "WHOSTHERE__NETWORK_INTERFACE",
 			envValue:     "eth0",
@@ -486,6 +496,7 @@ func TestFullYAMLConfig_LoadFromFile(t *testing.T) {
 	// 2. It's already tested in individual setting tests (env/flag/yaml)
 	// 3. This test focuses on the full loading path, not individual field validation
 	fullYAML := `
+mode: persistent
 all_interfaces: true
 scan_timeout: 12s
 scan_interval: 45s
@@ -544,6 +555,7 @@ theme:
 		expected any
 	}{
 		{"all_interfaces", cfg.AllInterfaces, true},
+		{"mode", cfg.Mode, ModePersistent},
 		{"scan_timeout", cfg.ScanTimeout, 12 * time.Second},
 		{"scan_interval", cfg.ScanInterval, 45 * time.Second},
 		{"scanners.mdns.enabled", cfg.Scanners.MDNS.Enabled, false},

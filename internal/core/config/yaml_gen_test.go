@@ -15,6 +15,9 @@ func TestGenerateDefaultYAML(t *testing.T) {
 	}
 
 	mustContain := []string{
+		"# Controls whether device history is session-only or persisted locally across runs",
+		"# Allowed values: session | persistent",
+		"mode: session",
 		"# Uncomment the next line to configure a specific network interface",
 		"# network_interface: eth0",
 		"scan_interval: 20s",

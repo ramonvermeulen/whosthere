@@ -17,14 +17,36 @@ const (
 
 	DefaultPortScanTimeout = 5 * time.Second
 
+	DefaultMode = ModeSession
 	DefaultThemeName = "default"
 	CustomThemeName  = "custom"
 )
 
 var DefaultTCPPorts = []int{21, 22, 23, 25, 80, 110, 135, 139, 143, 389, 443, 445, 993, 995, 1433, 1521, 3306, 3389, 5432, 5900, 8080, 8443, 9000, 9090, 9200, 9300, 10000, 27017}
 
+type Mode string
+
+const (
+	ModeSession    Mode = "session"
+	ModePersistent Mode = "persistent"
+)
+
+func (m Mode) String() string {
+	return string(m)
+}
+
+func (m Mode) Valid() bool {
+	switch m {
+	case ModeSession, ModePersistent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Config captures all configurable parameters for the application.
 type Config struct {
+	Mode             Mode          `yaml:"mode"`
 	NetworkInterface string        `yaml:"network_interface"`
 	AllInterfaces    bool          `yaml:"all_interfaces"`
 	ScanInterval     time.Duration `yaml:"scan_interval"`
@@ -93,6 +115,7 @@ type ThemeConfig struct {
 // These defaults are used if no config is provided by the user.
 func DefaultConfig() *Config {
 	return &Config{
+		Mode:          DefaultMode,
 		AllInterfaces: false,
 		ScanInterval:  discovery.DefaultScanInterval,
 		ScanDuration:  discovery.DefaultScanTimeout,
@@ -136,6 +159,13 @@ func (c *Config) validateAndNormalize() error {
 
 func (c *Config) normalizeBasics() error {
 	var errs []string
+
+	if strings.TrimSpace(c.Mode.String()) == "" {
+		c.Mode = DefaultMode
+	} else if !c.Mode.Valid() {
+		errs = append(errs, "mode must be one of: session, persistent")
+		c.Mode = DefaultMode
+	}
 
 	if c.Splash.Delay < 0 {
 		errs = append(errs, "splash.delay must be >= 0")

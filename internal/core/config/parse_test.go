@@ -75,6 +75,34 @@ func TestParseDuration(t *testing.T) {
 	}
 }
 
+func TestParseMode(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected Mode
+		wantErr  bool
+	}{
+		{"session", ModeSession, false},
+		{"persistent", ModePersistent, false},
+		{" SESSION ", ModeSession, false},
+		{"PERSISTENT", ModePersistent, false},
+		{"", "", false},
+		{"invalid", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := parseMode(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseMode(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				return
+			}
+			if got != tt.expected {
+				t.Errorf("parseMode(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestParseInt(t *testing.T) {
 	tests := []struct {
 		input    string

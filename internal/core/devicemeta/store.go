@@ -11,9 +11,16 @@ const defaultDBFileName = "devices.db"
 
 // Store provides persistent local device metadata keyed by normalized MAC address.
 type Store interface {
-	Get(mac string) (Record, bool, error)
-	SetAlias(mac, alias string) error
-	ClearAlias(mac string) error
+	Get(scopeID, mac string) (Record, bool, error)
+	Upsert(record Record) error
+	Delete(scopeID, mac string) error
+	ForEach(func(Record) error) error
+	UpsertScope(scope ScopeRecord) error
+	GetScope(scopeID string) (ScopeRecord, bool, error)
+	DeleteScopeAndDevices(scopeID string) error
+	DeleteAllScopesAndDevices() error
+	SetAlias(scopeID, mac, alias string) error
+	ClearAlias(scopeID, mac string) error
 	ResetAliases() error
 	Close() error
 }

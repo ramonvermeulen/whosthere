@@ -37,6 +37,7 @@ func NewDashboardView(emit func(events.Event), queue func(f func())) *DashboardV
 	statusBar.SetHelp(
 		"j/k: up/down" + components.Divider +
 			"Enter: details" + components.Divider +
+			"M: mode" + components.Divider +
 			"y: copy" + components.Divider +
 			"Ctrl+I: interface" + components.Divider +
 			"Ctrl+R: reset aliases" + components.Divider +

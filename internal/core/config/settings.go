@@ -86,6 +86,25 @@ func GlobalSettings() []GlobalSetting {
 
 		// general global settings
 		{
+			YAMLKey:  "mode",
+			FlagName: "mode",
+			Usage:    "Persistence mode for device history and metadata (session|persistent)",
+			Type:     FlagTypeString,
+			Sources:  all,
+			Set: func(c *Config, v string) error {
+				mode, err := parseMode(v)
+				if err != nil {
+					return err
+				}
+				c.Mode = mode
+				return nil
+			},
+			Get: func(c *Config) any { return c.Mode },
+			Doc: YAMLDoc{
+				Comment: "Controls whether device history is session-only or persisted locally across runs\nAllowed values: session | persistent",
+			},
+		},
+		{
 			YAMLKey:  "network_interface",
 			FlagName: "interface",
 			Short:    "i",

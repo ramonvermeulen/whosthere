@@ -13,9 +13,10 @@ import (
 
 const (
 	baseTitle            = "whosthere"
-	headerInterfaceWidth = 24
+	headerMetaWidth      = 42
 	askQuestionLabel     = "Ask Question"
-	headerLinkWidth      = len(askQuestionLabel)
+	headerActionWidth    = len(askQuestionLabel)
+	modeLabelPrefix      = "mode: "
 	interfaceLabelPrefix = "interface: "
 )
 
@@ -24,25 +25,25 @@ var _ UIComponent = &Header{}
 // Header renders the page title and right-aligned metadata/actions.
 type Header struct {
 	*tview.Flex
-	title          *tview.TextView
-	interfaceLabel *tview.TextView
-	link           *tview.TextView
-	rightSide      *tview.Flex
+	title      *tview.TextView
+	metaLabel  *tview.TextView
+	actionLink *tview.TextView
+	rightSide  *tview.Flex
 }
 
 // NewHeader creates a reusable page header.
 func NewHeader(emit func(events.Event)) *Header {
 	title := tview.NewTextView().
 		SetTextAlign(tview.AlignLeft)
-	interfaceLabel := tview.NewTextView().
+	metaLabel := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignRight)
-	link := tview.NewTextView().
+	actionLink := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignRight)
 
 	if emit != nil {
-		link.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+		actionLink.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
 			if action == tview.MouseLeftClick {
 				emit(events.AskQuestionRequested{})
 				return action, nil
@@ -53,26 +54,26 @@ func NewHeader(emit func(events.Event)) *Header {
 
 	rightSide := tview.NewFlex().
 		SetDirection(tview.FlexColumn).
-		AddItem(interfaceLabel, headerInterfaceWidth, 0, false).
-		AddItem(link, headerLinkWidth, 0, false)
+		AddItem(metaLabel, headerMetaWidth, 0, false).
+		AddItem(actionLink, headerActionWidth, 0, false)
 
 	row := tview.NewFlex().
 		SetDirection(tview.FlexColumn).
 		AddItem(title, 0, 1, false).
-		AddItem(rightSide, headerInterfaceWidth+headerLinkWidth, 0, false)
+		AddItem(rightSide, headerMetaWidth+headerActionWidth, 0, false)
 
 	theme.RegisterPrimitive(title)
-	theme.RegisterPrimitive(interfaceLabel)
-	theme.RegisterPrimitive(link)
+	theme.RegisterPrimitive(metaLabel)
+	theme.RegisterPrimitive(actionLink)
 	theme.RegisterPrimitive(rightSide)
 	theme.RegisterPrimitive(row)
 
 	return &Header{
-		Flex:           row,
-		title:          title,
-		interfaceLabel: interfaceLabel,
-		link:           link,
-		rightSide:      rightSide,
+		Flex:       row,
+		title:      title,
+		metaLabel:  metaLabel,
+		actionLink: actionLink,
+		rightSide:  rightSide,
 	}
 }
 
@@ -83,39 +84,53 @@ func (h *Header) Render(s state.ReadOnly) {
 		text = baseTitle + " - v" + version
 	}
 	h.title.SetText(text)
-	interfaceText, linkText := renderHeaderMeta(s)
-	h.interfaceLabel.SetText(interfaceText)
-	h.link.SetText(linkText)
+	metaText, actionText := renderHeaderMeta(s)
+	h.metaLabel.SetText(metaText)
+	h.actionLink.SetText(actionText)
 }
 
-func renderHeaderMeta(s state.ReadOnly) (interfaceText, linkText string) {
+func renderHeaderMeta(s state.ReadOnly) (metaText, actionText string) {
 	if s == nil {
-		linkText = askQuestionLabel
+		actionText = askQuestionLabel
 		return
 	}
 
-	interfaceText = strings.TrimSpace(s.CurrentInterface())
-	if interfaceText != "" {
-		interfaceText = utils.Truncate(interfaceText, 18)
-		interfaceText = interfaceLabelPrefix + interfaceText
+	modeLabel := strings.TrimSpace(s.Config().Mode.String())
+	if modeLabel != "" {
+		modeLabel = modeLabelPrefix + modeLabel
+	}
+
+	interfaceLabel := strings.TrimSpace(s.CurrentInterface())
+	if interfaceLabel != "" {
+		interfaceLabel = utils.Truncate(interfaceLabel, 18)
+		interfaceLabel = interfaceLabelPrefix + interfaceLabel
+	}
+
+	switch {
+	case modeLabel != "" && interfaceLabel != "":
+		metaText = modeLabel + " " + Divider + " " + interfaceLabel
+	case modeLabel != "":
+		metaText = modeLabel
+	default:
+		metaText = interfaceLabel
 	}
 
 	if s.NoColor() {
-		linkText = askQuestionLabel
-		if interfaceText == "" {
+		actionText = askQuestionLabel
+		if metaText == "" {
 			return
 		}
-		interfaceText = interfaceText + " " + Divider
+		metaText = metaText + " " + Divider
 		return
 	}
 
-	linkColor := utils.ColorToHexTag(tview.Styles.PrimaryTextColor)
-	linkText = "[" + linkColor + "::bu]" + askQuestionLabel + "[-:-:-]"
-	if interfaceText == "" {
+	actionColor := utils.ColorToHexTag(tview.Styles.PrimaryTextColor)
+	actionText = "[" + actionColor + "::bu]" + askQuestionLabel + "[-:-:-]"
+	if metaText == "" {
 		return
 	}
 
-	interfaceColor := utils.ColorToHexTag(tview.Styles.SecondaryTextColor)
-	interfaceText = "[" + interfaceColor + "::]" + interfaceText + "[-:-:-] " + Divider
+	metaColor := utils.ColorToHexTag(tview.Styles.SecondaryTextColor)
+	metaText = "[" + metaColor + "::]" + metaText + "[-:-:-] " + Divider
 	return
 }

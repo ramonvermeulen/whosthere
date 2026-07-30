@@ -10,6 +10,7 @@ import (
 
 	"github.com/ramonvermeulen/whosthere/internal/core"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
+	"github.com/ramonvermeulen/whosthere/internal/core/devicemeta"
 	"github.com/ramonvermeulen/whosthere/internal/core/logging"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
 	"github.com/ramonvermeulen/whosthere/internal/core/version"
@@ -56,6 +57,24 @@ func runDaemon(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	scope := devicemeta.ScopeFromInterfaceInfo(eng.Iface, cfg.AllInterfaces)
+
+	var syncer *devicemeta.Syncer
+	if cfg.Mode == config.ModePersistent {
+		metaStore, err := devicemeta.OpenDefault()
+		if err != nil {
+			return err
+		}
+		defer metaStore.Close()
+		syncer = devicemeta.NewSyncer(cfg.Mode, metaStore)
+		storedDevices, err := syncer.StoredDevicesForScope(scope)
+		if err != nil {
+			return err
+		}
+		for _, device := range storedDevices {
+			appState.UpsertDevice(device)
+		}
+	}
 
 	http.HandleFunc("/devices", func(w http.ResponseWriter, r *http.Request) {
 		logger.Log(ctx, slog.LevelInfo, "received request", "method", r.Method, "path", r.URL.Path)
@@ -85,6 +104,11 @@ func runDaemon(cmd *cobra.Command, _ []string) error {
 			case discovery.EventScanCompleted:
 			case discovery.EventDeviceDiscovered:
 				if event.Device != nil {
+					if syncer != nil {
+						if err := syncer.SyncDevice(event.Device, scope); err != nil {
+							logger.Log(ctx, slog.LevelWarn, "failed to sync device metadata", "mac", event.Device.MAC(), "error", err)
+						}
+					}
 					appState.UpsertDevice(event.Device)
 				}
 			case discovery.EventError:

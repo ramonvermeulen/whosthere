@@ -48,6 +48,7 @@ type App struct {
 	clipboard     *clipboard.Clipboard
 	logger        *slog.Logger
 	metaStore     devicemeta.Store
+	syncer        *devicemeta.Syncer
 	stopOnce      sync.Once
 
 	// Engine lifecycle management for runtime interface switching.
@@ -79,6 +80,7 @@ func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, erro
 		clipboard:   clipboard.New(clipboard.ClipboardOptions{Primary: false}),
 		logger:      logger,
 		metaStore:   metaStore,
+		syncer:      devicemeta.NewSyncer(cfg.Mode, metaStore),
 	}
 	a.setupSignalHandler()
 
@@ -98,6 +100,9 @@ func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, erro
 	// todo(ramon) handle in BuildEngine -> WithPortScanner(...)
 	a.portScanner = discovery.NewPortScanner(100, engine.Iface)
 	a.state.SetCurrentInterface(engine.Iface.Interface.Name)
+	if err := a.loadStoredDevices(engine.Iface); err != nil {
+		return nil, err
+	}
 
 	app.SetRoot(a.pages, true)
 	app.SetInputCapture(a.handleGlobalKeys)
@@ -197,6 +202,10 @@ func (a *App) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
 		a.emit(events.AliasesResetRequested{})
 		return nil
 	case tcell.KeyRune:
+		if event.Rune() == 'M' {
+			a.emit(events.ToggleModeRequested{})
+			return nil
+		}
 		if event.Rune() == 'q' || event.Rune() == 'Q' {
 			// If focus is currently on an input field (e.g. alias editor),
 			// let the focused primitive handle the rune instead of treating
@@ -250,6 +259,9 @@ func (a *App) handleEngineEvents(ctx context.Context, engine *discovery.Engine, 
 			if event.Device != nil {
 				a.engineMu.RLock()
 				if a.engineGen.Load() == gen {
+					if err := a.syncer.SyncDevice(event.Device, a.scopeForInterface(engine.Iface)); err != nil {
+						a.logger.Warn("failed to sync device metadata", "mac", event.Device.MAC(), "error", err)
+					}
 					a.state.UpsertDevice(event.Device)
 					a.cacheAliasForDevice(event.Device)
 				}
@@ -349,6 +361,11 @@ func (a *App) handleEvents() {
 			}
 		case events.ThemeConfirmed:
 			a.state.SetPreviousTheme(a.state.CurrentTheme())
+		case events.ToggleModeRequested:
+			if err := a.toggleMode(); err != nil {
+				a.logger.Error("failed to toggle runtime mode", "error", err)
+				a.state.SetStatusMessage("Failed to switch mode", state.StatusSeverityError, statusMessageTTL)
+			}
 		case events.HideView:
 			front, _ := a.pages.GetFrontPage()
 			if front == routes.RouteAliasEditor {
@@ -505,6 +522,9 @@ func (a *App) switchInterface(name string) {
 	a.engine = engine
 	a.portScanner = discovery.NewPortScanner(100, engine.Iface)
 	a.state.SetCurrentInterface(name)
+	if err := a.loadStoredDevices(engine.Iface); err != nil {
+		a.logger.Warn("failed to reload stored devices after interface switch", "error", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	a.engineCancel = cancel
@@ -538,7 +558,7 @@ func (a *App) cacheAliasForDevice(device *discovery.Device) {
 		return
 	}
 
-	record, found, err := a.metaStore.Get(normalizedMAC)
+	record, found, err := a.metaStore.Get(a.scopeForDevice(device).ScopeID(), normalizedMAC)
 	if err != nil {
 		a.logger.Warn("failed to load device alias", "mac", normalizedMAC, "error", err)
 		return
@@ -550,6 +570,94 @@ func (a *App) cacheAliasForDevice(device *discovery.Device) {
 	}
 
 	a.state.ClearAliasForMAC(normalizedMAC)
+}
+
+func (a *App) loadStoredDevices(iface *discovery.InterfaceInfo) error {
+	if a.syncer == nil || !a.syncer.Enabled() {
+		return nil
+	}
+
+	devices, err := a.syncer.StoredDevicesForScope(a.scopeForInterface(iface))
+	if err != nil {
+		return err
+	}
+	for _, device := range devices {
+		a.state.UpsertPersistedDevice(device)
+		a.cacheAliasForDevice(device)
+	}
+
+	return nil
+}
+
+func (a *App) scopeForInterface(iface *discovery.InterfaceInfo) devicemeta.Scope {
+	return devicemeta.ScopeFromInterfaceInfo(iface, a.cfg != nil && a.cfg.AllInterfaces)
+}
+
+func (a *App) scopeForDevice(device *discovery.Device) devicemeta.Scope {
+	return a.scopeForInterface(a.currentInterfaceInfo()).ScopeForDevice(device)
+}
+
+func (a *App) toggleMode() error {
+	a.engineMu.Lock()
+	defer a.engineMu.Unlock()
+
+	if a.cfg == nil {
+		return fmt.Errorf("config not initialized")
+	}
+
+	currentMode := a.cfg.Mode
+	nextMode := config.ModePersistent
+	if currentMode == config.ModePersistent {
+		nextMode = config.ModeSession
+	}
+
+	a.cfg.Mode = nextMode
+	a.syncer = devicemeta.NewSyncer(nextMode, a.metaStore)
+
+	switch nextMode {
+	case config.ModePersistent:
+		if err := a.persistCurrentDevices(); err != nil {
+			return err
+		}
+		if err := a.loadStoredDevices(a.currentInterfaceInfo()); err != nil {
+			return err
+		}
+		a.state.SetStatusMessage("Persistent mode enabled", state.StatusSeveritySuccess, statusMessageTTL)
+	case config.ModeSession:
+		a.state.RemovePersistedOnlyDevices()
+		a.state.SetStatusMessage("Session mode enabled", state.StatusSeveritySuccess, statusMessageTTL)
+	}
+
+	if err := config.Save(a.cfg, ""); err != nil {
+		a.logger.Error("failed to save runtime mode change", "mode", nextMode, "error", err)
+		a.state.SetStatusMessage("Mode switched, but failed to save config", state.StatusSeverityError, statusMessageTTL)
+		return nil
+	}
+
+	a.logger.Info("runtime mode switched", "from", currentMode, "to", nextMode)
+	return nil
+}
+
+func (a *App) persistCurrentDevices() error {
+	if a.syncer == nil || !a.syncer.Enabled() {
+		return nil
+	}
+
+	scope := a.scopeForInterface(a.currentInterfaceInfo())
+	for _, device := range a.state.DevicesSnapshot() {
+		if err := a.syncer.SyncDevice(device, scope); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *App) currentInterfaceInfo() *discovery.InterfaceInfo {
+	if a.engine == nil {
+		return nil
+	}
+	return a.engine.Iface
 }
 
 func (a *App) openAliasEditor() {
@@ -573,8 +681,9 @@ func (a *App) saveAlias(alias string) {
 		return
 	}
 
-	if err := a.metaStore.SetAlias(normalizedMAC, alias); err != nil {
-		a.logger.Error("failed to save device alias", "mac", normalizedMAC, "error", err)
+	scopeID := a.scopeForDevice(device).ScopeID()
+	if err := a.metaStore.SetAlias(scopeID, normalizedMAC, alias); err != nil {
+		a.logger.Error("failed to save device alias", "scope_id", scopeID, "mac", normalizedMAC, "error", err)
 		a.state.SetStatusMessage("Failed to save alias", state.StatusSeverityError, statusMessageTTL)
 		return
 	}
@@ -593,13 +702,14 @@ func (a *App) saveAlias(alias string) {
 }
 
 func (a *App) clearAlias() {
-	_, normalizedMAC, ok := a.selectedDeviceMAC()
+	device, normalizedMAC, ok := a.selectedDeviceMAC()
 	if !ok {
 		return
 	}
 
-	if err := a.metaStore.ClearAlias(normalizedMAC); err != nil {
-		a.logger.Error("failed to clear device alias", "mac", normalizedMAC, "error", err)
+	scopeID := a.scopeForDevice(device).ScopeID()
+	if err := a.metaStore.ClearAlias(scopeID, normalizedMAC); err != nil {
+		a.logger.Error("failed to clear device alias", "scope_id", scopeID, "mac", normalizedMAC, "error", err)
 		a.state.SetStatusMessage("Failed to clear alias", state.StatusSeverityError, statusMessageTTL)
 		return
 	}

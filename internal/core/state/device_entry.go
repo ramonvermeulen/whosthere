@@ -11,24 +11,38 @@ type deviceEntry struct {
 	normalizedMAC       string
 	alias               string
 	aliasMetadataLoaded bool
+	provenance          deviceProvenance
 }
 
+type deviceProvenance uint8
+
+const (
+	provenanceObserved deviceProvenance = 1 << iota
+	provenancePersisted
+)
+
 func newDeviceEntry(device *discovery.Device) *deviceEntry {
+	return newDeviceEntryWithProvenance(device, provenanceObserved)
+}
+
+func newDeviceEntryWithProvenance(device *discovery.Device, provenance deviceProvenance) *deviceEntry {
 	deviceCopy := device.Copy()
 	normalizedMAC, _ := normalizedDeviceMAC(deviceCopy)
 
 	return &deviceEntry{
 		device:        deviceCopy,
 		normalizedMAC: normalizedMAC,
+		provenance:    provenance,
 	}
 }
 
-func (e *deviceEntry) Merge(device *discovery.Device) {
+func (e *deviceEntry) Merge(device *discovery.Device, provenance deviceProvenance) {
 	if e == nil || e.device == nil || device == nil {
 		return
 	}
 
 	e.device.Merge(device)
+	e.provenance |= provenance
 	if e.normalizedMAC == "" {
 		e.normalizedMAC, _ = normalizedDeviceMAC(e.device)
 	}
@@ -74,6 +88,18 @@ func (e *deviceEntry) ResetAlias() {
 
 func (e *deviceEntry) AliasMetadataLoaded() bool {
 	return e != nil && e.aliasMetadataLoaded
+}
+
+func (e *deviceEntry) HasObservedData() bool {
+	return e != nil && e.provenance&provenanceObserved != 0
+}
+
+func (e *deviceEntry) HasPersistedData() bool {
+	return e != nil && e.provenance&provenancePersisted != 0
+}
+
+func (e *deviceEntry) IsPersistedOnly() bool {
+	return e != nil && e.HasPersistedData() && !e.HasObservedData()
 }
 
 func (e *deviceEntry) DetectedName() string {

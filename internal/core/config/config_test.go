@@ -68,6 +68,10 @@ func TestDefaultConfigProducesValidConfig(t *testing.T) {
 		t.Fatalf("expected default config to be valid, got %v", err)
 	}
 
+	if cfg.Mode != DefaultMode {
+		t.Fatalf("expected default mode %q, got %q", DefaultMode, cfg.Mode)
+	}
+
 	if cfg.Theme.Name != DefaultThemeName {
 		t.Fatalf("expected default theme %q, got %q", DefaultThemeName, cfg.Theme.Name)
 	}
@@ -75,6 +79,7 @@ func TestDefaultConfigProducesValidConfig(t *testing.T) {
 
 func TestYAMLUnmarshalAndValidateHappyPath(t *testing.T) {
 	raw := `
+mode: persistent
 scan_interval: 15s
 scan_duration: 5s
 scanners:
@@ -104,6 +109,9 @@ splash:
 	if got, want := cfg.ScanInterval, 15*time.Second; got != want {
 		t.Errorf("scan interval: got %v, want %v", got, want)
 	}
+	if got, want := cfg.Mode, ModePersistent; got != want {
+		t.Errorf("mode: got %v, want %v", got, want)
+	}
 	if got, want := cfg.ScanDuration, 5*time.Second; got != want {
 		t.Errorf("scan duration: got %v, want %v", got, want)
 	}
@@ -129,6 +137,7 @@ splash:
 
 func TestYAMLUnmarshalAndValidateFixesInvalids(t *testing.T) {
 	raw := `
+mode: broken
 scan_interval: -5s
 scan_duration: 0s
 scanners:
@@ -155,6 +164,7 @@ splash:
 
 	msg := err.Error()
 	for _, expected := range []string{
+		"mode must be one of: session, persistent",
 		"scan_interval must be > 0",
 		"scan_duration must be > 0",
 		"splash.delay must be >= 0",
@@ -166,6 +176,9 @@ splash:
 
 	if cfg.ScanInterval != discovery.DefaultScanInterval {
 		t.Errorf("expected default scan interval %v, got %v", discovery.DefaultScanInterval, cfg.ScanInterval)
+	}
+	if cfg.Mode != DefaultMode {
+		t.Errorf("expected default mode %q, got %q", DefaultMode, cfg.Mode)
 	}
 	if cfg.ScanDuration != discovery.DefaultScanTimeout {
 		t.Errorf("expected default scan duration %v, got %v", discovery.DefaultScanTimeout, cfg.ScanDuration)

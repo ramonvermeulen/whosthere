@@ -139,6 +139,10 @@ Whosthere looks for the configuration file in the following order, using the fir
 **Example configuration:**
 
 ```yaml
+# Controls whether device history is session-only or persisted locally across runs
+# Allowed values: session | persistent
+mode: session
+
 # Uncomment the next line to configure a specific network interface - uses OS default if not set
 # network_interface: eth0
 

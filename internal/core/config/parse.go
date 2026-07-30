@@ -19,6 +19,17 @@ func parseBool(s string) (bool, error) {
 	}
 }
 
+func parseMode(s string) (Mode, error) {
+	mode := Mode(strings.TrimSpace(strings.ToLower(s)))
+	if mode == "" {
+		return "", nil
+	}
+	if !mode.Valid() {
+		return "", fmt.Errorf("invalid mode %q", s)
+	}
+	return mode, nil
+}
+
 func parseDuration(s string) (time.Duration, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {

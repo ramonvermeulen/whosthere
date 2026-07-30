@@ -35,6 +35,7 @@ func TestApplyEnvSetsNestedValues(t *testing.T) {
 	_ = os.Setenv("WHOSTHERE__SCAN_TIMEOUT", "7s")
 	_ = os.Setenv("WHOSTHERE__PORT_SCANNER__TCP", "80,443")
 	_ = os.Setenv("WHOSTHERE__THEME__NAME", "custom")
+	_ = os.Setenv("WHOSTHERE__MODE", "persistent")
 
 	cfg := DefaultConfig()
 	if err := ApplyEnv(cfg); err != nil {
@@ -55,6 +56,9 @@ func TestApplyEnvSetsNestedValues(t *testing.T) {
 	}
 	if cfg.Theme.Name != "custom" {
 		t.Fatalf("expected theme name custom, got %q", cfg.Theme.Name)
+	}
+	if cfg.Mode != ModePersistent {
+		t.Fatalf("expected mode persistent, got %q", cfg.Mode)
 	}
 }
 

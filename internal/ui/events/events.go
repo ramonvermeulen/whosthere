@@ -32,6 +32,9 @@ type ThemeSaved struct {
 	Name string
 }
 
+// ToggleModeRequested switches between session and persistent mode at runtime.
+type ToggleModeRequested struct{}
+
 // HideView is emitted to hide the current modal.
 type HideView struct{}
 

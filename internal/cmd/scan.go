@@ -6,6 +6,7 @@ import (
 
 	"github.com/ramonvermeulen/whosthere/internal/core"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
+	"github.com/ramonvermeulen/whosthere/internal/core/devicemeta"
 	"github.com/ramonvermeulen/whosthere/internal/core/output"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 	"github.com/spf13/cobra"
@@ -48,6 +49,7 @@ func runScan(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	scope := devicemeta.ScopeFromInterfaceInfo(eng.Iface, cfg.AllInterfaces)
 
 	// Only show the spinner if stdout is a terminal to avoid polluting redirected output
 	// (e.g., when piping to save to a file).
@@ -65,6 +67,19 @@ func runScan(cmd *cobra.Command, _ []string) error {
 
 	if err != nil {
 		return err
+	}
+
+	if cfg.Mode == config.ModePersistent {
+		metaStore, err := devicemeta.OpenDefault()
+		if err != nil {
+			return err
+		}
+		defer metaStore.Close()
+
+		syncer := devicemeta.NewSyncer(cfg.Mode, metaStore)
+		if err := syncer.SyncResults(results, scope); err != nil {
+			return err
+		}
 	}
 
 	format, opts := parseScanSpecificFlags(cmd)
