@@ -38,3 +38,6 @@ dist
 
 manual_*_test.sh
 *.log
+
+# Cross-compiled binaries
+whosthere-linux-*
