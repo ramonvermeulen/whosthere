@@ -96,8 +96,8 @@ func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, erro
 	}
 	a.engine = engine
 	// todo(ramon) handle in BuildEngine -> WithPortScanner(...)
-	a.portScanner = discovery.NewPortScanner(100, engine.Iface)
-	a.state.SetCurrentInterface(engine.Iface.Interface.Name)
+	a.portScanner = discovery.NewPortScanner(100, engine.Interface())
+	a.state.SetCurrentInterface(engine.Interface().Interface.Name)
 
 	app.SetRoot(a.pages, true)
 	app.SetInputCapture(a.handleGlobalKeys)
@@ -503,7 +503,7 @@ func (a *App) switchInterface(name string) {
 	}
 
 	a.engine = engine
-	a.portScanner = discovery.NewPortScanner(100, engine.Iface)
+	a.portScanner = discovery.NewPortScanner(100, engine.Interface())
 	a.state.SetCurrentInterface(name)
 
 	ctx, cancel := context.WithCancel(context.Background())

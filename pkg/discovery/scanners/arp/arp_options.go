@@ -2,9 +2,11 @@ package arp
 
 import (
 	"errors"
+	"net"
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 )
 
 // Option configures an ARP Scanner during construction.
@@ -46,3 +48,18 @@ func WithAllInterfaces(all bool) Option {
 	}
 }
 
+// WithTargetSubnets sets the IPv4 CIDR subnets used for target-aware ARP filtering.
+// The scanner still reads the OS ARP cache, but only entries inside these subnets
+// are emitted as devices.
+func WithTargetSubnets(subnets []*net.IPNet) Option {
+	return func(s *Scanner) error {
+		cloned := subnet.CloneIPNets(subnets)
+		for _, sub := range cloned {
+			if sub == nil || sub.IP.To4() == nil {
+				return errors.New("target subnets must be IPv4 CIDRs")
+			}
+		}
+		s.targetSubnets = cloned
+		return nil
+	}
+}

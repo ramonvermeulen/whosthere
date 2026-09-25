@@ -49,3 +49,63 @@ func TestSweeper_GenerateSubnetIPs_LimitsLargeSubnetTo16(t *testing.T) {
 	require.Equal(t, "10.0.0.0", ips[0].String())
 	require.Equal(t, "10.0.255.255", ips[len(ips)-1].String())
 }
+
+func TestSweeper_GenerateSubnetIPs_AllowLargeSubnetScansFull(t *testing.T) {
+	_, subnet, err := net.ParseCIDR("10.0.0.0/15")
+	require.NoError(t, err)
+
+	s := &Sweeper{logger: &discovery.NoOpLogger{}, allowLargeSubnets: true}
+	ips := s.generateSubnetIPs(subnet, net.IPv4(10, 0, 0, 1).To4())
+
+	require.Equal(t, "10.0.0.0", ips[0].String())
+	require.Equal(t, "10.1.255.255", ips[len(ips)-1].String())
+	require.Len(t, ips, 131071)
+}
+
+func TestSweeper_GenerateSubnetIPs_AllowLargeSubnetSmallSubnetUnchanged(t *testing.T) {
+	_, subnet, err := net.ParseCIDR("10.0.0.0/24")
+	require.NoError(t, err)
+
+	s := &Sweeper{logger: &discovery.NoOpLogger{}, allowLargeSubnets: true}
+	ips := s.generateSubnetIPs(subnet, net.IPv4(10, 0, 0, 1).To4())
+
+	require.Len(t, ips, 255)
+}
+
+func TestSweeper_SweepSubnetsUsesInterfaceSubnetByDefault(t *testing.T) {
+	_, ifaceSubnet, err := net.ParseCIDR("192.168.1.10/24")
+	require.NoError(t, err)
+
+	s := &Sweeper{
+		iface: &discovery.InterfaceInfo{
+			IPv4Net: ifaceSubnet,
+		},
+	}
+
+	subnets := s.sweepSubnets()
+
+	require.Len(t, subnets, 1)
+	require.Equal(t, "192.168.1.0/24", subnets[0].String())
+}
+
+func TestSweeper_SweepSubnetsUsesTargetSubnetsWhenConfigured(t *testing.T) {
+	_, ifaceSubnet, err := net.ParseCIDR("192.168.1.10/24")
+	require.NoError(t, err)
+	_, targetA, err := net.ParseCIDR("10.0.0.0/24")
+	require.NoError(t, err)
+	_, targetB, err := net.ParseCIDR("10.0.1.0/24")
+	require.NoError(t, err)
+
+	s := &Sweeper{
+		iface: &discovery.InterfaceInfo{
+			IPv4Net: ifaceSubnet,
+		},
+		targetSubnets: []*net.IPNet{targetA, targetB},
+	}
+
+	subnets := s.sweepSubnets()
+
+	require.Len(t, subnets, 2)
+	require.Equal(t, "10.0.0.0/24", subnets[0].String())
+	require.Equal(t, "10.0.1.0/24", subnets[1].String())
+}

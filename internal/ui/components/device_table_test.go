@@ -10,6 +10,7 @@ import (
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 	"github.com/rivo/tview"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeviceTableRenderUsesPreferredName(t *testing.T) {
@@ -25,9 +26,7 @@ func TestDeviceTableRenderUsesPreferredName(t *testing.T) {
 	table := NewDeviceTable(nil)
 	table.Render(appState.ReadOnly())
 
-	if got := table.GetCell(1, 1).Text; got != "Kitchen Tablet" {
-		t.Fatalf("table hostname cell = %q, want %q", got, "Kitchen Tablet")
-	}
+	require.Equal(t, "Kitchen Tablet", table.GetCell(1, 1).Text, "table hostname cell")
 }
 
 func TestDeviceTableRenderUsesAliasNameHeader(t *testing.T) {
@@ -36,9 +35,7 @@ func TestDeviceTableRenderUsesAliasNameHeader(t *testing.T) {
 	table := NewDeviceTable(nil)
 	table.Render(state.NewAppState(config.DefaultConfig(), "1.0.0").ReadOnly())
 
-	if got := table.GetCell(0, 1).Text; got != "Alias/Name" {
-		t.Fatalf("table header cell = %q, want %q", got, "Alias/Name")
-	}
+	require.Equal(t, "Alias/Name", table.GetCell(0, 1).Text, "table header cell")
 }
 
 func TestDeviceTableFilterMatchesAliasAndDetectedName(t *testing.T) {
@@ -54,39 +51,23 @@ func TestDeviceTableFilterMatchesAliasAndDetectedName(t *testing.T) {
 	table := NewDeviceTable(nil)
 	table.Render(appState.ReadOnly())
 
-	if err := table.SetFilter("Office"); err != nil {
-		t.Fatalf("SetFilter(alias) error = %v", err)
-	}
-	if table.GetRowCount() != 2 {
-		t.Fatalf("row count after alias filter = %d, want 2", table.GetRowCount())
-	}
+	require.NoError(t, table.SetFilter("Office"), "SetFilter(alias)")
+	require.Equal(t, 2, table.GetRowCount(), "row count after alias filter")
 
-	if err := table.SetFilter("Detected"); err != nil {
-		t.Fatalf("SetFilter(detected name) error = %v", err)
-	}
-	if table.GetRowCount() != 2 {
-		t.Fatalf("row count after detected-name filter = %d, want 2", table.GetRowCount())
-	}
+	require.NoError(t, table.SetFilter("Detected"), "SetFilter(detected name)")
+	require.Equal(t, 2, table.GetRowCount(), "row count after detected-name filter")
 }
 
 func TestLastSeenColorUsesFreshnessBuckets(t *testing.T) {
 	t.Parallel()
 
-	if got := lastSeenColor(20*time.Second, false); got != tview.Styles.ContrastSecondaryTextColor {
-		t.Fatalf("fresh last-seen color = %v, want %v", got, tview.Styles.ContrastSecondaryTextColor)
-	}
+	require.Equal(t, tview.Styles.ContrastSecondaryTextColor, lastSeenColor(20*time.Second, false), "fresh last-seen color")
 
-	if got := lastSeenColor(2*time.Minute, false); got != tview.Styles.TertiaryTextColor {
-		t.Fatalf("normal last-seen color = %v, want %v", got, tview.Styles.TertiaryTextColor)
-	}
+	require.Equal(t, tview.Styles.TertiaryTextColor, lastSeenColor(2*time.Minute, false), "normal last-seen color")
 
-	if got := lastSeenColor(10*time.Minute, false); got != tview.Styles.TertiaryTextColor {
-		t.Fatalf("stale last-seen color = %v, want %v", got, tview.Styles.TertiaryTextColor)
-	}
+	require.Equal(t, tview.Styles.TertiaryTextColor, lastSeenColor(10*time.Minute, false), "stale last-seen color")
 
-	if got := lastSeenColor(20*time.Second, true); got != tview.Styles.PrimaryTextColor {
-		t.Fatalf("no-color last-seen color = %v, want %v", got, tview.Styles.PrimaryTextColor)
-	}
+	require.Equal(t, tview.Styles.PrimaryTextColor, lastSeenColor(20*time.Second, true), "no-color last-seen color")
 }
 
 func TestDeviceTableSelectedRowUsesThemeAccentStyle(t *testing.T) {
@@ -99,9 +80,7 @@ func TestDeviceTableSelectedRowUsesThemeAccentStyle(t *testing.T) {
 	table.SetRect(0, 0, 80, 10)
 
 	screen := tcell.NewSimulationScreen("UTF-8")
-	if err := screen.Init(); err != nil {
-		t.Fatalf("init screen: %v", err)
-	}
+	require.NoError(t, screen.Init(), "init screen")
 	defer screen.Fini()
 
 	table.Draw(screen)
@@ -110,13 +89,7 @@ func TestDeviceTableSelectedRowUsesThemeAccentStyle(t *testing.T) {
 	_, style, _ := screen.Get(x, y)
 	foreground, background, attrs := style.Decompose()
 
-	if foreground != tview.Styles.InverseTextColor {
-		t.Fatalf("selected row foreground = %v, want %v", foreground, tview.Styles.InverseTextColor)
-	}
-	if background != tview.Styles.SecondaryTextColor {
-		t.Fatalf("selected row background = %v, want %v", background, tview.Styles.SecondaryTextColor)
-	}
-	if attrs&tcell.AttrBold == 0 {
-		t.Fatalf("selected row attrs = %v, want bold", attrs)
-	}
+	require.Equal(t, tview.Styles.InverseTextColor, foreground, "selected row foreground")
+	require.Equal(t, tview.Styles.SecondaryTextColor, background, "selected row background")
+	require.NotEqual(t, 0, attrs&tcell.AttrBold, "selected row attrs, want bold")
 }

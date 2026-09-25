@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoadForModeCLISkipsConfigFile(t *testing.T) {
@@ -12,10 +14,6 @@ func TestLoadForModeCLISkipsConfigFile(t *testing.T) {
 
 	_ = os.Setenv("WHOSTHERE_CONFIG", "/definitely/does/not/exist.yaml")
 	cfg, err := LoadForMode(ModeCLI, &Flags{})
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if cfg == nil {
-		t.Fatalf("expected cfg")
-	}
+	require.NoError(t, err, "expected no error")
+	require.NotNil(t, cfg, "expected cfg")
 }

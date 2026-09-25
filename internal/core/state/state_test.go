@@ -7,6 +7,8 @@ import (
 
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewAppState(t *testing.T) {
@@ -14,15 +16,9 @@ func TestNewAppState(t *testing.T) {
 	version := "1.0.0"
 	state := NewAppState(cfg, version)
 
-	if state.version != version {
-		t.Errorf("expected version %s, got %s", version, state.version)
-	}
-	if state.cfg != cfg {
-		t.Errorf("expected config to be set")
-	}
-	if state.previousTheme != config.DefaultThemeName {
-		t.Errorf("expected previous theme %s, got %s", config.DefaultThemeName, state.previousTheme)
-	}
+	assert.Equal(t, version, state.version, "expected version %s", version)
+	assert.Same(t, cfg, state.cfg, "expected config to be set")
+	assert.Equal(t, config.DefaultThemeName, state.previousTheme, "expected previous theme %s", config.DefaultThemeName)
 }
 
 func TestUpsertDevice(t *testing.T) {
@@ -35,12 +31,8 @@ func TestUpsertDevice(t *testing.T) {
 	state.UpsertDevice(device)
 
 	devices := state.DevicesSnapshot()
-	if len(devices) != 1 {
-		t.Errorf("expected 1 device, got %d", len(devices))
-	}
-	if devices[0].IP().String() != "192.168.1.1" {
-		t.Errorf("expected IP 192.168.1.1, got %s", devices[0].IP().String())
-	}
+	assert.Equal(t, 1, len(devices), "expected 1 device")
+	assert.Equal(t, "192.168.1.1", devices[0].IP().String(), "expected IP 192.168.1.1")
 }
 
 func TestDevicesSnapshot(t *testing.T) {
@@ -52,13 +44,9 @@ func TestDevicesSnapshot(t *testing.T) {
 	state.UpsertDevice(discovery.NewDevice(ip2))
 
 	devices := state.DevicesSnapshot()
-	if len(devices) != 2 {
-		t.Errorf("expected 2 devices, got %d", len(devices))
-	}
+	assert.Equal(t, 2, len(devices), "expected 2 devices")
 	// Should be sorted by IP
-	if devices[0].IP().String() != "192.168.1.1" {
-		t.Errorf("expected first IP 192.168.1.1, got %s", devices[0].IP().String())
-	}
+	assert.Equal(t, "192.168.1.1", devices[0].IP().String(), "expected first IP 192.168.1.1")
 }
 
 func TestDevicesSnapshotNumericSort(t *testing.T) {
@@ -70,15 +58,11 @@ func TestDevicesSnapshotNumericSort(t *testing.T) {
 	}
 
 	devices := state.DevicesSnapshot()
-	if len(devices) != 4 {
-		t.Errorf("expected 4 devices, got %d", len(devices))
-	}
+	assert.Equal(t, 4, len(devices), "expected 4 devices")
 
 	expected := []string{"192.168.1.1", "192.168.1.2", "192.168.1.100", "192.168.1.200"}
 	for i, exp := range expected {
-		if devices[i].IP().String() != exp {
-			t.Errorf("expected IP at index %d to be %s, got %s", i, exp, devices[i].IP().String())
-		}
+		assert.Equal(t, exp, devices[i].IP().String(), "expected IP at index %d", i)
 	}
 }
 
@@ -91,63 +75,47 @@ func TestSelected(t *testing.T) {
 
 	state.SetSelectedIP("192.168.1.1")
 	selected, ok := state.Selected()
-	if !ok {
-		t.Errorf("expected selected device")
-	}
-	if selected.IP().String() != "192.168.1.1" {
-		t.Errorf("expected selected IP 192.168.1.1, got %s", selected.IP().String())
-	}
+	assert.True(t, ok, "expected selected device")
+	assert.Equal(t, "192.168.1.1", selected.IP().String(), "expected selected IP 192.168.1.1")
 
 	state.SetSelectedIP("192.168.1.2")
 	_, ok = state.Selected()
-	if ok {
-		t.Errorf("expected no selected device")
-	}
+	assert.False(t, ok, "expected no selected device")
 }
 
 func TestCurrentTheme(t *testing.T) {
 	state := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	state.SetCurrentTheme("dark")
-	if state.CurrentTheme() != "dark" {
-		t.Errorf("expected theme dark, got %s", state.CurrentTheme())
-	}
+	assert.Equal(t, "dark", state.CurrentTheme(), "expected theme dark")
 }
 
 func TestVersion(t *testing.T) {
 	state := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	state.SetVersion("2.0.0")
-	if state.Version() != "2.0.0" {
-		t.Errorf("expected version 2.0.0, got %s", state.Version())
-	}
+	assert.Equal(t, "2.0.0", state.Version(), "expected version 2.0.0")
 }
 
 func TestFilterPattern(t *testing.T) {
 	state := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	state.SetFilterPattern("test")
-	if state.FilterPattern() != "test" {
-		t.Errorf("expected filter test, got %s", state.FilterPattern())
-	}
+	assert.Equal(t, "test", state.FilterPattern(), "expected filter test")
 }
 
 func TestIsDiscovering(t *testing.T) {
 	state := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	state.SetIsDiscovering(true)
-	if !state.IsDiscovering() {
-		t.Errorf("expected discovering true")
-	}
+	assert.True(t, state.IsDiscovering(), "expected discovering true")
 }
 
 func TestIsPortscanning(t *testing.T) {
 	state := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	state.SetIsPortscanning(true)
-	if !state.IsPortscanning() {
-		t.Errorf("expected portscanning true")
-	}
+	assert.True(t, state.IsPortscanning(), "expected portscanning true")
 }
 
 func TestGetDevice(t *testing.T) {
@@ -158,31 +126,21 @@ func TestGetDevice(t *testing.T) {
 	state.UpsertDevice(device)
 
 	d, ok := state.GetDevice("192.168.1.1")
-	if !ok {
-		t.Errorf("expected device")
-	}
-	if d.IP().String() != "192.168.1.1" {
-		t.Errorf("expected IP 192.168.1.1")
-	}
+	assert.True(t, ok, "expected device")
+	assert.Equal(t, "192.168.1.1", d.IP().String(), "expected IP 192.168.1.1")
 }
 
 func TestSearch(t *testing.T) {
 	state := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	state.SetSearchActive(true)
-	if !state.SearchActive() {
-		t.Errorf("expected search active")
-	}
+	assert.True(t, state.SearchActive(), "expected search active")
 
 	state.SetSearchError(true)
-	if !state.SearchError() {
-		t.Errorf("expected search error")
-	}
+	assert.True(t, state.SearchError(), "expected search error")
 
 	state.SetFilterPattern("search")
-	if state.SearchText() != "search" {
-		t.Errorf("expected search text search, got %s", state.SearchText())
-	}
+	assert.Equal(t, "search", state.SearchText(), "expected search text search")
 }
 
 func TestAliasOrDetectedNameForAliasPrecedence(t *testing.T) {
@@ -195,19 +153,13 @@ func TestAliasOrDetectedNameForAliasPrecedence(t *testing.T) {
 	device.SetDisplayName("Detected Device")
 	device.SetManufacturer("Acme")
 
-	if got := appState.AliasOrDetectedNameFor(device); got != "Detected Device" {
-		t.Fatalf("AliasOrDetectedNameFor() without alias = %q, want %q", got, "Detected Device")
-	}
+	require.Equal(t, "Detected Device", appState.AliasOrDetectedNameFor(device), "AliasOrDetectedNameFor() without alias")
 
 	appState.UpsertDevice(device)
 	appState.SetAliasForMAC("aa:bb:cc:dd:ee:ff", "Desk Speaker")
 
-	if got := appState.AliasFor(device); got != "Desk Speaker" {
-		t.Fatalf("AliasFor() = %q, want %q", got, "Desk Speaker")
-	}
-	if got := appState.AliasOrDetectedNameFor(device); got != "Desk Speaker" {
-		t.Fatalf("AliasOrDetectedNameFor() with alias = %q, want %q", got, "Desk Speaker")
-	}
+	require.Equal(t, "Desk Speaker", appState.AliasFor(device), "AliasFor()")
+	require.Equal(t, "Desk Speaker", appState.AliasOrDetectedNameFor(device), "AliasOrDetectedNameFor() with alias")
 }
 
 func TestAliasOrDetectedNameForFallsBackToManufacturerAndIP(t *testing.T) {
@@ -217,14 +169,10 @@ func TestAliasOrDetectedNameForFallsBackToManufacturerAndIP(t *testing.T) {
 
 	device := discovery.NewDevice(net.ParseIP("192.168.1.99"))
 	device.SetManufacturer("Vendor")
-	if got := appState.AliasOrDetectedNameFor(device); got != "Vendor" {
-		t.Fatalf("AliasOrDetectedNameFor() manufacturer fallback = %q, want %q", got, "Vendor")
-	}
+	require.Equal(t, "Vendor", appState.AliasOrDetectedNameFor(device), "AliasOrDetectedNameFor() manufacturer fallback")
 
 	device.SetManufacturer("")
-	if got := appState.AliasOrDetectedNameFor(device); got != "192.168.1.99" {
-		t.Fatalf("AliasOrDetectedNameFor() IP fallback = %q, want %q", got, "192.168.1.99")
-	}
+	require.Equal(t, "192.168.1.99", appState.AliasOrDetectedNameFor(device), "AliasOrDetectedNameFor() IP fallback")
 }
 
 func TestDetectedNameForIgnoresAliasAndFallsBackToManufacturerAndIP(t *testing.T) {
@@ -240,9 +188,7 @@ func TestDetectedNameForIgnoresAliasAndFallsBackToManufacturerAndIP(t *testing.T
 		appState.UpsertDevice(device)
 		appState.SetAliasForMAC("aa:bb:cc:dd:ee:99", "Desk Speaker")
 
-		if got := appState.DetectedNameFor(device); got != "Vendor" {
-			t.Fatalf("DetectedNameFor() manufacturer fallback = %q, want %q", got, "Vendor")
-		}
+		require.Equal(t, "Vendor", appState.DetectedNameFor(device), "DetectedNameFor() manufacturer fallback")
 	})
 
 	t.Run("ip fallback", func(t *testing.T) {
@@ -254,9 +200,7 @@ func TestDetectedNameForIgnoresAliasAndFallsBackToManufacturerAndIP(t *testing.T
 		appState.UpsertDevice(device)
 		appState.SetAliasForMAC("aa:bb:cc:dd:ee:99", "Desk Speaker")
 
-		if got := appState.DetectedNameFor(device); got != "192.168.1.99" {
-			t.Fatalf("DetectedNameFor() IP fallback = %q, want %q", got, "192.168.1.99")
-		}
+		require.Equal(t, "192.168.1.99", appState.DetectedNameFor(device), "DetectedNameFor() IP fallback")
 	})
 
 	t.Run("detected display name", func(t *testing.T) {
@@ -269,9 +213,7 @@ func TestDetectedNameForIgnoresAliasAndFallsBackToManufacturerAndIP(t *testing.T
 		appState.UpsertDevice(device)
 		appState.SetAliasForMAC("aa:bb:cc:dd:ee:99", "Desk Speaker")
 
-		if got := appState.DetectedNameFor(device); got != "Detected Device" {
-			t.Fatalf("DetectedNameFor() detected name = %q, want %q", got, "Detected Device")
-		}
+		require.Equal(t, "Detected Device", appState.DetectedNameFor(device), "DetectedNameFor() detected name")
 	})
 }
 
@@ -284,14 +226,10 @@ func TestSetAliasMarksAliasLoaded(t *testing.T) {
 	device.SetMAC("AA:BB:CC:DD:EE:FF")
 	appState.UpsertDevice(device)
 
-	if appState.HasAliasMetadataForMAC(mac) {
-		t.Fatal("HasAliasMetadataForMAC() = true before caching, want false")
-	}
+	require.False(t, appState.HasAliasMetadataForMAC(mac), "HasAliasMetadataForMAC() = true before caching, want false")
 
 	appState.ClearAliasForMAC(mac)
-	if !appState.HasAliasMetadataForMAC(mac) {
-		t.Fatal("HasAliasMetadataForMAC() = false after ClearAliasForMAC, want true")
-	}
+	require.True(t, appState.HasAliasMetadataForMAC(mac), "HasAliasMetadataForMAC() = false after ClearAliasForMAC, want true")
 }
 
 func TestResetAliasesClearsCache(t *testing.T) {
@@ -305,18 +243,12 @@ func TestResetAliasesClearsCache(t *testing.T) {
 	appState.UpsertDevice(device)
 	appState.SetAliasForMAC(mac, "Laptop")
 
-	if got := appState.AliasFor(device); got != "Laptop" {
-		t.Fatalf("AliasFor() before reset = %q, want %q", got, "Laptop")
-	}
+	require.Equal(t, "Laptop", appState.AliasFor(device), "AliasFor() before reset")
 
 	appState.ResetAliases()
 
-	if got := appState.AliasFor(device); got != "" {
-		t.Fatalf("AliasFor() after reset = %q, want empty", got)
-	}
-	if appState.HasAliasMetadataForMAC(mac) {
-		t.Fatal("HasAliasMetadataForMAC() after reset = true, want false")
-	}
+	require.Empty(t, appState.AliasFor(device), "AliasFor() after reset")
+	require.False(t, appState.HasAliasMetadataForMAC(mac), "HasAliasMetadataForMAC() after reset = true, want false")
 }
 
 func TestAliasEditorDraft(t *testing.T) {
@@ -325,14 +257,10 @@ func TestAliasEditorDraft(t *testing.T) {
 	appState := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	appState.SetAliasEditorDraft("Living Room TV")
-	if got := appState.AliasEditorDraft(); got != "Living Room TV" {
-		t.Fatalf("AliasEditorDraft() = %q, want %q", got, "Living Room TV")
-	}
+	require.Equal(t, "Living Room TV", appState.AliasEditorDraft(), "AliasEditorDraft()")
 
 	appState.ClearAliasEditorDraft()
-	if got := appState.AliasEditorDraft(); got != "" {
-		t.Fatalf("AliasEditorDraft() after clear = %q, want empty", got)
-	}
+	require.Empty(t, appState.AliasEditorDraft(), "AliasEditorDraft() after clear")
 }
 
 func TestStatusMessageLifecycle(t *testing.T) {
@@ -341,18 +269,10 @@ func TestStatusMessageLifecycle(t *testing.T) {
 	appState := NewAppState(config.DefaultConfig(), "1.0.0")
 
 	appState.SetStatusMessage("alias saved", StatusSeveritySuccess, 50*time.Millisecond)
-	if got := appState.StatusMessage(); got != "alias saved" {
-		t.Fatalf("StatusMessage() = %q, want %q", got, "alias saved")
-	}
-	if got := appState.StatusSeverity(); got != StatusSeveritySuccess {
-		t.Fatalf("StatusSeverity() = %q, want %q", got, StatusSeveritySuccess)
-	}
+	require.Equal(t, "alias saved", appState.StatusMessage(), "StatusMessage()")
+	require.Equal(t, StatusSeveritySuccess, appState.StatusSeverity(), "StatusSeverity()")
 
 	time.Sleep(75 * time.Millisecond)
-	if got := appState.StatusMessage(); got != "" {
-		t.Fatalf("StatusMessage() after expiry = %q, want empty", got)
-	}
-	if got := appState.StatusSeverity(); got != StatusSeverityInfo {
-		t.Fatalf("StatusSeverity() after expiry = %q, want %q", got, StatusSeverityInfo)
-	}
+	require.Empty(t, appState.StatusMessage(), "StatusMessage() after expiry")
+	require.Equal(t, StatusSeverityInfo, appState.StatusSeverity(), "StatusSeverity() after expiry")
 }

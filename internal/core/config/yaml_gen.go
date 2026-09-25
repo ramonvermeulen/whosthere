@@ -117,6 +117,12 @@ func formatValue(v any) string {
 			parts[i] = fmt.Sprintf("%d", port)
 		}
 		return "[" + strings.Join(parts, ", ") + "]"
+	case []string:
+		parts := make([]string, len(val))
+		for i, s := range val {
+			parts[i] = fmt.Sprintf("%q", s)
+		}
+		return "[" + strings.Join(parts, ", ") + "]"
 	case time.Duration:
 		return formatDuration(val)
 	case fmt.Stringer:

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 )
 
 var _ discovery.Scanner = (*Scanner)(nil)
@@ -25,6 +26,7 @@ type Scanner struct {
 	logger        discovery.Logger
 	pollInterval  time.Duration
 	allInterfaces bool
+	targetSubnets []*net.IPNet
 }
 
 // New creates an ARP scanner for the specified network interface.
@@ -103,10 +105,14 @@ type Entry struct {
 func (s *Scanner) emitARPEntries(ctx context.Context, out chan<- *discovery.Device, entries []Entry) error {
 	now := time.Now()
 
-	subnet := s.iface.IPv4Net
+	broadcastSubnets := s.broadcastSubnets()
 
 	for _, entry := range entries {
 		if entry.IP == nil || entry.MAC == nil {
+			continue
+		}
+
+		if len(s.targetSubnets) > 0 && !subnet.IPInAnySubnet(entry.IP, s.targetSubnets) {
 			continue
 		}
 
@@ -114,7 +120,7 @@ func (s *Scanner) emitARPEntries(ctx context.Context, out chan<- *discovery.Devi
 			continue
 		}
 
-		if isMulticastMAC(entry.MAC) || isBroadcastMAC(entry.MAC) || isMulticastIPv4(entry.IP) || isBroadcastIPv4(entry.IP, subnet) {
+		if isMulticastMAC(entry.MAC) || isBroadcastMAC(entry.MAC) || isMulticastIPv4(entry.IP) || isBroadcastIPv4InAnySubnet(entry.IP, broadcastSubnets) {
 			continue
 		}
 
@@ -139,6 +145,16 @@ func (s *Scanner) emitARPEntries(ctx context.Context, out chan<- *discovery.Devi
 	return nil
 }
 
+func (s *Scanner) broadcastSubnets() []*net.IPNet {
+	if len(s.targetSubnets) > 0 {
+		return s.targetSubnets
+	}
+	if s.iface == nil || s.iface.IPv4Net == nil {
+		return []*net.IPNet{}
+	}
+	return []*net.IPNet{s.iface.IPv4Net}
+}
+
 // isMulticastMAC checks if a MAC address is a multicast address.
 // if the LSB of the first byte is set, it's a multicast address.
 func isMulticastMAC(mac net.HardwareAddr) bool {
@@ -153,8 +169,8 @@ func isBroadcastMAC(mac net.HardwareAddr) bool {
 }
 
 // isBroadcastIPv4 checks if an IPv4 address is a broadcast address for the given subnet.
-func isBroadcastIPv4(ip net.IP, subnet *net.IPNet) bool {
-	if ip == nil || subnet == nil {
+func isBroadcastIPv4(ip net.IP, snet *net.IPNet) bool {
+	if ip == nil || snet == nil {
 		return false
 	}
 
@@ -163,13 +179,12 @@ func isBroadcastIPv4(ip net.IP, subnet *net.IPNet) bool {
 		return false
 	}
 
-	mask := subnet.Mask
+	mask := snet.Mask
 	if len(mask) != net.IPv4len {
 		return false
 	}
 
-	// Normalize subnet.IP to the actual network address by zeroing host bits.
-	network := subnet.IP.Mask(mask).To4()
+	network := snet.IP.Mask(mask).To4()
 	if network == nil {
 		return false
 	}
@@ -191,6 +206,15 @@ func isBroadcastIPv4(ip net.IP, subnet *net.IPNet) bool {
 		broadcast[i] = network[i] | ^mask[i]
 	}
 	return ip4.Equal(broadcast[:])
+}
+
+func isBroadcastIPv4InAnySubnet(ip net.IP, subnets []*net.IPNet) bool {
+	for _, s := range subnets {
+		if isBroadcastIPv4(ip, s) {
+			return true
+		}
+	}
+	return false
 }
 
 // isMulticastIPv4 checks if an IPv4 address is in the multicast range (224.0.0.0/4).

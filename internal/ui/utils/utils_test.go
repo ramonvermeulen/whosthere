@@ -5,29 +5,21 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestColorToHexTag(t *testing.T) {
 	color := tcell.NewRGBColor(255, 128, 0)
 	tag := ColorToHexTag(color)
 	expected := "#ff8000"
-	if tag != expected {
-		t.Errorf("expected %s, got %s", expected, tag)
-	}
+	assert.Equal(t, expected, tag)
 }
 
 func TestSortedKeys(t *testing.T) {
 	m := map[string]int{"b": 2, "a": 1, "c": 3}
 	keys := SortedKeys(m)
 	expected := []string{"a", "b", "c"}
-	if len(keys) != len(expected) {
-		t.Errorf("expected %v, got %v", expected, keys)
-	}
-	for i, k := range keys {
-		if k != expected[i] {
-			t.Errorf("expected %v, got %v", expected, keys)
-		}
-	}
+	assert.Equal(t, expected, keys)
 }
 
 func TestFmtDuration(t *testing.T) {
@@ -41,9 +33,7 @@ func TestFmtDuration(t *testing.T) {
 	}
 	for _, test := range tests {
 		result := FmtDuration(test.duration)
-		if result != test.expected {
-			t.Errorf("FmtDuration(%v) = %s, expected %s", test.duration, result, test.expected)
-		}
+		assert.Equal(t, test.expected, result, "FmtDuration(%v)", test.duration)
 	}
 }
 
@@ -60,8 +50,6 @@ func TestTruncate(t *testing.T) {
 	}
 	for _, test := range tests {
 		result := Truncate(test.input, test.maxLen)
-		if result != test.expected {
-			t.Errorf("Truncate(%s, %d) = %s, expected %s", test.input, test.maxLen, result, test.expected)
-		}
+		assert.Equal(t, test.expected, result, "Truncate(%s, %d)", test.input, test.maxLen)
 	}
 }

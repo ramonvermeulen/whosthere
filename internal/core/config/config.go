@@ -25,9 +25,11 @@ var DefaultTCPPorts = []int{21, 22, 23, 25, 80, 110, 135, 139, 143, 389, 443, 44
 
 // Config captures all configurable parameters for the application.
 type Config struct {
-	NetworkInterface string        `yaml:"network_interface"`
-	AllInterfaces    bool          `yaml:"all_interfaces"`
-	ScanInterval     time.Duration `yaml:"scan_interval"`
+	NetworkInterface  string        `yaml:"network_interface"`
+	AllInterfaces     bool          `yaml:"all_interfaces"`
+	TargetSubnets     []string      `yaml:"target_subnets"`
+	ScanLargeSubnets  bool          `yaml:"scan_large_subnets"`
+	ScanInterval      time.Duration `yaml:"scan_interval"`
 	// ScanDuration is deprecated.
 	//
 	// Deprecated: use ScanTimeout instead. Field will be removed in the next major release.
@@ -93,8 +95,9 @@ type ThemeConfig struct {
 // These defaults are used if no config is provided by the user.
 func DefaultConfig() *Config {
 	return &Config{
-		AllInterfaces: false,
-		ScanInterval:  discovery.DefaultScanInterval,
+		AllInterfaces:    false,
+		ScanLargeSubnets: false,
+		ScanInterval:     discovery.DefaultScanInterval,
 		ScanDuration:  discovery.DefaultScanTimeout,
 		ScanTimeout:   discovery.DefaultScanTimeout,
 		Scanners: ScannerConfig{
@@ -183,6 +186,51 @@ func (c *Config) normalizeBasics() error {
 		}
 	}
 
+	if err := c.normalizeTargetSubnets(); err != nil {
+		errs = append(errs, err.Error())
+	}
+
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+func (c *Config) normalizeTargetSubnets() error {
+	if len(c.TargetSubnets) == 0 {
+		c.TargetSubnets = []string{}
+		return nil
+	}
+
+	var errs []string
+	seen := make(map[string]bool, len(c.TargetSubnets))
+	normalized := make([]string, 0, len(c.TargetSubnets))
+	for _, raw := range c.TargetSubnets {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+
+		ip, ipNet, err := net.ParseCIDR(raw)
+		if err != nil {
+			errs = append(errs, "target_subnets contains invalid CIDR: "+raw)
+			continue
+		}
+		if ip.To4() == nil {
+			errs = append(errs, "target_subnets only supports IPv4 CIDRs: "+raw)
+			continue
+		}
+
+		ipNet.IP = ip.Mask(ipNet.Mask)
+		cidr := ipNet.String()
+		if seen[cidr] {
+			continue
+		}
+		seen[cidr] = true
+		normalized = append(normalized, cidr)
+	}
+
+	c.TargetSubnets = normalized
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "; "))
 	}

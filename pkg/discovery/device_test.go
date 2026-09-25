@@ -4,6 +4,8 @@ import (
 	"net"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeviceMerge(t *testing.T) {
@@ -23,32 +25,17 @@ func TestDeviceMerge(t *testing.T) {
 
 	base.Merge(other)
 
-	if base.MAC() != "aa:bb" {
-		t.Fatalf("expected MAC merged, got %s", base.MAC())
-	}
-	if base.DisplayName() != "host" {
-		t.Fatalf("DisplayName should remain original when non-empty, got %s", base.DisplayName())
-	}
-	if base.Manufacturer() != "" {
-		t.Fatalf("Manufacturer merge failed, got %s", base.Manufacturer())
-	}
+	require.Equal(t, "aa:bb", base.MAC(), "expected MAC merged")
+	require.Equal(t, "host", base.DisplayName(), "DisplayName should remain original when non-empty")
+	require.Empty(t, base.Manufacturer(), "Manufacturer merge failed")
 	sources := base.Sources()
-	if _, ok := sources["a"]; !ok {
-		t.Fatalf("source a missing")
-	}
-	if _, ok := sources["b"]; !ok {
-		t.Fatalf("source b missing")
-	}
+	require.Contains(t, sources, "a", "source a missing")
+	require.Contains(t, sources, "b", "source b missing")
 	extra := base.ExtraData()
-	if extra["k1"] != "v1" || extra["k2"] != "v2" {
-		t.Fatalf("extra data merge failed: %+v", extra)
-	}
-	if !base.FirstSeen().Equal(time.Unix(50, 0)) {
-		t.Fatalf("FirstSeen should be earliest, got %v", base.FirstSeen())
-	}
-	if !base.LastSeen().Equal(time.Unix(300, 0)) {
-		t.Fatalf("LastSeen should be latest, got %v", base.LastSeen())
-	}
+	require.Equal(t, "v1", extra["k1"], "extra data k1")
+	require.Equal(t, "v2", extra["k2"], "extra data k2")
+	require.True(t, base.FirstSeen().Equal(time.Unix(50, 0)), "FirstSeen should be earliest, got %v", base.FirstSeen())
+	require.True(t, base.LastSeen().Equal(time.Unix(300, 0)), "LastSeen should be latest, got %v", base.LastSeen())
 }
 
 func TestDeviceMergeNilOther(t *testing.T) {

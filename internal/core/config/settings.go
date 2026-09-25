@@ -120,6 +120,42 @@ func GlobalSettings() []GlobalSetting {
 			},
 		},
 		{
+			YAMLKey:  "target_subnets",
+			FlagName: "target-subnets",
+			Usage:    "Comma-separated IPv4 CIDR subnets to sweep instead of the selected interface subnet (e.g. --target-subnets=10.0.0.0/24,10.0.1.0/24)",
+			Type:     FlagTypeString,
+			Sources:  all,
+			Set: func(c *Config, v string) error {
+				c.TargetSubnets = parseStringSlice(v)
+				return nil
+			},
+			Get: func(c *Config) any { return c.TargetSubnets },
+			Doc: YAMLDoc{
+				Comment:      "Optional IPv4 CIDR subnets to sweep. When set, the sweeper skips the auto-detected interface subnet unless it is listed here.",
+				ExampleValue: "[\"10.0.0.0/24\", \"10.0.1.0/24\"]",
+				CommentedOut: true,
+			},
+		},
+		{
+			YAMLKey: "scan_large_subnets",
+			Type:    FlagTypeBool,
+			Sources: yamlEnvOnly,
+			Set: func(c *Config, v string) error {
+				b, err := parseBool(v)
+				if err != nil {
+					return err
+				}
+				c.ScanLargeSubnets = b
+				return nil
+			},
+			Get: func(c *Config) any { return c.ScanLargeSubnets },
+			Doc: YAMLDoc{
+				Comment:      "WARNING: scanning subnets larger than /16 sends packets to 65535+ IPs per subnet. Enable only if you understand the traffic implications. Consider using smaller /24 subnets for targeted scanning.",
+				ExampleValue: "false",
+				CommentedOut: true,
+			},
+		},
+		{
 			YAMLKey:  "scan_interval",
 			FlagName: "interval",
 			Short:    "n",

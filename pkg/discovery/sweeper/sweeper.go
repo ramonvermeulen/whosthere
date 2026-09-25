@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 )
 
 const (
@@ -36,10 +37,12 @@ var _ discovery.Sweeper = (*Sweeper)(nil)
 //
 // Runs continuously at the configured interval when started.
 type Sweeper struct {
-	iface    *discovery.InterfaceInfo
-	interval time.Duration
-	timeout  time.Duration
-	logger   discovery.Logger
+	iface             *discovery.InterfaceInfo
+	targetSubnets     []*net.IPNet
+	interval          time.Duration
+	timeout           time.Duration
+	logger            discovery.Logger
+	allowLargeSubnets bool
 }
 
 // New creates a Sweeper with the specified options.
@@ -97,38 +100,54 @@ func New(opts ...Option) (*Sweeper, error) {
 //	go sweeper.Start(ctx)
 //	// Sweeper runs until cancel() is called
 func (s *Sweeper) Start(ctx context.Context) {
-	subnet := s.iface.IPv4Net
+	subnets := s.sweepSubnets()
 	localIP := *s.iface.IPv4Addr
 
 	if s.interval <= 0 {
-		s.runSweep(ctx, subnet, localIP)
+		s.runSweeps(ctx, subnets, localIP)
 		return
 	}
 
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
-	s.runSweep(ctx, subnet, localIP)
+	s.runSweeps(ctx, subnets, localIP)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.runSweep(ctx, subnet, localIP)
+			s.runSweeps(ctx, subnets, localIP)
 		}
 	}
 }
 
-func (s *Sweeper) runSweep(ctx context.Context, subnet *net.IPNet, localIP net.IP) {
-	ips := s.generateSubnetIPs(subnet, localIP)
+func (s *Sweeper) sweepSubnets() []*net.IPNet {
+	if len(s.targetSubnets) > 0 {
+		return subnet.CloneIPNets(s.targetSubnets)
+	}
+	return []*net.IPNet{subnet.CloneIPNet(s.iface.IPv4Net)}
+}
+
+func (s *Sweeper) runSweeps(ctx context.Context, subnets []*net.IPNet, localIP net.IP) {
+	for _, snet := range subnets {
+		if ctx.Err() != nil {
+			return
+		}
+		s.runSweep(ctx, snet, localIP)
+	}
+}
+
+func (s *Sweeper) runSweep(ctx context.Context, snet *net.IPNet, localIP net.IP) {
+	ips := s.generateSubnetIPs(snet, localIP)
 	if len(ips) == 0 {
 		return
 	}
 
-	s.logger.Log(ctx, slog.LevelDebug, "Triggering ARP requests for subnet", "subnet", subnet.Mask.String())
+	s.logger.Log(ctx, slog.LevelDebug, "Triggering ARP requests for subnet", "subnet", snet.Mask.String())
 	s.triggerSubnetSweep(ctx, ips)
-	s.logger.Log(ctx, slog.LevelDebug, "ARP triggering completed", "subnet", subnet.String())
+	s.logger.Log(ctx, slog.LevelDebug, "ARP triggering completed", "subnet", snet.String())
 }
 
 func (s *Sweeper) triggerSubnetSweep(ctx context.Context, ips []net.IP) {
@@ -188,29 +207,27 @@ func sendARPTarget(ip net.IP) {
 // It includes the network address and broadcast address.
 // It limits the scan to a /16 equivalent if the subnet is larger.
 // In that case it will only scan the first 65534 IPs of that subnet.
-func (s *Sweeper) generateSubnetIPs(subnet *net.IPNet, skipIP net.IP) []net.IP {
-	// If users request it, we could potentially add an option to override the /16 limit via configuration?
+func (s *Sweeper) generateSubnetIPs(snet *net.IPNet, skipIP net.IP) []net.IP {
 	var ips []net.IP
-	network := subnet.IP.To4()
+	network := snet.IP.To4()
 	if network == nil {
 		return ips
 	}
 
-	ones, _ := subnet.Mask.Size()
-	if ones < 16 {
-		s.logger.Log(context.Background(), slog.LevelWarn, "large subnet detected, limiting ARP scan to /16 equivalent", "prefix", ones, "subnet", subnet.String())
+	ones, _ := snet.Mask.Size()
+	if ones < 16 && !s.allowLargeSubnets {
+		s.logger.Log(context.Background(), slog.LevelWarn, "large subnet detected, limiting ARP scan to /16 equivalent. Set scan_large_subnets=true to override", "prefix", ones, "subnet", snet.String())
 	}
 
-	networkIP := subnet.IP.Mask(subnet.Mask)
+	networkIP := snet.IP.Mask(snet.Mask)
 	broadcastIP := make(net.IP, len(networkIP))
 	copy(broadcastIP, networkIP)
 
-	effectiveMask := subnet.Mask
-	if ones < 16 {
+	effectiveMask := snet.Mask
+	if ones < 16 && !s.allowLargeSubnets {
 		effectiveMask = net.CIDRMask(16, 32)
 	}
 	for i := range network {
-		// sets broadcast IP to a /16 equivalent if subnet is larger
 		broadcastIP[i] |= ^effectiveMask[i]
 	}
 

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -12,9 +13,7 @@ func TestNewScanner(t *testing.T) {
 	iface := &discovery.InterfaceInfo{}
 	scanner, err := New(iface)
 	require.NoError(t, err)
-	if scanner.iface != iface {
-		t.Errorf("expected iface to be set")
-	}
+	assert.Equal(t, iface, scanner.iface, "expected iface to be set")
 }
 
 func TestNewScanner_WithLogger(t *testing.T) {
@@ -27,9 +26,7 @@ func TestNewScanner_WithLogger(t *testing.T) {
 func TestName(t *testing.T) {
 	scanner, err := New(nil)
 	require.NoError(t, err)
-	if scanner.Name() != "ssdp" {
-		t.Errorf("expected name ssdp, got %s", scanner.Name())
-	}
+	assert.Equal(t, "ssdp", scanner.Name(), "expected name ssdp")
 }
 
 func TestParseHeaders_ExtractsLocationAndServer(t *testing.T) {
@@ -52,7 +49,7 @@ func TestHandlePacket_UsesSrcIP(t *testing.T) {
 	src := &net.UDPAddr{IP: net.IPv4(10, 0, 0, 2).To4(), Port: 1900}
 	payload := []byte("HTTP/1.1 200 OK\r\nServer: unit-test\r\n\r\n")
 
-	handlePacket(out, iface, src, payload)
+	handlePacket(out, iface, src, payload, nil)
 
 	require.Len(t, out, 1)
 	d := <-out
@@ -67,7 +64,7 @@ func TestHandlePacket_UsesLocationWhenSrcIPMissing(t *testing.T) {
 	src := &net.UDPAddr{IP: nil, Port: 1900}
 	payload := []byte("HTTP/1.1 200 OK\r\nLocation: http://10.0.0.3:80/device.xml\r\nServer: unit-test\r\n\r\n")
 
-	handlePacket(out, iface, src, payload)
+	handlePacket(out, iface, src, payload, nil)
 
 	require.Len(t, out, 1)
 	d := <-out
@@ -76,12 +73,34 @@ func TestHandlePacket_UsesLocationWhenSrcIPMissing(t *testing.T) {
 	require.Equal(t, "en1", d.InterfaceName())
 }
 
+func TestHandlePacket_FiltersByTargetSubnets(t *testing.T) {
+	iface := &discovery.InterfaceInfo{Interface: &net.Interface{Name: "en0"}}
+	_, subnet, err := net.ParseCIDR("10.0.1.0/24")
+	require.NoError(t, err)
+
+	t.Run("accepts IP inside target subnet", func(t *testing.T) {
+		out := make(chan *discovery.Device, 1)
+		src := &net.UDPAddr{IP: net.IPv4(10, 0, 1, 5).To4(), Port: 1900}
+		payload := []byte("HTTP/1.1 200 OK\r\nServer: test\r\n\r\n")
+		handlePacket(out, iface, src, payload, []*net.IPNet{subnet})
+		require.Len(t, out, 1)
+	})
+
+	t.Run("rejects IP outside target subnet", func(t *testing.T) {
+		out := make(chan *discovery.Device, 1)
+		src := &net.UDPAddr{IP: net.IPv4(10, 0, 2, 5).To4(), Port: 1900}
+		payload := []byte("HTTP/1.1 200 OK\r\nServer: test\r\n\r\n")
+		handlePacket(out, iface, src, payload, []*net.IPNet{subnet})
+		require.Len(t, out, 0)
+	})
+}
+
 func TestHandlePacket_DoesNotEmitWithoutResolvableIP(t *testing.T) {
 	out := make(chan *discovery.Device, 1)
 	src := &net.UDPAddr{IP: nil, Port: 1900}
 	payload := []byte("HTTP/1.1 200 OK\r\nServer: unit-test\r\n\r\n")
 
-	handlePacket(out, nil, src, payload)
+	handlePacket(out, nil, src, payload, nil)
 
 	require.Len(t, out, 0)
 }

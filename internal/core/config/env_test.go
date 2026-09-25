@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func SnapshotEnv() map[string]string {
@@ -37,25 +39,13 @@ func TestApplyEnvSetsNestedValues(t *testing.T) {
 	_ = os.Setenv("WHOSTHERE__THEME__NAME", "custom")
 
 	cfg := DefaultConfig()
-	if err := ApplyEnv(cfg); err != nil {
-		t.Fatalf("ApplyEnv: %v", err)
-	}
+	require.NoError(t, ApplyEnv(cfg), "ApplyEnv")
 
-	if cfg.Sweeper.Enabled {
-		t.Fatalf("expected sweeper disabled")
-	}
-	if cfg.Scanners.MDNS.Enabled {
-		t.Fatalf("expected mdns disabled")
-	}
-	if cfg.ScanTimeout != 7*time.Second {
-		t.Fatalf("expected scan_timeout 7s, got %v", cfg.ScanTimeout)
-	}
-	if len(cfg.PortScanner.TCP) != 2 || cfg.PortScanner.TCP[0] != 80 || cfg.PortScanner.TCP[1] != 443 {
-		t.Fatalf("expected tcp ports [80 443], got %v", cfg.PortScanner.TCP)
-	}
-	if cfg.Theme.Name != "custom" {
-		t.Fatalf("expected theme name custom, got %q", cfg.Theme.Name)
-	}
+	require.False(t, cfg.Sweeper.Enabled, "expected sweeper disabled")
+	require.False(t, cfg.Scanners.MDNS.Enabled, "expected mdns disabled")
+	require.Equal(t, 7*time.Second, cfg.ScanTimeout, "expected scan_timeout 7s")
+	require.Equal(t, []int{80, 443}, cfg.PortScanner.TCP, "expected tcp ports [80 443]")
+	require.Equal(t, "custom", cfg.Theme.Name, "expected theme name custom")
 }
 
 func TestApplyEnvUnknownKeysAreIgnored(t *testing.T) {
@@ -66,7 +56,5 @@ func TestApplyEnvUnknownKeysAreIgnored(t *testing.T) {
 	_ = os.Setenv("WHOSTHERE__DOES_NOT_EXIST", "wat")
 
 	cfg := DefaultConfig()
-	if err := ApplyEnv(cfg); err != nil {
-		t.Fatalf("ApplyEnv: %v", err)
-	}
+	require.NoError(t, ApplyEnv(cfg), "ApplyEnv")
 }

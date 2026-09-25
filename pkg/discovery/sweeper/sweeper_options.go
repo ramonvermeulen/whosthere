@@ -2,9 +2,11 @@ package sweeper
 
 import (
 	"errors"
+	"net"
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 )
 
 // Option configures a Sweeper during construction.
@@ -51,6 +53,22 @@ func WithSweeperTimeout(timeout time.Duration) Option {
 	}
 }
 
+// WithTargetSubnets sets the IPv4 CIDR subnets to sweep.
+// When at least one target subnet is provided, the sweeper does not automatically
+// include the selected interface's subnet. Add it explicitly if desired.
+func WithTargetSubnets(subnets []*net.IPNet) Option {
+	return func(s *Sweeper) error {
+		cloned := subnet.CloneIPNets(subnets)
+		for _, s := range cloned {
+			if s == nil || s.IP.To4() == nil {
+				return errors.New("target subnets must be IPv4 CIDRs")
+			}
+		}
+		s.targetSubnets = cloned
+		return nil
+	}
+}
+
 // WithSweeperLogger sets a custom logger for the sweeper.
 func WithSweeperLogger(logger discovery.Logger) Option {
 	return func(s *Sweeper) error {
@@ -58,6 +76,16 @@ func WithSweeperLogger(logger discovery.Logger) Option {
 			return errors.New("logger cannot be nil")
 		}
 		s.logger = logger
+		return nil
+	}
+}
+
+// WithAllowLargeSubnets disables the /16 sweep limit for large subnets.
+// When false (default), subnets larger than /16 are capped to a /16 equivalent
+// (65534 IPs). When true, the full subnet is scanned regardless of size.
+func WithAllowLargeSubnets(allow bool) Option {
+	return func(s *Sweeper) error {
+		s.allowLargeSubnets = allow
 		return nil
 	}
 }

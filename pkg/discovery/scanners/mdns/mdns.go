@@ -11,6 +11,7 @@ import (
 
 	hashimdns "github.com/hashicorp/mdns"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 )
 
 const (
@@ -22,12 +23,10 @@ var _ discovery.Scanner = (*Scanner)(nil)
 // Scanner implements the discovery.Scanner interface using hashicorp/mdns
 // Only a minimal, idiomatic implementation is provided for maintainability.
 type Scanner struct {
-	iface  *discovery.InterfaceInfo
-	logger discovery.Logger
-	// queryFunc allows injection of a mock mDNS query function for testing.
-	// This is only settable via a test-only Option and should not be changed in production code.
-	// It exists solely to enable safe, race-free unit testing without global state.
-	queryFunc func(params *hashimdns.QueryParam) error
+	iface         *discovery.InterfaceInfo
+	logger        discovery.Logger
+	targetSubnets []*net.IPNet
+	queryFunc     func(params *hashimdns.QueryParam) error
 }
 
 // New creates an mDNS scanner for the specified network interface.
@@ -129,13 +128,17 @@ func (s *Scanner) acceptsIPv4(ip net.IP) bool {
 		return false
 	}
 
-	if s.iface == nil || s.iface.IPv4Net == nil {
-		return true
-	}
-
 	ipv4 := ip.To4()
 	if ipv4 == nil {
 		return false
+	}
+
+	if len(s.targetSubnets) > 0 {
+		return subnet.IPInAnySubnet(ipv4, s.targetSubnets)
+	}
+
+	if s.iface == nil || s.iface.IPv4Net == nil {
+		return true
 	}
 
 	return s.iface.IPv4Net.Contains(ipv4)

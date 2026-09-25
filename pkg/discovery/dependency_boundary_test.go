@@ -10,13 +10,13 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestDiscoveryHasNoRepoInternalDependencies(t *testing.T) {
 	modulePath, err := readModulePath()
-	if err != nil {
-		t.Fatalf("read module path: %v", err)
-	}
+	require.NoError(t, err, "read module path")
 
 	allowedPrefix := modulePath + "/pkg/discovery"
 	repoPrefix := modulePath + "/"
@@ -64,13 +64,9 @@ func TestDiscoveryHasNoRepoInternalDependencies(t *testing.T) {
 
 		return nil
 	})
-	if walkErr != nil {
-		t.Fatalf("walk pkg: %v", walkErr)
-	}
+	require.NoError(t, walkErr, "walk pkg")
 
-	if len(violations) > 0 {
-		t.Fatalf("discovery must not depend on repo packages outside %q (GOOS=%s):\n%s", allowedPrefix, runtime.GOOS, strings.Join(violations, "\n"))
-	}
+	require.Emptyf(t, violations, "discovery must not depend on repo packages outside %q (GOOS=%s)", allowedPrefix, runtime.GOOS)
 }
 
 func readModulePath() (string, error) {

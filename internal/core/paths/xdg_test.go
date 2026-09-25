@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConfigDir(t *testing.T) {
@@ -12,20 +14,14 @@ func TestConfigDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv(xdgConfigDirEnv, tmpDir)
 	dir, err := ConfigDir()
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	assert.NoError(t, err)
 	expected := filepath.Join(tmpDir, appName)
-	if dir != expected {
-		t.Errorf("expected %s, got %s", expected, dir)
-	}
+	assert.Equal(t, expected, dir)
 
 	// Test without XDG_CONFIG_HOME
 	t.Setenv(xdgConfigDirEnv, "")
 	dir, err = ConfigDir()
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	assert.NoError(t, err)
 
 	home, _ := os.UserHomeDir()
 	expected = filepath.Join(home, defaultConfigDir, appName)
@@ -34,9 +30,7 @@ func TestConfigDir(t *testing.T) {
 		expected = filepath.Join(dir, appName)
 	}
 
-	if dir != expected {
-		t.Errorf("expected %s, got %s", expected, dir)
-	}
+	assert.Equal(t, expected, dir)
 }
 
 func TestStateDir(t *testing.T) {
@@ -44,13 +38,9 @@ func TestStateDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv(xdgStateDirEnv, tmpDir)
 	dir, err := StateDir()
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	assert.NoError(t, err)
 	expected := filepath.Join(tmpDir, appName)
-	if dir != expected {
-		t.Errorf("expected %s, got %s", expected, dir)
-	}
+	assert.Equal(t, expected, dir)
 
 	// Test without XDG_STATE_HOME - use temp HOME to avoid writing to real home
 	t.Setenv(xdgStateDirEnv, "")
@@ -66,11 +56,7 @@ func TestStateDir(t *testing.T) {
 	}
 
 	dir, err = StateDir()
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	assert.NoError(t, err)
 
-	if dir != expected {
-		t.Errorf("expected %s, got %s", expected, dir)
-	}
+	assert.Equal(t, expected, dir)
 }

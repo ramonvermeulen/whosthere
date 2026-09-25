@@ -1,11 +1,15 @@
 package arp
 
 import (
+	"context"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/testkit"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsMulticastMAC(t *testing.T) {
@@ -22,9 +26,7 @@ func TestIsMulticastMAC(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isMulticastMAC(tt.mac); got != tt.want {
-				t.Errorf("isMulticastMAC(%v) = %v, want %v", tt.mac, got, tt.want)
-			}
+			assert.Equal(t, tt.want, isMulticastMAC(tt.mac), "isMulticastMAC(%v)", tt.mac)
 		})
 	}
 }
@@ -43,9 +45,7 @@ func TestIsBroadcastMAC(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isBroadcastMAC(tt.mac); got != tt.want {
-				t.Errorf("isBroadcastMAC(%v) = %v, want %v", tt.mac, got, tt.want)
-			}
+			assert.Equal(t, tt.want, isBroadcastMAC(tt.mac), "isBroadcastMAC(%v)", tt.mac)
 		})
 	}
 }
@@ -69,14 +69,48 @@ func TestIsBroadcastIPv4(t *testing.T) {
 			ip := net.ParseIP(tt.ip)
 			_, subnet, _ := net.ParseCIDR(tt.cidr)
 
-			if got := isBroadcastIPv4(ip, subnet); got != tt.want {
-				t.Errorf("isBroadcastIPv4(%s, %s) = %v, want %v",
-					tt.ip, tt.cidr, got, tt.want)
-			}
+			assert.Equal(t, tt.want, isBroadcastIPv4(ip, subnet), "isBroadcastIPv4(%s, %s)", tt.ip, tt.cidr)
 		})
 	}
 }
 
+func TestEmitARPEntries_FiltersOutsideTargetSubnets(t *testing.T) {
+	iface := testkit.MustInterfaceInfo(t)
+	_, targetSubnet, err := net.ParseCIDR("10.0.1.0/24")
+	require.NoError(t, err, "parse target subnet")
+
+	s, err := New(iface, WithTargetSubnets([]*net.IPNet{targetSubnet}))
+	require.NoError(t, err, "new scanner")
+
+	out := make(chan *discovery.Device, 2)
+	entries := []Entry{
+		{
+			IP:            net.ParseIP("10.0.1.42"),
+			MAC:           net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+			InterfaceName: iface.Interface.Name,
+		},
+		{
+			IP:            net.ParseIP("10.0.1.255"),
+			MAC:           net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x66},
+			InterfaceName: iface.Interface.Name,
+		},
+		{
+			IP:            net.ParseIP("192.168.1.42"),
+			MAC:           net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x77},
+			InterfaceName: iface.Interface.Name,
+		},
+	}
+
+	require.NoError(t, s.emitARPEntries(context.Background(), out, entries), "emit entries")
+	close(out)
+
+	var got []string
+	for dev := range out {
+		got = append(got, dev.IP().String())
+	}
+
+	require.Equal(t, []string{"10.0.1.42"}, got, "filtered ARP entries")
+}
 func TestIsMulticastIPv4(t *testing.T) {
 	tests := []struct {
 		name string
@@ -94,35 +128,21 @@ func TestIsMulticastIPv4(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ip := net.ParseIP(tt.ip)
 
-			if got := isMulticastIPv4(ip); got != tt.want {
-				t.Errorf("isMulticastIPv4(%s) = %v, want %v",
-					tt.ip, got, tt.want)
-			}
+			assert.Equal(t, tt.want, isMulticastIPv4(ip), "isMulticastIPv4(%s)", tt.ip)
 		})
 	}
 }
 
 func TestWithPollInterval_RejectsNonPositive(t *testing.T) {
 	s, err := New(testkit.MustInterfaceInfo(t), WithPollInterval(0))
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	if s != nil {
-		t.Fatal("expected nil scanner on invalid option")
-	}
+	require.Error(t, err, "expected error for zero poll interval")
+	require.Nil(t, s, "expected nil scanner on invalid option")
 }
 
 func TestWithPollInterval_SetsInterval(t *testing.T) {
 	interval := 2 * time.Millisecond
 	s, err := New(testkit.MustInterfaceInfo(t), WithPollInterval(interval))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if s == nil {
-		t.Fatal("expected scanner")
-		return
-	}
-	if s.pollInterval != interval {
-		t.Fatalf("expected pollInterval %s, got %s", interval, s.pollInterval)
-	}
+	require.NoError(t, err, "unexpected error")
+	require.NotNil(t, s, "expected scanner")
+	require.Equal(t, interval, s.pollInterval, "pollInterval")
 }
