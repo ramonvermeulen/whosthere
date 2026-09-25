@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 )
 
 // Option configures a Sweeper during construction.
@@ -57,9 +58,9 @@ func WithSweeperTimeout(timeout time.Duration) Option {
 // include the selected interface's subnet. Add it explicitly if desired.
 func WithTargetSubnets(subnets []*net.IPNet) Option {
 	return func(s *Sweeper) error {
-		cloned := cloneIPNets(subnets)
-		for _, subnet := range cloned {
-			if subnet == nil || subnet.IP.To4() == nil {
+		cloned := subnet.CloneIPNets(subnets)
+		for _, s := range cloned {
+			if s == nil || s.IP.To4() == nil {
 				return errors.New("target subnets must be IPv4 CIDRs")
 			}
 		}
@@ -86,36 +87,5 @@ func WithAllowLargeSubnets(allow bool) Option {
 	return func(s *Sweeper) error {
 		s.allowLargeSubnets = allow
 		return nil
-	}
-}
-
-func cloneIPNets(subnets []*net.IPNet) []*net.IPNet {
-	if len(subnets) == 0 {
-		return []*net.IPNet{}
-	}
-
-	cloned := make([]*net.IPNet, 0, len(subnets))
-	for _, subnet := range subnets {
-		if subnet == nil {
-			cloned = append(cloned, nil)
-			continue
-		}
-		cloned = append(cloned, cloneIPNet(subnet))
-	}
-	return cloned
-}
-
-func cloneIPNet(subnet *net.IPNet) *net.IPNet {
-	if subnet == nil {
-		return nil
-	}
-
-	ip := make(net.IP, len(subnet.IP))
-	copy(ip, subnet.IP)
-	mask := make(net.IPMask, len(subnet.Mask))
-	copy(mask, subnet.Mask)
-	return &net.IPNet{
-		IP:   ip,
-		Mask: mask,
 	}
 }

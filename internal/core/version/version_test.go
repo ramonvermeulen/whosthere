@@ -2,8 +2,9 @@ package version
 
 import (
 	"bytes"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFprint(t *testing.T) {
@@ -11,19 +12,9 @@ func TestFprint(t *testing.T) {
 	Fprint(&buf)
 	output := buf.String()
 
-	if !strings.Contains(output, "OS:") {
-		t.Errorf("expected OS in output")
-	}
-	if !strings.Contains(output, "Version:") {
-		t.Errorf("expected Version in output")
-	}
-	if !strings.Contains(output, "Commit:") {
-		t.Errorf("expected Commit in output")
-	}
-	if !strings.Contains(output, "Date:") {
-		t.Errorf("expected Date in output")
-	}
-	if !strings.Contains(output, Version) {
-		t.Errorf("expected version value %s", Version)
-	}
+	assert.Contains(t, output, "OS:", "expected OS in output")
+	assert.Contains(t, output, "Version:", "expected Version in output")
+	assert.Contains(t, output, "Commit:", "expected Commit in output")
+	assert.Contains(t, output, "Date:", "expected Date in output")
+	assert.Contains(t, output, Version, "expected version value")
 }

@@ -3,6 +3,9 @@ package config
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseBool(t *testing.T) {
@@ -32,12 +35,11 @@ func TestParseBool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			got, err := parseBool(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseBool(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
-				return
-			}
-			if got != tt.expected {
-				t.Errorf("parseBool(%q) = %v, want %v", tt.input, got, tt.expected)
+			if tt.wantErr {
+				require.Error(t, err, "parseBool(%q)", tt.input)
+			} else {
+				require.NoError(t, err, "parseBool(%q)", tt.input)
+				assert.Equal(t, tt.expected, got, "parseBool(%q)", tt.input)
 			}
 		})
 	}
@@ -64,12 +66,11 @@ func TestParseDuration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			got, err := parseDuration(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseDuration(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
-				return
-			}
-			if got != tt.expected {
-				t.Errorf("parseDuration(%q) = %v, want %v", tt.input, got, tt.expected)
+			if tt.wantErr {
+				require.Error(t, err, "parseDuration(%q)", tt.input)
+			} else {
+				require.NoError(t, err, "parseDuration(%q)", tt.input)
+				assert.Equal(t, tt.expected, got, "parseDuration(%q)", tt.input)
 			}
 		})
 	}
@@ -91,12 +92,11 @@ func TestParseInt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			got, err := parseInt(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseInt(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
-				return
-			}
-			if got != tt.expected {
-				t.Errorf("parseInt(%q) = %v, want %v", tt.input, got, tt.expected)
+			if tt.wantErr {
+				require.Error(t, err, "parseInt(%q)", tt.input)
+			} else {
+				require.NoError(t, err, "parseInt(%q)", tt.input)
+				assert.Equal(t, tt.expected, got, "parseInt(%q)", tt.input)
 			}
 		})
 	}
@@ -121,25 +121,14 @@ func TestParseIntSlice(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			got, err := parseIntSlice(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseIntSlice(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && !equalIntSlices(got, tt.expected) {
-				t.Errorf("parseIntSlice(%q) = %v, want %v", tt.input, got, tt.expected)
+			if tt.wantErr {
+				require.Error(t, err, "parseIntSlice(%q)", tt.input)
+			} else {
+				require.NoError(t, err, "parseIntSlice(%q)", tt.input)
+				assert.Equal(t, tt.expected, got, "parseIntSlice(%q)", tt.input)
 			}
 		})
 	}
 }
 
-func equalIntSlices(a, b []int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
+

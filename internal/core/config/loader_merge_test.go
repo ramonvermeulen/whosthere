@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoadMergedPrecedenceFlagsOverrideEnv(t *testing.T) {
@@ -26,11 +28,6 @@ func TestLoadMergedPrecedenceFlagsOverrideEnv(t *testing.T) {
 
 	flags := &Flags{Overrides: map[string]string{"scan_timeout": "9s"}}
 	cfg, err := LoadMerged(flags)
-	if err != nil {
-		t.Fatalf("LoadMerged: %v", err)
-	}
-
-	if cfg.ScanTimeout != 9*time.Second {
-		t.Fatalf("expected scan_timeout 9s, got %v", cfg.ScanTimeout)
-	}
+	require.NoError(t, err, "LoadMerged")
+	require.Equal(t, 9*time.Second, cfg.ScanTimeout, "expected scan_timeout 9s")
 }

@@ -3,11 +3,12 @@ package output
 import (
 	"bytes"
 	"net"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPrintDevices_JSON(t *testing.T) {
@@ -25,21 +26,13 @@ func TestPrintDevices_JSON(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := PrintDevices(&buf, results, FormatJSON)
-	if err != nil {
-		t.Fatalf("PrintDevices failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	output := buf.String()
 
-	if strings.Contains(output, "  ") {
-		t.Error("expected minified JSON, but contains extra spaces")
-	}
-	if !strings.Contains(output, "\n") {
-		t.Error("expected trailing newline")
-	}
-	if !strings.Contains(output, `"count":1`) {
-		t.Error("expected to contain count")
-	}
+	assert.NotContains(t, output, "  ", "expected minified JSON, but contains extra spaces")
+	assert.Contains(t, output, "\n", "expected trailing newline")
+	assert.Contains(t, output, `"count":1`, "expected to contain count")
 }
 
 func TestPrintDevices_JSON_Pretty(t *testing.T) {
@@ -57,16 +50,11 @@ func TestPrintDevices_JSON_Pretty(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := PrintDevices(&buf, results, FormatJSON, WithPretty())
-	if err != nil {
-		t.Fatalf("PrintDevices failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	output := buf.String()
 
-	if !strings.Contains(output, "\n") || !strings.Contains(output, "  ") {
-		t.Error("expected pretty JSON with newlines and indentation")
-	}
-	if !strings.Contains(output, `"count": 1`) {
-		t.Error("expected to contain count with space")
-	}
+	assert.Contains(t, output, "\n", "expected pretty JSON with newlines")
+	assert.Contains(t, output, "  ", "expected pretty JSON with indentation")
+	assert.Contains(t, output, `"count": 1`, "expected to contain count with space")
 }

@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery/oui"
 )
 
@@ -85,7 +86,7 @@ func WithInterface(iface *InterfaceInfo) Option {
 		if iface == nil {
 			return errors.New("interface cannot be nil")
 		}
-		e.Iface = iface
+		e.iface = iface
 		return nil
 	}
 }
@@ -125,37 +126,13 @@ func WithOUIRegistry(registry *oui.Registry) Option {
 // those observations before merging results or emitting discovery events.
 func WithTargetSubnets(subnets []*net.IPNet) Option {
 	return func(e *Engine) error {
-		cloned := cloneIPNets(subnets)
-		for _, subnet := range cloned {
-			if subnet == nil || subnet.IP.To4() == nil {
+		cloned := subnet.CloneIPNets(subnets)
+		for _, s := range cloned {
+			if s == nil || s.IP.To4() == nil {
 				return errors.New("target subnets must be IPv4 CIDRs")
 			}
 		}
 		e.targetSubnets = cloned
 		return nil
 	}
-}
-
-func cloneIPNets(subnets []*net.IPNet) []*net.IPNet {
-	if len(subnets) == 0 {
-		return []*net.IPNet{}
-	}
-
-	cloned := make([]*net.IPNet, 0, len(subnets))
-	for _, subnet := range subnets {
-		if subnet == nil {
-			cloned = append(cloned, nil)
-			continue
-		}
-
-		ip := make(net.IP, len(subnet.IP))
-		copy(ip, subnet.IP)
-		mask := make(net.IPMask, len(subnet.Mask))
-		copy(mask, subnet.Mask)
-		cloned = append(cloned, &net.IPNet{
-			IP:   ip,
-			Mask: mask,
-		})
-	}
-	return cloned
 }

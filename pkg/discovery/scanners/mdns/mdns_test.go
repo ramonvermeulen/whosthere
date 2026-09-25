@@ -169,12 +169,12 @@ func TestScan_FiltersEntriesOutsideSelectedInterfaceSubnet(t *testing.T) {
 		require.Equal(t, "same-subnet.local.", dev.DisplayName())
 		require.Equal(t, "en1", dev.InterfaceName())
 	default:
-		t.Fatal("expected in-subnet mDNS device")
+		require.FailNow(t, "expected in-subnet mDNS device")
 	}
 
 	select {
 	case dev := <-results:
-		t.Fatalf("unexpected extra device discovered: %s", dev.IP())
+		require.FailNow(t, "unexpected extra device discovered: "+dev.IP().String())
 	default:
 	}
 }

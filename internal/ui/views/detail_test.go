@@ -2,12 +2,12 @@ package views
 
 import (
 	"net"
-	"strings"
 	"testing"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDetailViewRenderShowsAliasAndDetectedNameSeparately(t *testing.T) {
@@ -25,15 +25,9 @@ func TestDetailViewRenderShowsAliasAndDetectedNameSeparately(t *testing.T) {
 	view.Render(appState.ReadOnly())
 
 	text := view.info.GetText(true)
-	if !strings.Contains(text, "Name: Living Room TV") {
-		t.Fatalf("detail text missing detected name, got %q", text)
-	}
-	if !strings.Contains(text, "Alias: TV Upstairs") {
-		t.Fatalf("detail text missing alias, got %q", text)
-	}
-	if strings.Contains(text, "Name: TV Upstairs") {
-		t.Fatalf("detail text used alias as name, got %q", text)
-	}
+	require.Contains(t, text, "Name: Living Room TV", "detail text missing detected name")
+	require.Contains(t, text, "Alias: TV Upstairs", "detail text missing alias")
+	require.NotContains(t, text, "Name: TV Upstairs", "detail text used alias as name")
 }
 
 func TestDetailViewRenderDoesNotUseAliasAsNameFallback(t *testing.T) {
@@ -51,13 +45,7 @@ func TestDetailViewRenderDoesNotUseAliasAsNameFallback(t *testing.T) {
 	view.Render(appState.ReadOnly())
 
 	text := view.info.GetText(true)
-	if !strings.Contains(text, "Name: Sony") {
-		t.Fatalf("detail text missing manufacturer fallback name, got %q", text)
-	}
-	if !strings.Contains(text, "Alias: Playstation") {
-		t.Fatalf("detail text missing alias, got %q", text)
-	}
-	if strings.Contains(text, "Name: Playstation") {
-		t.Fatalf("detail text used alias as name fallback, got %q", text)
-	}
+	require.Contains(t, text, "Name: Sony", "detail text missing manufacturer fallback name")
+	require.Contains(t, text, "Alias: Playstation", "detail text missing alias")
+	require.NotContains(t, text, "Name: Playstation", "detail text used alias as name fallback")
 }

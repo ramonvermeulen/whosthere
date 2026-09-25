@@ -3,6 +3,8 @@ package devicemeta
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNormalizeMAC(t *testing.T) {
@@ -39,12 +41,8 @@ func TestNormalizeMAC(t *testing.T) {
 			t.Parallel()
 
 			got, ok := NormalizeMAC(tt.input)
-			if ok != tt.ok {
-				t.Fatalf("NormalizeMAC(%q) ok = %v, want %v", tt.input, ok, tt.ok)
-			}
-			if got != tt.want {
-				t.Fatalf("NormalizeMAC(%q) = %q, want %q", tt.input, got, tt.want)
-			}
+			require.Equal(t, tt.ok, ok, "NormalizeMAC(%q) ok", tt.input)
+			require.Equal(t, tt.want, got, "NormalizeMAC(%q)", tt.input)
 		})
 	}
 }
@@ -53,9 +51,7 @@ func TestBoltStore_SetGetClearAlias(t *testing.T) {
 	t.Parallel()
 
 	store, err := Open(filepath.Join(t.TempDir(), "devices.db"))
-	if err != nil {
-		t.Fatalf("Open() error = %v", err)
-	}
+	require.NoError(t, err, "Open()")
 	t.Cleanup(func() {
 		_ = store.Close()
 	})
@@ -63,39 +59,21 @@ func TestBoltStore_SetGetClearAlias(t *testing.T) {
 	const mac = "AA:BB:CC:DD:EE:FF"
 
 	record, found, err := store.Get(mac)
-	if err != nil {
-		t.Fatalf("Get() error = %v", err)
-	}
-	if found {
-		t.Fatalf("expected alias record to be absent, got %+v", record)
-	}
+	require.NoError(t, err, "Get()")
+	require.False(t, found, "expected alias record to be absent, got %+v", record)
 
-	if err := store.SetAlias(mac, " Living Room Speaker "); err != nil {
-		t.Fatalf("SetAlias() error = %v", err)
-	}
+	require.NoError(t, store.SetAlias(mac, " Living Room Speaker "), "SetAlias()")
 
 	record, found, err = store.Get(mac)
-	if err != nil {
-		t.Fatalf("Get() after SetAlias error = %v", err)
-	}
-	if !found {
-		t.Fatal("expected alias record to exist")
-	}
-	if record.Alias != "Living Room Speaker" {
-		t.Fatalf("record.Alias = %q, want %q", record.Alias, "Living Room Speaker")
-	}
+	require.NoError(t, err, "Get() after SetAlias")
+	require.True(t, found, "expected alias record to exist")
+	require.Equal(t, "Living Room Speaker", record.Alias)
 
-	if err := store.ClearAlias(mac); err != nil {
-		t.Fatalf("ClearAlias() error = %v", err)
-	}
+	require.NoError(t, store.ClearAlias(mac), "ClearAlias()")
 
 	record, found, err = store.Get(mac)
-	if err != nil {
-		t.Fatalf("Get() after ClearAlias error = %v", err)
-	}
-	if found {
-		t.Fatalf("expected alias record to be removed, got %+v", record)
-	}
+	require.NoError(t, err, "Get() after ClearAlias")
+	require.False(t, found, "expected alias record to be removed, got %+v", record)
 }
 
 func TestBoltStore_PersistsAcrossReopen(t *testing.T) {
@@ -104,67 +82,41 @@ func TestBoltStore_PersistsAcrossReopen(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "devices.db")
 
 	store, err := Open(path)
-	if err != nil {
-		t.Fatalf("Open() error = %v", err)
-	}
+	require.NoError(t, err, "Open()")
 
-	if err := store.SetAlias("aa:bb:cc:dd:ee:ff", "Router"); err != nil {
-		t.Fatalf("SetAlias() error = %v", err)
-	}
-	if err := store.Close(); err != nil {
-		t.Fatalf("Close() error = %v", err)
-	}
+	require.NoError(t, store.SetAlias("aa:bb:cc:dd:ee:ff", "Router"), "SetAlias()")
+	require.NoError(t, store.Close(), "Close()")
 
 	reopened, err := Open(path)
-	if err != nil {
-		t.Fatalf("Open() reopen error = %v", err)
-	}
+	require.NoError(t, err, "Open() reopen")
 	t.Cleanup(func() {
 		_ = reopened.Close()
 	})
 
 	record, found, err := reopened.Get("AA-BB-CC-DD-EE-FF")
-	if err != nil {
-		t.Fatalf("Get() after reopen error = %v", err)
-	}
-	if !found {
-		t.Fatal("expected alias record after reopen")
-	}
-	if record.Alias != "Router" {
-		t.Fatalf("record.Alias = %q, want %q", record.Alias, "Router")
-	}
+	require.NoError(t, err, "Get() after reopen")
+	require.True(t, found, "expected alias record after reopen")
+	require.Equal(t, "Router", record.Alias)
 }
 
 func TestBoltStore_ResetAliases(t *testing.T) {
 	t.Parallel()
 
 	store, err := Open(filepath.Join(t.TempDir(), "devices.db"))
-	if err != nil {
-		t.Fatalf("Open() error = %v", err)
-	}
+	require.NoError(t, err, "Open()")
 	t.Cleanup(func() {
 		_ = store.Close()
 	})
 
-	if err := store.SetAlias("aa:bb:cc:dd:ee:ff", "Router"); err != nil {
-		t.Fatalf("SetAlias(first) error = %v", err)
-	}
-	if err := store.SetAlias("aa:bb:cc:dd:ee:11", "Printer"); err != nil {
-		t.Fatalf("SetAlias(second) error = %v", err)
-	}
+	require.NoError(t, store.SetAlias("aa:bb:cc:dd:ee:ff", "Router"), "SetAlias(first)")
+	require.NoError(t, store.SetAlias("aa:bb:cc:dd:ee:11", "Printer"), "SetAlias(second)")
 
-	if err := store.ResetAliases(); err != nil {
-		t.Fatalf("ResetAliases() error = %v", err)
-	}
+	require.NoError(t, store.ResetAliases(), "ResetAliases()")
 
 	tests := []string{"aa:bb:cc:dd:ee:ff", "aa:bb:cc:dd:ee:11"}
 	for _, mac := range tests {
 		record, found, err := store.Get(mac)
-		if err != nil {
-			t.Fatalf("Get(%q) after reset error = %v", mac, err)
-		}
-		if found {
-			t.Fatalf("expected alias for %s to be removed, got %+v", mac, record)
-		}
+		require.NoError(t, err, "Get(%s) after reset", mac)
+		require.False(t, found, "expected alias for %s to be removed, got %+v", mac, record)
 	}
 }

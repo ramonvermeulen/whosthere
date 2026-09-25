@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 )
 
 // Option configures an ARP Scanner during construction.
@@ -52,37 +53,13 @@ func WithAllInterfaces(all bool) Option {
 // are emitted as devices.
 func WithTargetSubnets(subnets []*net.IPNet) Option {
 	return func(s *Scanner) error {
-		cloned := cloneIPNets(subnets)
-		for _, subnet := range cloned {
-			if subnet == nil || subnet.IP.To4() == nil {
+		cloned := subnet.CloneIPNets(subnets)
+		for _, sub := range cloned {
+			if sub == nil || sub.IP.To4() == nil {
 				return errors.New("target subnets must be IPv4 CIDRs")
 			}
 		}
 		s.targetSubnets = cloned
 		return nil
 	}
-}
-
-func cloneIPNets(subnets []*net.IPNet) []*net.IPNet {
-	if len(subnets) == 0 {
-		return []*net.IPNet{}
-	}
-
-	cloned := make([]*net.IPNet, 0, len(subnets))
-	for _, subnet := range subnets {
-		if subnet == nil {
-			cloned = append(cloned, nil)
-			continue
-		}
-
-		ip := make(net.IP, len(subnet.IP))
-		copy(ip, subnet.IP)
-		mask := make(net.IPMask, len(subnet.Mask))
-		copy(mask, subnet.Mask)
-		cloned = append(cloned, &net.IPNet{
-			IP:   ip,
-			Mask: mask,
-		})
-	}
-	return cloned
 }

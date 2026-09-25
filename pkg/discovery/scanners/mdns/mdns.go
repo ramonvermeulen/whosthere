@@ -11,6 +11,7 @@ import (
 
 	hashimdns "github.com/hashicorp/mdns"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 )
 
 const (
@@ -133,7 +134,7 @@ func (s *Scanner) acceptsIPv4(ip net.IP) bool {
 	}
 
 	if len(s.targetSubnets) > 0 {
-		return ipInAnySubnet(ipv4, s.targetSubnets)
+		return subnet.IPInAnySubnet(ipv4, s.targetSubnets)
 	}
 
 	if s.iface == nil || s.iface.IPv4Net == nil {
@@ -141,20 +142,6 @@ func (s *Scanner) acceptsIPv4(ip net.IP) bool {
 	}
 
 	return s.iface.IPv4Net.Contains(ipv4)
-}
-
-// ipInAnySubnet checks if an IP falls within any of the provided subnets.
-func ipInAnySubnet(ip net.IP, subnets []*net.IPNet) bool {
-	ip4 := ip.To4()
-	if ip4 == nil {
-		return false
-	}
-	for _, subnet := range subnets {
-		if subnet != nil && subnet.Contains(ip4) {
-			return true
-		}
-	}
-	return false
 }
 
 // splitKeyValue splits a string like "key=value" and returns [key, value], or nil if not present.

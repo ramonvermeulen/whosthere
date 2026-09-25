@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 )
 
 const (
@@ -137,7 +138,7 @@ func handlePacket(out chan<- *discovery.Device, iface *discovery.InterfaceInfo, 
 	if ip == nil {
 		return
 	}
-	if len(targetSubnets) > 0 && !ipInAnySubnet(ip, targetSubnets) {
+	if len(targetSubnets) > 0 && !subnet.IPInAnySubnet(ip, targetSubnets) {
 		return
 	}
 	d := discovery.NewDevice(ip)
@@ -206,16 +207,4 @@ func ipFromLocation(loc string) net.IP {
 	return net.ParseIP(host)
 }
 
-// ipInAnySubnet checks if an IP falls within any of the provided subnets.
-func ipInAnySubnet(ip net.IP, subnets []*net.IPNet) bool {
-	ip4 := ip.To4()
-	if ip4 == nil {
-		return false
-	}
-	for _, subnet := range subnets {
-		if subnet != nil && subnet.Contains(ip4) {
-			return true
-		}
-	}
-	return false
-}
+// Helper: extract host/IP from Location URL and return IP literal if present

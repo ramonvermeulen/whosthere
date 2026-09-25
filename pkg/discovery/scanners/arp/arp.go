@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 )
 
 var _ discovery.Scanner = (*Scanner)(nil)
@@ -111,7 +112,7 @@ func (s *Scanner) emitARPEntries(ctx context.Context, out chan<- *discovery.Devi
 			continue
 		}
 
-		if len(s.targetSubnets) > 0 && !ipInAnySubnet(entry.IP, s.targetSubnets) {
+		if len(s.targetSubnets) > 0 && !subnet.IPInAnySubnet(entry.IP, s.targetSubnets) {
 			continue
 		}
 
@@ -168,8 +169,8 @@ func isBroadcastMAC(mac net.HardwareAddr) bool {
 }
 
 // isBroadcastIPv4 checks if an IPv4 address is a broadcast address for the given subnet.
-func isBroadcastIPv4(ip net.IP, subnet *net.IPNet) bool {
-	if ip == nil || subnet == nil {
+func isBroadcastIPv4(ip net.IP, snet *net.IPNet) bool {
+	if ip == nil || snet == nil {
 		return false
 	}
 
@@ -178,13 +179,12 @@ func isBroadcastIPv4(ip net.IP, subnet *net.IPNet) bool {
 		return false
 	}
 
-	mask := subnet.Mask
+	mask := snet.Mask
 	if len(mask) != net.IPv4len {
 		return false
 	}
 
-	// Normalize subnet.IP to the actual network address by zeroing host bits.
-	network := subnet.IP.Mask(mask).To4()
+	network := snet.IP.Mask(mask).To4()
 	if network == nil {
 		return false
 	}
@@ -209,21 +209,8 @@ func isBroadcastIPv4(ip net.IP, subnet *net.IPNet) bool {
 }
 
 func isBroadcastIPv4InAnySubnet(ip net.IP, subnets []*net.IPNet) bool {
-	for _, subnet := range subnets {
-		if isBroadcastIPv4(ip, subnet) {
-			return true
-		}
-	}
-	return false
-}
-
-func ipInAnySubnet(ip net.IP, subnets []*net.IPNet) bool {
-	ip4 := ip.To4()
-	if ip4 == nil {
-		return false
-	}
-	for _, subnet := range subnets {
-		if subnet != nil && subnet.Contains(ip4) {
+	for _, s := range subnets {
+		if isBroadcastIPv4(ip, s) {
 			return true
 		}
 	}

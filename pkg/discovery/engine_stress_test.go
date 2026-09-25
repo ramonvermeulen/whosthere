@@ -51,5 +51,5 @@ func TestEngine_HighVolume_Race(t *testing.T) {
 		}
 	}
 
-	t.Fatal("engine stopped before scan completed")
+	require.FailNow(t, "engine stopped before scan completed")
 }

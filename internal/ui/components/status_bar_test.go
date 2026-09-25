@@ -8,6 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
 	"github.com/rivo/tview"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStatusBarDrawsHelpFromLeftWhenSpinnerHidden(t *testing.T) {
@@ -19,9 +20,8 @@ func TestStatusBarDrawsHelpFromLeftWhenSpinnerHidden(t *testing.T) {
 	bar.SetRect(0, 0, 40, 1)
 	bar.Draw(screen)
 
-	if got := strings.TrimRight(readScreenLine(screen, 0, 40), " "); !strings.HasPrefix(got, "q: quit | Enter: details") {
-		t.Fatalf("expected help text to start at the left edge, got %q", got)
-	}
+	got := strings.TrimRight(readScreenLine(screen, 0, 40), " ")
+	require.True(t, strings.HasPrefix(got, "q: quit | Enter: details"), "expected help text to start at the left edge, got %q", got)
 }
 
 func TestStatusBarPlacesHelpImmediatelyAfterSpinnerText(t *testing.T) {
@@ -36,9 +36,7 @@ func TestStatusBarPlacesHelpImmediatelyAfterSpinnerText(t *testing.T) {
 
 	got := strings.TrimRight(readScreenLine(screen, 0, 40), " ")
 	wantPrefix := "x Discovering Devices q: quit"
-	if !strings.HasPrefix(got, wantPrefix) {
-		t.Fatalf("expected spinner and help to share one left-aligned line, got %q", got)
-	}
+	require.True(t, strings.HasPrefix(got, wantPrefix), "expected spinner and help to share one left-aligned line, got %q", got)
 }
 
 func TestStatusBarTruncatesHelpWithEllipsisOnSmallWidths(t *testing.T) {
@@ -52,9 +50,7 @@ func TestStatusBarTruncatesHelpWithEllipsisOnSmallWidths(t *testing.T) {
 	bar.Draw(screen)
 
 	got := strings.TrimRight(readScreenLine(screen, 0, 30), " ")
-	if !strings.HasSuffix(got, " …") {
-		t.Fatalf("expected truncated help to end with ellipsis, got %q", got)
-	}
+	require.True(t, strings.HasSuffix(got, " …"), "expected truncated help to end with ellipsis, got %q", got)
 }
 
 func TestStatusBarUsesSecondaryColorForSpinner(t *testing.T) {
@@ -69,18 +65,14 @@ func TestStatusBarUsesSecondaryColorForSpinner(t *testing.T) {
 
 	_, style, _ := screen.Get(0, 0)
 	foreground, _, _ := style.Decompose()
-	if foreground != tview.Styles.SecondaryTextColor {
-		t.Fatalf("expected spinner to use secondary text color, got %v", foreground)
-	}
+	require.Equal(t, tview.Styles.SecondaryTextColor, foreground, "expected spinner to use secondary text color")
 }
 
 func newSimulationScreen(t *testing.T) tcell.SimulationScreen {
 	t.Helper()
 
 	screen := tcell.NewSimulationScreen("UTF-8")
-	if err := screen.Init(); err != nil {
-		t.Fatalf("init screen: %v", err)
-	}
+	require.NoError(t, screen.Init(), "init screen")
 	t.Cleanup(screen.Fini)
 	return screen
 }

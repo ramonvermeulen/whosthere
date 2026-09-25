@@ -1,11 +1,11 @@
 package components
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHeaderRenderIncludesVersionInterfaceAndAskQuestion(t *testing.T) {
@@ -16,19 +16,13 @@ func TestHeaderRenderIncludesVersionInterfaceAndAskQuestion(t *testing.T) {
 	header := NewHeader(nil)
 	header.Render(st.ReadOnly())
 
-	if got := header.title.GetText(false); got != "whosthere - v1.2.3" {
-		t.Fatalf("unexpected header title: %q", got)
-	}
+	require.Equal(t, "whosthere - v1.2.3", header.title.GetText(false), "unexpected header title")
 
 	interfaceLabel := header.interfaceLabel.GetText(false)
-	if !strings.Contains(interfaceLabel, "interface: en0") {
-		t.Fatalf("expected interface in header label view, got %q", interfaceLabel)
-	}
+	require.Contains(t, interfaceLabel, "interface: en0", "expected interface in header label view, got %q", interfaceLabel)
 
 	link := header.link.GetText(false)
-	if !strings.Contains(link, "Ask Question") {
-		t.Fatalf("expected ask question label in header link view, got %q", link)
-	}
+	require.Contains(t, link, "Ask Question", "expected ask question label in header link view, got %q", link)
 }
 
 func TestRenderHeaderMetaNoColor(t *testing.T) {
@@ -39,13 +33,9 @@ func TestRenderHeaderMetaNoColor(t *testing.T) {
 	st.SetCurrentInterface("very-long-interface-name")
 
 	interfaceLabel, link := renderHeaderMeta(st.ReadOnly())
-	if !strings.Contains(interfaceLabel, "interface:") || !strings.Contains(interfaceLabel, Divider) {
-		t.Fatalf("expected plain interface label, got %q", interfaceLabel)
-	}
-	if !strings.Contains(link, "Ask Question") {
-		t.Fatalf("expected plain ask question label, got %q", link)
-	}
-	if strings.Contains(interfaceLabel, "#") || strings.Contains(link, "#") {
-		t.Fatalf("expected plain text without color tags, got interface=%q link=%q", interfaceLabel, link)
-	}
+	require.Contains(t, interfaceLabel, "interface:", "expected plain interface label, got %q", interfaceLabel)
+	require.Contains(t, interfaceLabel, Divider, "expected plain interface label with divider, got %q", interfaceLabel)
+	require.Contains(t, link, "Ask Question", "expected plain ask question label, got %q", link)
+	require.NotContains(t, interfaceLabel, "#", "expected plain text without color tags, got interface=%q", interfaceLabel)
+	require.NotContains(t, link, "#", "expected plain text without color tags, got link=%q", link)
 }

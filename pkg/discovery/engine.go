@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/subnet"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery/oui"
 )
 
@@ -88,9 +89,7 @@ type Engine struct {
 
 	scanners []Scanner
 	sweeper  Sweeper
-	// todo: what to do with this public field?
-	// maybe refactor as part of runtime interface switching?
-	Iface         *InterfaceInfo
+	iface    *InterfaceInfo
 	sweepInterval time.Duration
 	sweepTimeout  time.Duration
 	scanInterval  time.Duration
@@ -143,7 +142,7 @@ func NewEngine(opts ...Option) (*Engine, error) {
 	if len(e.scanners) == 0 && e.sweeper == nil {
 		return nil, ErrNoScannersOrSweeper
 	}
-	if e.Iface == nil {
+	if e.iface == nil {
 		return nil, ErrNoInterface
 	}
 
@@ -384,7 +383,7 @@ func (e *Engine) processDevice(d *Device, devices map[string]*Device) {
 		return
 	}
 
-	if len(e.targetSubnets) > 0 && !ipInAnySubnet(d.IP(), e.targetSubnets) {
+	if len(e.targetSubnets) > 0 && !subnet.IPInAnySubnet(d.IP(), e.targetSubnets) {
 		return
 	}
 
@@ -406,19 +405,6 @@ func (e *Engine) processDevice(d *Device, devices map[string]*Device) {
 	}
 
 	e.emit(NewDeviceEvent(d))
-}
-
-func ipInAnySubnet(ip net.IP, subnets []*net.IPNet) bool {
-	ip4 := ip.To4()
-	if ip4 == nil {
-		return false
-	}
-	for _, subnet := range subnets {
-		if subnet != nil && subnet.Contains(ip4) {
-			return true
-		}
-	}
-	return false
 }
 
 // emit sends an event non-blocking
@@ -450,4 +436,9 @@ func mapToSlicePtr(m map[string]*Device) []*Device {
 		res = append(res, v)
 	}
 	return res
+}
+
+// Interface returns the network interface used by the engine.
+func (e *Engine) Interface() *InterfaceInfo {
+	return e.iface
 }

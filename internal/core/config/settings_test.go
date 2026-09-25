@@ -3,12 +3,13 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/goccy/go-yaml"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type settingTestCase struct {
@@ -338,14 +339,10 @@ func TestSettings_EnvOverride(t *testing.T) {
 			_ = os.Setenv(tc.envVar, tc.envValue)
 
 			cfg := DefaultConfig()
-			if err := ApplyEnv(cfg); err != nil {
-				t.Fatalf("ApplyEnv: %v", err)
-			}
+			require.NoError(t, ApplyEnv(cfg), "ApplyEnv")
 
 			got := getConfigValue(cfg, tc.yamlKey)
-			if !equalValues(got, tc.expectedEnv) {
-				t.Errorf("got %v, want %v", got, tc.expectedEnv)
-			}
+			assert.Equal(t, tc.expectedEnv, got, "env override")
 		})
 	}
 }
@@ -363,14 +360,10 @@ func TestSettings_FlagOverride(t *testing.T) {
 		t.Run(tc.yamlKey+"/flag", func(t *testing.T) {
 			cfg := DefaultConfig()
 
-			if err := SetByYAMLKey(cfg, tc.yamlKey, tc.flagValue); err != nil {
-				t.Fatalf("SetByYAMLKey: %v", err)
-			}
+			require.NoError(t, SetByYAMLKey(cfg, tc.yamlKey, tc.flagValue), "SetByYAMLKey")
 
 			got := getConfigValue(cfg, tc.yamlKey)
-			if !equalValues(got, tc.expectedFlag) {
-				t.Errorf("got %v, want %v", got, tc.expectedFlag)
-			}
+			assert.Equal(t, tc.expectedFlag, got, "flag override")
 		})
 	}
 }
@@ -382,14 +375,10 @@ func TestSettings_YAMLOverride(t *testing.T) {
 			yamlContent := buildYAMLForKey(tc.yamlKey, tc.yamlValue)
 
 			cfg := DefaultConfig()
-			if err := unmarshalYAML([]byte(yamlContent), cfg); err != nil {
-				t.Fatalf("unmarshalYAML: %v", err)
-			}
+			require.NoError(t, unmarshalYAML([]byte(yamlContent), cfg), "unmarshalYAML")
 
 			got := getConfigValue(cfg, tc.yamlKey)
-			if !equalValues(got, tc.expectedYAML) {
-				t.Errorf("got %v, want %v", got, tc.expectedYAML)
-			}
+			assert.Equal(t, tc.expectedYAML, got, "yaml override")
 		})
 	}
 }
@@ -413,18 +402,11 @@ func TestSettings_Precedence_FlagOverEnv(t *testing.T) {
 
 			cfg := DefaultConfig()
 
-			if err := ApplyEnv(cfg); err != nil {
-				t.Fatalf("ApplyEnv: %v", err)
-			}
-
-			if err := SetByYAMLKey(cfg, tc.yamlKey, tc.flagValue); err != nil {
-				t.Fatalf("SetByYAMLKey: %v", err)
-			}
+			require.NoError(t, ApplyEnv(cfg), "ApplyEnv")
+			require.NoError(t, SetByYAMLKey(cfg, tc.yamlKey, tc.flagValue), "SetByYAMLKey")
 
 			got := getConfigValue(cfg, tc.yamlKey)
-			if !equalValues(got, tc.expectedFlag) {
-				t.Errorf("flag should win over env: got %v, want %v", got, tc.expectedFlag)
-			}
+			assert.Equal(t, tc.expectedFlag, got, "flag should win over env")
 		})
 	}
 }
@@ -440,19 +422,13 @@ func TestSettings_Precedence_EnvOverYAML(t *testing.T) {
 			cfg := DefaultConfig()
 
 			yamlContent := buildYAMLForKey(tc.yamlKey, tc.yamlValue)
-			if err := unmarshalYAML([]byte(yamlContent), cfg); err != nil {
-				t.Fatalf("unmarshalYAML: %v", err)
-			}
+			require.NoError(t, unmarshalYAML([]byte(yamlContent), cfg), "unmarshalYAML")
 
 			_ = os.Setenv(tc.envVar, tc.envValue)
-			if err := ApplyEnv(cfg); err != nil {
-				t.Fatalf("ApplyEnv: %v", err)
-			}
+			require.NoError(t, ApplyEnv(cfg), "ApplyEnv")
 
 			got := getConfigValue(cfg, tc.yamlKey)
-			if !equalValues(got, tc.expectedEnv) {
-				t.Errorf("env should win over yaml: got %v, want %v", got, tc.expectedEnv)
-			}
+			assert.Equal(t, tc.expectedEnv, got, "env should win over yaml")
 		})
 	}
 }
@@ -475,23 +451,14 @@ func TestSettings_Precedence_FlagOverEnvOverYAML(t *testing.T) {
 			cfg := DefaultConfig()
 
 			yamlContent := buildYAMLForKey(tc.yamlKey, tc.yamlValue)
-			if err := unmarshalYAML([]byte(yamlContent), cfg); err != nil {
-				t.Fatalf("unmarshalYAML: %v", err)
-			}
+			require.NoError(t, unmarshalYAML([]byte(yamlContent), cfg), "unmarshalYAML")
 
 			_ = os.Setenv(tc.envVar, tc.envValue)
-			if err := ApplyEnv(cfg); err != nil {
-				t.Fatalf("ApplyEnv: %v", err)
-			}
-
-			if err := SetByYAMLKey(cfg, tc.yamlKey, tc.flagValue); err != nil {
-				t.Fatalf("SetByYAMLKey: %v", err)
-			}
+			require.NoError(t, ApplyEnv(cfg), "ApplyEnv")
+			require.NoError(t, SetByYAMLKey(cfg, tc.yamlKey, tc.flagValue), "SetByYAMLKey")
 
 			got := getConfigValue(cfg, tc.yamlKey)
-			if !equalValues(got, tc.expectedFlag) {
-				t.Errorf("flag should win over env and yaml: got %v, want %v", got, tc.expectedFlag)
-			}
+			assert.Equal(t, tc.expectedFlag, got, "flag should win over env and yaml")
 		})
 	}
 }
@@ -551,14 +518,10 @@ theme:
 
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
-	if err := os.WriteFile(configPath, []byte(fullYAML), 0o644); err != nil {
-		t.Fatalf("write temp config: %v", err)
-	}
+	require.NoError(t, os.WriteFile(configPath, []byte(fullYAML), 0o644), "write temp config")
 
 	cfg, err := LoadForMode(ModeApp, &Flags{ConfigFile: configPath})
-	if err != nil {
-		t.Fatalf("LoadForMode: %v", err)
-	}
+	require.NoError(t, err, "LoadForMode")
 
 	assertions := []struct {
 		yamlKey  string
@@ -602,18 +565,14 @@ theme:
 	testedKeys["network_interface"] = true
 	for _, a := range assertions {
 		testedKeys[a.yamlKey] = true
-		if !equalValues(a.got, a.expected) {
-			t.Errorf("%s: got %v, want %v", a.yamlKey, a.got, a.expected)
-		}
+		assert.Equal(t, a.expected, a.got, a.yamlKey)
 	}
 
 	for _, s := range GlobalSettings() {
 		if s.YAMLKey == "" {
 			continue
 		}
-		if !testedKeys[s.YAMLKey] {
-			t.Errorf("setting %q is not covered in TestFullYAMLConfig_LoadFromFile", s.YAMLKey)
-		}
+		assert.True(t, testedKeys[s.YAMLKey], "setting %q is not covered in TestFullYAMLConfig_LoadFromFile", s.YAMLKey)
 	}
 }
 
@@ -628,9 +587,7 @@ func TestMeta_AllSettingsHaveTestCases(t *testing.T) {
 			continue
 		}
 
-		if !testedKeys[s.YAMLKey] {
-			t.Errorf("setting %q has no test case in getSettingTestCases()", s.YAMLKey)
-		}
+		assert.True(t, testedKeys[s.YAMLKey], "setting %q has no test case in getSettingTestCases()", s.YAMLKey)
 	}
 }
 
@@ -640,12 +597,8 @@ func TestMeta_AllSettingsHaveSetterAndGetter(t *testing.T) {
 			continue
 		}
 
-		if s.Set == nil {
-			t.Errorf("setting %q is missing Setter", s.YAMLKey)
-		}
-		if s.Get == nil {
-			t.Errorf("setting %q is missing Getter", s.YAMLKey)
-		}
+		assert.NotNil(t, s.Set, "setting %q is missing Setter", s.YAMLKey)
+		assert.NotNil(t, s.Get, "setting %q is missing Getter", s.YAMLKey)
 	}
 }
 
@@ -680,31 +633,6 @@ func buildYAMLForKey(yamlKey, value string) string {
 	}
 
 	return strings.Join(lines, "\n")
-}
-
-func equalValues(a, b any) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-
-	aSlice, aIsSlice := a.([]int)
-	bSlice, bIsSlice := b.([]int)
-	if aIsSlice && bIsSlice {
-		if len(aSlice) != len(bSlice) {
-			return false
-		}
-		for i := range aSlice {
-			if aSlice[i] != bSlice[i] {
-				return false
-			}
-		}
-		return true
-	}
-
-	return reflect.DeepEqual(a, b)
 }
 
 func unmarshalYAML(data []byte, cfg *Config) error {

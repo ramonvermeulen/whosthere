@@ -1,13 +1,13 @@
 package config
 
 import (
-	"reflect"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/goccy/go-yaml"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateAndNormalizeDurations(t *testing.T) {
@@ -19,30 +19,16 @@ func TestValidateAndNormalizeDurations(t *testing.T) {
 	}
 
 	err := cfg.validateAndNormalize()
-	if err == nil {
-		t.Fatalf("expected validation errors")
-	}
+	require.Error(t, err, "expected validation errors")
 
-	if !strings.Contains(err.Error(), "scan_interval must be > 0") {
-		t.Errorf("expected scan_interval error, got %v", err)
-	}
-	if cfg.ScanInterval != discovery.DefaultScanInterval {
-		t.Errorf("expected scan interval default %v, got %v", discovery.DefaultScanInterval, cfg.ScanInterval)
-	}
+	assert.Contains(t, err.Error(), "scan_interval must be > 0", "expected scan_interval error")
+	assert.Equal(t, discovery.DefaultScanInterval, cfg.ScanInterval, "expected scan interval default")
 
-	if !strings.Contains(err.Error(), "scan_duration must be > 0") {
-		t.Errorf("expected scan_duration error, got %v", err)
-	}
-	if cfg.ScanDuration != discovery.DefaultScanTimeout {
-		t.Errorf("expected scan duration default %v, got %v", discovery.DefaultScanTimeout, cfg.ScanDuration)
-	}
+	assert.Contains(t, err.Error(), "scan_duration must be > 0", "expected scan_duration error")
+	assert.Equal(t, discovery.DefaultScanTimeout, cfg.ScanDuration, "expected scan duration default")
 
-	if !strings.Contains(err.Error(), "splash.delay must be >= 0") {
-		t.Errorf("expected splash delay error, got %v", err)
-	}
-	if cfg.Splash.Delay != DefaultSplashDelay {
-		t.Errorf("expected splash delay default %v, got %v", DefaultSplashDelay, cfg.Splash.Delay)
-	}
+	assert.Contains(t, err.Error(), "splash.delay must be >= 0", "expected splash delay error")
+	assert.Equal(t, DefaultSplashDelay, cfg.Splash.Delay, "expected splash delay default")
 }
 
 func TestValidateAndNormalizeHappyPath(t *testing.T) {
@@ -58,23 +44,15 @@ func TestValidateAndNormalizeHappyPath(t *testing.T) {
 		},
 	}
 
-	if err := cfg.validateAndNormalize(); err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+	require.NoError(t, cfg.validateAndNormalize())
 }
 
 func TestDefaultConfigProducesValidConfig(t *testing.T) {
 	cfg := DefaultConfig()
-	if err := cfg.validateAndNormalize(); err != nil {
-		t.Fatalf("expected default config to be valid, got %v", err)
-	}
+	require.NoError(t, cfg.validateAndNormalize(), "expected default config to be valid")
 
-	if cfg.Theme.Name != DefaultThemeName {
-		t.Fatalf("expected default theme %q, got %q", DefaultThemeName, cfg.Theme.Name)
-	}
-	if cfg.ScanLargeSubnets {
-		t.Fatal("expected scan_large_subnets to default to false")
-	}
+	require.Equal(t, DefaultThemeName, cfg.Theme.Name, "expected default theme")
+	require.False(t, cfg.ScanLargeSubnets, "expected scan_large_subnets to default to false")
 }
 
 func TestYAMLUnmarshalAndValidateHappyPath(t *testing.T) {
@@ -102,44 +80,21 @@ splash:
 `
 
 	cfg := DefaultConfig()
-	if err := yaml.Unmarshal([]byte(raw), cfg); err != nil {
-		t.Fatalf("unmarshal yaml: %v", err)
-	}
+	require.NoError(t, yaml.Unmarshal([]byte(raw), cfg), "unmarshal yaml")
+	require.NoError(t, cfg.validateAndNormalize(), "validate")
 
-	if err := cfg.validateAndNormalize(); err != nil {
-		t.Fatalf("validate: %v", err)
-	}
-
-	if got, want := cfg.ScanInterval, 15*time.Second; got != want {
-		t.Errorf("scan interval: got %v, want %v", got, want)
-	}
-	if got, want := cfg.TargetSubnets, []string{"10.0.0.0/24", "10.0.1.0/24"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("target subnets: got %v, want %v", got, want)
-	}
-	if got, want := cfg.ScanDuration, 5*time.Second; got != want {
-		t.Errorf("scan duration: got %v, want %v", got, want)
-	}
-	if cfg.Splash.Enabled {
-		t.Errorf("expected splash disabled")
-	}
-	if got, want := cfg.Splash.Delay, 750*time.Millisecond; got != want {
-		t.Errorf("splash delay: got %v, want %v", got, want)
-	}
-	if !cfg.Scanners.MDNS.Enabled || cfg.Scanners.SSDP.Enabled || !cfg.Scanners.ARP.Enabled {
-		t.Errorf("scanner flags unexpected: %+v", cfg.Scanners)
-	}
-	if len(cfg.PortScanner.TCP) != 2 || cfg.PortScanner.TCP[0] != 80 || cfg.PortScanner.TCP[1] != 443 {
-		t.Errorf("tcp ports unexpected: %v", cfg.PortScanner.TCP)
-	}
-	if cfg.PortScanner.Timeout != DefaultPortScanTimeout {
-		t.Errorf("timeout unexpected: got %v, want %v", cfg.PortScanner.Timeout, DefaultPortScanTimeout)
-	}
-	if cfg.Theme.Enabled != DefaultThemeEnabled {
-		t.Errorf("theme enabled unexpected: got %v, want %v", cfg.Theme.Enabled, DefaultThemeEnabled)
-	}
-	if !cfg.ScanLargeSubnets {
-		t.Errorf("expected scan_large_subnets to be true from YAML")
-	}
+	assert.Equal(t, 15*time.Second, cfg.ScanInterval, "scan interval")
+	assert.Equal(t, []string{"10.0.0.0/24", "10.0.1.0/24"}, cfg.TargetSubnets, "target subnets")
+	assert.Equal(t, 5*time.Second, cfg.ScanDuration, "scan duration")
+	assert.False(t, cfg.Splash.Enabled, "expected splash disabled")
+	assert.Equal(t, 750*time.Millisecond, cfg.Splash.Delay, "splash delay")
+	assert.True(t, cfg.Scanners.MDNS.Enabled, "mdns should be enabled")
+	assert.False(t, cfg.Scanners.SSDP.Enabled, "ssdp should be disabled")
+	assert.True(t, cfg.Scanners.ARP.Enabled, "arp should be enabled")
+	assert.Equal(t, []int{80, 443}, cfg.PortScanner.TCP, "tcp ports")
+	assert.Equal(t, DefaultPortScanTimeout, cfg.PortScanner.Timeout, "port scanner timeout")
+	assert.Equal(t, DefaultThemeEnabled, cfg.Theme.Enabled, "theme enabled")
+	assert.True(t, cfg.ScanLargeSubnets, "expected scan_large_subnets to be true from YAML")
 }
 
 func TestValidateAndNormalizeTargetSubnetsRejectsInvalidCIDRs(t *testing.T) {
@@ -151,18 +106,14 @@ func TestValidateAndNormalizeTargetSubnetsRejectsInvalidCIDRs(t *testing.T) {
 	}
 
 	err := cfg.validateAndNormalize()
-	if err == nil {
-		t.Fatalf("expected validation error")
-	}
+	require.Error(t, err, "expected validation error")
 
 	msg := err.Error()
 	for _, expected := range []string{
 		"target_subnets contains invalid CIDR: not-a-cidr",
 		"target_subnets only supports IPv4 CIDRs: 2001:db8::/64",
 	} {
-		if !strings.Contains(msg, expected) {
-			t.Errorf("expected error %q in %q", expected, msg)
-		}
+		assert.Contains(t, msg, expected, "expected error in message")
 	}
 }
 
@@ -183,14 +134,10 @@ splash:
 `
 
 	cfg := DefaultConfig()
-	if err := yaml.Unmarshal([]byte(raw), cfg); err != nil {
-		t.Fatalf("unmarshal yaml: %v", err)
-	}
+	require.NoError(t, yaml.Unmarshal([]byte(raw), cfg), "unmarshal yaml")
 
 	err := cfg.validateAndNormalize()
-	if err == nil {
-		t.Fatalf("expected validation error")
-	}
+	require.Error(t, err, "expected validation error")
 
 	msg := err.Error()
 	for _, expected := range []string{
@@ -198,18 +145,10 @@ splash:
 		"scan_duration must be > 0",
 		"splash.delay must be >= 0",
 	} {
-		if !strings.Contains(msg, expected) {
-			t.Errorf("expected error %q in %q", expected, msg)
-		}
+		assert.Contains(t, msg, expected, "expected error in message")
 	}
 
-	if cfg.ScanInterval != discovery.DefaultScanInterval {
-		t.Errorf("expected default scan interval %v, got %v", discovery.DefaultScanInterval, cfg.ScanInterval)
-	}
-	if cfg.ScanDuration != discovery.DefaultScanTimeout {
-		t.Errorf("expected default scan duration %v, got %v", discovery.DefaultScanTimeout, cfg.ScanDuration)
-	}
-	if cfg.Splash.Delay != DefaultSplashDelay {
-		t.Errorf("expected default splash delay %v, got %v", DefaultSplashDelay, cfg.Splash.Delay)
-	}
+	assert.Equal(t, discovery.DefaultScanInterval, cfg.ScanInterval, "expected default scan interval")
+	assert.Equal(t, discovery.DefaultScanTimeout, cfg.ScanDuration, "expected default scan duration")
+	assert.Equal(t, DefaultSplashDelay, cfg.Splash.Delay, "expected default splash delay")
 }

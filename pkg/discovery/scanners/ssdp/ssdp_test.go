@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -12,9 +13,7 @@ func TestNewScanner(t *testing.T) {
 	iface := &discovery.InterfaceInfo{}
 	scanner, err := New(iface)
 	require.NoError(t, err)
-	if scanner.iface != iface {
-		t.Errorf("expected iface to be set")
-	}
+	assert.Equal(t, iface, scanner.iface, "expected iface to be set")
 }
 
 func TestNewScanner_WithLogger(t *testing.T) {
@@ -27,9 +26,7 @@ func TestNewScanner_WithLogger(t *testing.T) {
 func TestName(t *testing.T) {
 	scanner, err := New(nil)
 	require.NoError(t, err)
-	if scanner.Name() != "ssdp" {
-		t.Errorf("expected name ssdp, got %s", scanner.Name())
-	}
+	assert.Equal(t, "ssdp", scanner.Name(), "expected name ssdp")
 }
 
 func TestParseHeaders_ExtractsLocationAndServer(t *testing.T) {
