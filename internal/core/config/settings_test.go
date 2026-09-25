@@ -45,6 +45,16 @@ func getSettingTestCases() []settingTestCase {
 			expectedYAML: true,
 		},
 		{
+			yamlKey:      "target_subnets",
+			envVar:       "WHOSTHERE__TARGET_SUBNETS",
+			envValue:     "10.0.0.0/24,10.0.1.0/24",
+			expectedEnv:  []string{"10.0.0.0/24", "10.0.1.0/24"},
+			flagValue:    "10.0.2.0/24,10.0.3.0/24",
+			expectedFlag: []string{"10.0.2.0/24", "10.0.3.0/24"},
+			yamlValue:    `["10.0.4.0/24", "10.0.5.0/24"]`,
+			expectedYAML: []string{"10.0.4.0/24", "10.0.5.0/24"},
+		},
+		{
 			yamlKey:      "scan_timeout",
 			envVar:       "WHOSTHERE__SCAN_TIMEOUT",
 			envValue:     "15s",
@@ -163,6 +173,16 @@ func getSettingTestCases() []settingTestCase {
 			expectedFlag: nil,
 			yamlValue:    "500ms",
 			expectedYAML: 500 * time.Millisecond,
+		},
+		{
+			yamlKey:      "scan_large_subnets",
+			envVar:       "WHOSTHERE__SCAN_LARGE_SUBNETS",
+			envValue:     "true",
+			expectedEnv:  true,
+			flagValue:    "",
+			expectedFlag: nil,
+			yamlValue:    "true",
+			expectedYAML: true,
 		},
 		{
 			yamlKey:      "theme.enabled",
@@ -487,6 +507,8 @@ func TestFullYAMLConfig_LoadFromFile(t *testing.T) {
 	// 3. This test focuses on the full loading path, not individual field validation
 	fullYAML := `
 all_interfaces: true
+target_subnets: ["10.0.0.0/24", "10.0.1.0/24"]
+scan_large_subnets: true
 scan_timeout: 12s
 scan_interval: 45s
 
@@ -544,6 +566,8 @@ theme:
 		expected any
 	}{
 		{"all_interfaces", cfg.AllInterfaces, true},
+		{"target_subnets", cfg.TargetSubnets, []string{"10.0.0.0/24", "10.0.1.0/24"}},
+		{"scan_large_subnets", cfg.ScanLargeSubnets, true},
 		{"scan_timeout", cfg.ScanTimeout, 12 * time.Second},
 		{"scan_interval", cfg.ScanInterval, 45 * time.Second},
 		{"scanners.mdns.enabled", cfg.Scanners.MDNS.Enabled, false},

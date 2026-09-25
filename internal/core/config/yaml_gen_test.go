@@ -17,6 +17,7 @@ func TestGenerateDefaultYAML(t *testing.T) {
 	mustContain := []string{
 		"# Uncomment the next line to configure a specific network interface",
 		"# network_interface: eth0",
+		"# target_subnets: [\"10.0.0.0/24\", \"10.0.1.0/24\"]",
 		"scan_interval: 20s",
 		"scan_timeout: 10s",
 		"scanners:",

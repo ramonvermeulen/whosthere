@@ -1,6 +1,7 @@
 package config
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -71,10 +72,18 @@ func TestDefaultConfigProducesValidConfig(t *testing.T) {
 	if cfg.Theme.Name != DefaultThemeName {
 		t.Fatalf("expected default theme %q, got %q", DefaultThemeName, cfg.Theme.Name)
 	}
+	if cfg.ScanLargeSubnets {
+		t.Fatal("expected scan_large_subnets to default to false")
+	}
 }
 
 func TestYAMLUnmarshalAndValidateHappyPath(t *testing.T) {
 	raw := `
+target_subnets:
+  - 10.0.0.42/24
+  - 10.0.1.0/24
+  - 10.0.1.0/24
+scan_large_subnets: true
 scan_interval: 15s
 scan_duration: 5s
 scanners:
@@ -104,6 +113,9 @@ splash:
 	if got, want := cfg.ScanInterval, 15*time.Second; got != want {
 		t.Errorf("scan interval: got %v, want %v", got, want)
 	}
+	if got, want := cfg.TargetSubnets, []string{"10.0.0.0/24", "10.0.1.0/24"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("target subnets: got %v, want %v", got, want)
+	}
 	if got, want := cfg.ScanDuration, 5*time.Second; got != want {
 		t.Errorf("scan duration: got %v, want %v", got, want)
 	}
@@ -124,6 +136,33 @@ splash:
 	}
 	if cfg.Theme.Enabled != DefaultThemeEnabled {
 		t.Errorf("theme enabled unexpected: got %v, want %v", cfg.Theme.Enabled, DefaultThemeEnabled)
+	}
+	if !cfg.ScanLargeSubnets {
+		t.Errorf("expected scan_large_subnets to be true from YAML")
+	}
+}
+
+func TestValidateAndNormalizeTargetSubnetsRejectsInvalidCIDRs(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.TargetSubnets = []string{
+		"10.0.0.0/24",
+		"not-a-cidr",
+		"2001:db8::/64",
+	}
+
+	err := cfg.validateAndNormalize()
+	if err == nil {
+		t.Fatalf("expected validation error")
+	}
+
+	msg := err.Error()
+	for _, expected := range []string{
+		"target_subnets contains invalid CIDR: not-a-cidr",
+		"target_subnets only supports IPv4 CIDRs: 2001:db8::/64",
+	} {
+		if !strings.Contains(msg, expected) {
+			t.Errorf("expected error %q in %q", expected, msg)
+		}
 	}
 }
 

@@ -36,10 +36,12 @@ var _ discovery.Sweeper = (*Sweeper)(nil)
 //
 // Runs continuously at the configured interval when started.
 type Sweeper struct {
-	iface    *discovery.InterfaceInfo
-	interval time.Duration
-	timeout  time.Duration
-	logger   discovery.Logger
+	iface             *discovery.InterfaceInfo
+	targetSubnets     []*net.IPNet
+	interval          time.Duration
+	timeout           time.Duration
+	logger            discovery.Logger
+	allowLargeSubnets bool
 }
 
 // New creates a Sweeper with the specified options.
@@ -97,26 +99,42 @@ func New(opts ...Option) (*Sweeper, error) {
 //	go sweeper.Start(ctx)
 //	// Sweeper runs until cancel() is called
 func (s *Sweeper) Start(ctx context.Context) {
-	subnet := s.iface.IPv4Net
+	subnets := s.sweepSubnets()
 	localIP := *s.iface.IPv4Addr
 
 	if s.interval <= 0 {
-		s.runSweep(ctx, subnet, localIP)
+		s.runSweeps(ctx, subnets, localIP)
 		return
 	}
 
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
-	s.runSweep(ctx, subnet, localIP)
+	s.runSweeps(ctx, subnets, localIP)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.runSweep(ctx, subnet, localIP)
+			s.runSweeps(ctx, subnets, localIP)
 		}
+	}
+}
+
+func (s *Sweeper) sweepSubnets() []*net.IPNet {
+	if len(s.targetSubnets) > 0 {
+		return cloneIPNets(s.targetSubnets)
+	}
+	return []*net.IPNet{cloneIPNet(s.iface.IPv4Net)}
+}
+
+func (s *Sweeper) runSweeps(ctx context.Context, subnets []*net.IPNet, localIP net.IP) {
+	for _, subnet := range subnets {
+		if ctx.Err() != nil {
+			return
+		}
+		s.runSweep(ctx, subnet, localIP)
 	}
 }
 
@@ -197,8 +215,8 @@ func (s *Sweeper) generateSubnetIPs(subnet *net.IPNet, skipIP net.IP) []net.IP {
 	}
 
 	ones, _ := subnet.Mask.Size()
-	if ones < 16 {
-		s.logger.Log(context.Background(), slog.LevelWarn, "large subnet detected, limiting ARP scan to /16 equivalent", "prefix", ones, "subnet", subnet.String())
+	if ones < 16 && !s.allowLargeSubnets {
+		s.logger.Log(context.Background(), slog.LevelWarn, "large subnet detected, limiting ARP scan to /16 equivalent. Set scan_large_subnets=true to override", "prefix", ones, "subnet", subnet.String())
 	}
 
 	networkIP := subnet.IP.Mask(subnet.Mask)
@@ -206,7 +224,7 @@ func (s *Sweeper) generateSubnetIPs(subnet *net.IPNet, skipIP net.IP) []net.IP {
 	copy(broadcastIP, networkIP)
 
 	effectiveMask := subnet.Mask
-	if ones < 16 {
+	if ones < 16 && !s.allowLargeSubnets {
 		effectiveMask = net.CIDRMask(16, 32)
 	}
 	for i := range network {

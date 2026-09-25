@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"errors"
+	"net"
 	"time"
 
 	"github.com/ramonvermeulen/whosthere/pkg/discovery/oui"
@@ -117,4 +118,44 @@ func WithOUIRegistry(registry *oui.Registry) Option {
 		e.ouiRegistry = registry
 		return nil
 	}
+}
+
+// WithTargetSubnets constrains emitted devices to the provided IPv4 CIDR subnets.
+// Scanners may still observe devices outside these ranges, but the engine drops
+// those observations before merging results or emitting discovery events.
+func WithTargetSubnets(subnets []*net.IPNet) Option {
+	return func(e *Engine) error {
+		cloned := cloneIPNets(subnets)
+		for _, subnet := range cloned {
+			if subnet == nil || subnet.IP.To4() == nil {
+				return errors.New("target subnets must be IPv4 CIDRs")
+			}
+		}
+		e.targetSubnets = cloned
+		return nil
+	}
+}
+
+func cloneIPNets(subnets []*net.IPNet) []*net.IPNet {
+	if len(subnets) == 0 {
+		return []*net.IPNet{}
+	}
+
+	cloned := make([]*net.IPNet, 0, len(subnets))
+	for _, subnet := range subnets {
+		if subnet == nil {
+			cloned = append(cloned, nil)
+			continue
+		}
+
+		ip := make(net.IP, len(subnet.IP))
+		copy(ip, subnet.IP)
+		mask := make(net.IPMask, len(subnet.Mask))
+		copy(mask, subnet.Mask)
+		cloned = append(cloned, &net.IPNet{
+			IP:   ip,
+			Mask: mask,
+		})
+	}
+	return cloned
 }

@@ -178,3 +178,40 @@ func TestScan_FiltersEntriesOutsideSelectedInterfaceSubnet(t *testing.T) {
 	default:
 	}
 }
+
+func TestAcceptsIPv4_TargetSubnetsOverrideInterfaceSubnet(t *testing.T) {
+	_, ifaceNet, err := net.ParseCIDR("192.168.1.0/24")
+	require.NoError(t, err)
+	_, targetNet, err := net.ParseCIDR("10.0.0.0/24")
+	require.NoError(t, err)
+
+	s := &Scanner{
+		iface: &discovery.InterfaceInfo{
+			IPv4Net: ifaceNet,
+		},
+		targetSubnets: []*net.IPNet{targetNet},
+	}
+
+	require.True(t, s.acceptsIPv4(net.ParseIP("10.0.0.5")),
+		"should accept IP in target subnet")
+	require.False(t, s.acceptsIPv4(net.ParseIP("192.168.1.5")),
+		"should reject IP in interface subnet but not in target subnet")
+	require.False(t, s.acceptsIPv4(net.ParseIP("10.0.1.5")),
+		"should reject IP outside all subnets")
+}
+
+func TestAcceptsIPv4_TargetSubnetsEmptyFallsBackToInterface(t *testing.T) {
+	_, ifaceNet, err := net.ParseCIDR("192.168.1.0/24")
+	require.NoError(t, err)
+
+	s := &Scanner{
+		iface: &discovery.InterfaceInfo{
+			IPv4Net: ifaceNet,
+		},
+	}
+
+	require.True(t, s.acceptsIPv4(net.ParseIP("192.168.1.5")),
+		"should accept IP in interface subnet when no target subnets")
+	require.False(t, s.acceptsIPv4(net.ParseIP("10.0.0.5")),
+		"should reject IP outside interface subnet when no target subnets")
+}

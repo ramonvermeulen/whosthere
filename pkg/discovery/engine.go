@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"sync"
 	"time"
 
@@ -97,6 +98,7 @@ type Engine struct {
 	ouiRegistry   *oui.Registry
 	logger        Logger
 	maxDevices    int
+	targetSubnets []*net.IPNet
 
 	mu      sync.RWMutex
 	cancel  context.CancelFunc
@@ -382,6 +384,10 @@ func (e *Engine) processDevice(d *Device, devices map[string]*Device) {
 		return
 	}
 
+	if len(e.targetSubnets) > 0 && !ipInAnySubnet(d.IP(), e.targetSubnets) {
+		return
+	}
+
 	key := d.IP().String()
 	if key == "" {
 		return
@@ -400,6 +406,19 @@ func (e *Engine) processDevice(d *Device, devices map[string]*Device) {
 	}
 
 	e.emit(NewDeviceEvent(d))
+}
+
+func ipInAnySubnet(ip net.IP, subnets []*net.IPNet) bool {
+	ip4 := ip.To4()
+	if ip4 == nil {
+		return false
+	}
+	for _, subnet := range subnets {
+		if subnet != nil && subnet.Contains(ip4) {
+			return true
+		}
+	}
+	return false
 }
 
 // emit sends an event non-blocking

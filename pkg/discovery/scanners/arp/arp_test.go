@@ -1,10 +1,12 @@
 package arp
 
 import (
+	"context"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/ramonvermeulen/whosthere/pkg/discovery"
 	"github.com/ramonvermeulen/whosthere/pkg/discovery/internal/testkit"
 )
 
@@ -74,6 +76,52 @@ func TestIsBroadcastIPv4(t *testing.T) {
 					tt.ip, tt.cidr, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestEmitARPEntries_FiltersOutsideTargetSubnets(t *testing.T) {
+	iface := testkit.MustInterfaceInfo(t)
+	_, targetSubnet, err := net.ParseCIDR("10.0.1.0/24")
+	if err != nil {
+		t.Fatalf("parse target subnet: %v", err)
+	}
+
+	s, err := New(iface, WithTargetSubnets([]*net.IPNet{targetSubnet}))
+	if err != nil {
+		t.Fatalf("new scanner: %v", err)
+	}
+
+	out := make(chan *discovery.Device, 2)
+	entries := []Entry{
+		{
+			IP:            net.ParseIP("10.0.1.42"),
+			MAC:           net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+			InterfaceName: iface.Interface.Name,
+		},
+		{
+			IP:            net.ParseIP("10.0.1.255"),
+			MAC:           net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x66},
+			InterfaceName: iface.Interface.Name,
+		},
+		{
+			IP:            net.ParseIP("192.168.1.42"),
+			MAC:           net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x77},
+			InterfaceName: iface.Interface.Name,
+		},
+	}
+
+	if err := s.emitARPEntries(context.Background(), out, entries); err != nil {
+		t.Fatalf("emit entries: %v", err)
+	}
+	close(out)
+
+	var got []string
+	for dev := range out {
+		got = append(got, dev.IP().String())
+	}
+
+	if len(got) != 1 || got[0] != "10.0.1.42" {
+		t.Fatalf("got %v, want [10.0.1.42]", got)
 	}
 }
 

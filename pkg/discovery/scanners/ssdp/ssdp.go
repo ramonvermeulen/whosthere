@@ -35,8 +35,9 @@ var _ discovery.Scanner = (*Scanner)(nil)
 // Implements the discovery protocol as specified in:
 // https://datatracker.ietf.org/doc/html/draft-cai-ssdp-v1-03
 type Scanner struct {
-	iface  *discovery.InterfaceInfo
-	logger discovery.Logger
+	iface         *discovery.InterfaceInfo
+	logger        discovery.Logger
+	targetSubnets []*net.IPNet
 }
 
 // New creates an SSDP scanner for the specified network interface.
@@ -94,7 +95,7 @@ func (s *Scanner) Scan(ctx context.Context, out chan<- *discovery.Device) error 
 			}
 			return fmt.Errorf("read ssdp: %w", err)
 		}
-		handlePacket(out, s.iface, src, buf[:n])
+		handlePacket(out, s.iface, src, buf[:n], s.targetSubnets)
 	}
 }
 
@@ -127,13 +128,16 @@ func applyDeadlineFromContext(conn *net.UDPConn, ctx context.Context) error {
 }
 
 // handlePacket parses the packet and emits a Device if an IP can be resolved.
-func handlePacket(out chan<- *discovery.Device, iface *discovery.InterfaceInfo, src *net.UDPAddr, payload []byte) {
+func handlePacket(out chan<- *discovery.Device, iface *discovery.InterfaceInfo, src *net.UDPAddr, payload []byte, targetSubnets []*net.IPNet) {
 	loc, server := parseHeaders(payload)
 	ip := ipFromAddr(src)
 	if ip == nil && loc != "" {
 		ip = ipFromLocation(loc)
 	}
 	if ip == nil {
+		return
+	}
+	if len(targetSubnets) > 0 && !ipInAnySubnet(ip, targetSubnets) {
 		return
 	}
 	d := discovery.NewDevice(ip)
@@ -200,4 +204,18 @@ func ipFromLocation(loc string) net.IP {
 		host = h
 	}
 	return net.ParseIP(host)
+}
+
+// ipInAnySubnet checks if an IP falls within any of the provided subnets.
+func ipInAnySubnet(ip net.IP, subnets []*net.IPNet) bool {
+	ip4 := ip.To4()
+	if ip4 == nil {
+		return false
+	}
+	for _, subnet := range subnets {
+		if subnet != nil && subnet.Contains(ip4) {
+			return true
+		}
+	}
+	return false
 }

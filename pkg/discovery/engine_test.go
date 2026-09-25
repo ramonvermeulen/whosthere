@@ -79,6 +79,41 @@ func TestEngine_Scan_IgnoresInvalidDevice(t *testing.T) {
 	require.Empty(t, stats.Devices)
 }
 
+func TestEngine_Scan_FiltersDevicesOutsideTargetSubnets(t *testing.T) {
+	iface := testkit.MustInterfaceInfo(t)
+	_, targetSubnet, err := net.ParseCIDR("10.0.1.0/24")
+	require.NoError(t, err)
+
+	inTarget := discovery.NewDevice(testkit.MustIP(t, "10.0.1.42"))
+	inTarget.AddSource("fake")
+	outsideTarget := discovery.NewDevice(testkit.MustIP(t, "192.168.1.42"))
+	outsideTarget.AddSource("fake")
+
+	s := &testkit.FakeScanner{
+		NameStr: "s",
+		Devices: []*discovery.Device{
+			inTarget,
+			outsideTarget,
+		},
+	}
+
+	e, err := discovery.NewEngine(
+		discovery.WithInterface(iface),
+		discovery.WithScanners(s),
+		discovery.WithTargetSubnets([]*net.IPNet{targetSubnet}),
+		discovery.WithScanTimeout(100*time.Millisecond),
+	)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	stats, scanErr := e.Scan(ctx)
+	require.NoError(t, scanErr)
+	require.Len(t, stats.Devices, 1)
+	require.Equal(t, "10.0.1.42", stats.Devices[0].IP().String())
+}
+
 func TestEngine_Scan_EmitsDiscoveredEventForEachObservation(t *testing.T) {
 	iface := testkit.MustInterfaceInfo(t)
 
