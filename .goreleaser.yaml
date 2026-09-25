@@ -10,8 +10,9 @@ builds:
   - main: ./main.go
     binary: whosthere
     goos: ["linux", "darwin", "windows"]
-    goarch: ["386", "amd64", "arm64", "arm"]
+    goarch: ["386", "amd64", "arm64", "arm", "mips64"]
     goarm: ["6", "7"]
+    gomips: ["hardfloat"]
     ignore:
       - goos: windows
         goarch: arm

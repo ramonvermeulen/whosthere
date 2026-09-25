@@ -1,6 +1,5 @@
 # Whosthere
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/ramonvermeulen/whosthere)](https://goreportcard.com/report/github.com/ramonvermeulen/whosthere)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/ramonvermeulen/whosthere)](https://go.dev/doc/devel/release)
 [![License](https://img.shields.io/github/license/ramonvermeulen/whosthere)](LICENSE)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ramonvermeulen/whosthere/total)](https://github.com/ramonvermeulen/whosthere/releases)
