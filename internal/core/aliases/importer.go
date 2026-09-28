@@ -90,10 +90,12 @@ func (i *Importer) Import(path string) (Report, error) {
 	return report, nil
 }
 
-// MaybeImport imports the file only when its content differs from the last
+// ImportIfChanged imports the file only when its content differs from the last
 // successful import recorded in the store. An unchanged file (or a missing
 // file) is a no-op. The stored hash is only updated after a successful import.
-func (i *Importer) MaybeImport(path string) (Report, bool, error) {
+//
+// The imported result reports whether an import actually ran.
+func (i *Importer) ImportIfChanged(path string) (report Report, imported bool, err error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -113,7 +115,7 @@ func (i *Importer) MaybeImport(path string) (Report, bool, error) {
 		return Report{Path: path, Hash: currentHash}, false, nil
 	}
 
-	report, err := i.Import(path)
+	report, err = i.Import(path)
 	if err != nil {
 		return report, false, err
 	}

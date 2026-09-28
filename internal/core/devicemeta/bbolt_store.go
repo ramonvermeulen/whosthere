@@ -16,7 +16,7 @@ var ErrInvalidMAC = errors.New("invalid MAC address")
 
 var (
 	deviceMetadataBucket = []byte("device_metadata")
-	metadataStateBucket  = []byte("metadata_state")
+	internalStateBucket  = []byte("internal_state")
 )
 
 type boltStore struct {
@@ -49,8 +49,8 @@ func (s *boltStore) init() error {
 			return fmt.Errorf("create device metadata bucket: %w", err)
 		}
 
-		if _, err := tx.CreateBucketIfNotExists(metadataStateBucket); err != nil {
-			return fmt.Errorf("create metadata state bucket: %w", err)
+		if _, err := tx.CreateBucketIfNotExists(internalStateBucket); err != nil {
+			return fmt.Errorf("create internal state bucket: %w", err)
 		}
 
 		return nil
@@ -226,9 +226,9 @@ func (s *boltStore) All() (map[string]Record, error) {
 
 func (s *boltStore) GetState(key string) (value string, found bool, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
-		state := tx.Bucket(metadataStateBucket)
+		state := tx.Bucket(internalStateBucket)
 		if state == nil {
-			return errors.New("metadata state bucket not initialized")
+			return errors.New("internal state bucket not initialized")
 		}
 
 		raw := state.Get([]byte(key))
@@ -253,9 +253,9 @@ func (s *boltStore) SetState(key, value string) error {
 	}
 
 	return s.db.Update(func(tx *bolt.Tx) error {
-		state := tx.Bucket(metadataStateBucket)
+		state := tx.Bucket(internalStateBucket)
 		if state == nil {
-			return errors.New("metadata state bucket not initialized")
+			return errors.New("internal state bucket not initialized")
 		}
 
 		if value == "" {

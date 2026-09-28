@@ -124,7 +124,7 @@ func maybeAutoImportAliases(cfg *config.Config, store devicemeta.Store, logger *
 		return err
 	}
 
-	report, imported, err := aliases.NewImporter(store).MaybeImport(path)
+	report, imported, err := aliases.NewImporter(store).ImportIfChanged(path)
 	if err != nil {
 		return err
 	}

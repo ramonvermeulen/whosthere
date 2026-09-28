@@ -135,7 +135,7 @@ func TestImport_MissingFile(t *testing.T) {
 	require.ErrorIs(t, err, ErrFileNotFound)
 }
 
-func TestMaybeImport_FirstRunImports(t *testing.T) {
+func TestImportIfChanged_FirstRunImports(t *testing.T) {
 	t.Parallel()
 
 	store := newTestStore(t)
@@ -143,13 +143,13 @@ func TestMaybeImport_FirstRunImports(t *testing.T) {
   aa:bb:cc:dd:ee:ff: "TV"
 `)
 
-	report, imported, err := NewImporter(store).MaybeImport(path)
-	require.NoError(t, err, "MaybeImport()")
+	report, imported, err := NewImporter(store).ImportIfChanged(path)
+	require.NoError(t, err, "ImportIfChanged()")
 	require.True(t, imported, "first run should import")
 	require.Equal(t, 1, report.Imported)
 }
 
-func TestMaybeImport_UnchangedFileIsNoOp(t *testing.T) {
+func TestImportIfChanged_UnchangedFileIsNoOp(t *testing.T) {
 	t.Parallel()
 
 	store := newTestStore(t)
@@ -158,15 +158,15 @@ func TestMaybeImport_UnchangedFileIsNoOp(t *testing.T) {
 `)
 
 	importer := NewImporter(store)
-	_, imported, err := importer.MaybeImport(path)
-	require.NoError(t, err, "first MaybeImport()")
+	_, imported, err := importer.ImportIfChanged(path)
+	require.NoError(t, err, "first ImportIfChanged()")
 	require.True(t, imported)
 
 	// A TUI-side edit must survive an unchanged file across restarts.
 	require.NoError(t, store.SetAlias("aa:bb:cc:dd:ee:ff", "Edited In TUI"), "tui edit")
 
-	_, imported, err = importer.MaybeImport(path)
-	require.NoError(t, err, "second MaybeImport()")
+	_, imported, err = importer.ImportIfChanged(path)
+	require.NoError(t, err, "second ImportIfChanged()")
 	require.False(t, imported, "unchanged file must not re-import")
 
 	record, _, err := store.Get("aa:bb:cc:dd:ee:ff")
@@ -174,7 +174,7 @@ func TestMaybeImport_UnchangedFileIsNoOp(t *testing.T) {
 	require.Equal(t, "Edited In TUI", record.Alias, "tui edit must survive")
 }
 
-func TestMaybeImport_ChangedFileReimports(t *testing.T) {
+func TestImportIfChanged_ChangedFileReimports(t *testing.T) {
 	t.Parallel()
 
 	store := newTestStore(t)
@@ -183,7 +183,7 @@ func TestMaybeImport_ChangedFileReimports(t *testing.T) {
 `)
 
 	importer := NewImporter(store)
-	_, imported, err := importer.MaybeImport(path)
+	_, imported, err := importer.ImportIfChanged(path)
 	require.NoError(t, err)
 	require.True(t, imported)
 
@@ -192,18 +192,18 @@ func TestMaybeImport_ChangedFileReimports(t *testing.T) {
   de:ad:be:ef:00:01: "Printer"
 `), 0o644), "rewrite aliases file")
 
-	report, imported, err := importer.MaybeImport(path)
-	require.NoError(t, err, "MaybeImport() after change")
+	report, imported, err := importer.ImportIfChanged(path)
+	require.NoError(t, err, "ImportIfChanged() after change")
 	require.True(t, imported, "changed file should re-import")
 	require.Equal(t, 2, report.Imported, "both aliases imported")
 }
 
-func TestMaybeImport_MissingFileIsNoOp(t *testing.T) {
+func TestImportIfChanged_MissingFileIsNoOp(t *testing.T) {
 	t.Parallel()
 
 	store := newTestStore(t)
-	_, imported, err := NewImporter(store).MaybeImport(filepath.Join(t.TempDir(), "nope.yaml"))
-	require.NoError(t, err, "MaybeImport() should not error on missing file")
+	_, imported, err := NewImporter(store).ImportIfChanged(filepath.Join(t.TempDir(), "nope.yaml"))
+	require.NoError(t, err, "ImportIfChanged() should not error on missing file")
 	require.False(t, imported, "missing file is a no-op")
 }
 
