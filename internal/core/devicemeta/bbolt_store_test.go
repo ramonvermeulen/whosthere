@@ -120,3 +120,50 @@ func TestBoltStore_ResetAliases(t *testing.T) {
 		require.False(t, found, "expected alias for %s to be removed, got %+v", mac, record)
 	}
 }
+
+func TestBoltStore_All(t *testing.T) {
+	t.Parallel()
+
+	store, err := Open(filepath.Join(t.TempDir(), "devices.db"))
+	require.NoError(t, err, "Open()")
+	t.Cleanup(func() {
+		_ = store.Close()
+	})
+
+	require.NoError(t, store.SetAlias("aa:bb:cc:dd:ee:ff", "Router"), "SetAlias(first)")
+	require.NoError(t, store.SetAlias("aa:bb:cc:dd:ee:11", "Printer"), "SetAlias(second)")
+	require.NoError(t, store.SetAlias("aa:bb:cc:dd:ee:22", "Gone"), "SetAlias(third)")
+	require.NoError(t, store.ClearAlias("aa:bb:cc:dd:ee:22"), "ClearAlias(third)")
+
+	records, err := store.All()
+	require.NoError(t, err, "All()")
+	require.Len(t, records, 2, "records without an alias should be omitted")
+	require.Equal(t, "Router", records["aa:bb:cc:dd:ee:ff"].Alias)
+	require.Equal(t, "Printer", records["aa:bb:cc:dd:ee:11"].Alias)
+}
+
+func TestBoltStore_StateRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	store, err := Open(filepath.Join(t.TempDir(), "devices.db"))
+	require.NoError(t, err, "Open()")
+	t.Cleanup(func() {
+		_ = store.Close()
+	})
+
+	_, found, err := store.GetState("missing")
+	require.NoError(t, err, "GetState(missing)")
+	require.False(t, found, "missing key should not be found")
+
+	require.NoError(t, store.SetState("k", "v"), "SetState()")
+
+	value, found, err := store.GetState("k")
+	require.NoError(t, err, "GetState()")
+	require.True(t, found)
+	require.Equal(t, "v", value)
+
+	require.NoError(t, store.SetState("k", ""), "SetState(empty deletes)")
+	_, found, err = store.GetState("k")
+	require.NoError(t, err, "GetState() after delete")
+	require.False(t, found, "empty value should delete the key")
+}

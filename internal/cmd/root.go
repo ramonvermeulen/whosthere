@@ -73,6 +73,7 @@ func AddCommands(root *cobra.Command) {
 		NewVersionCommand(),
 		NewDaemonCommand(),
 		NewScanCommand(),
+		NewAliasesCommand(),
 	)
 }
 

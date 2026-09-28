@@ -54,7 +54,7 @@ func TestAddCommands(t *testing.T) {
 	root := NewRootCommand()
 	AddCommands(root)
 
-	expectedCommands := []string{"version", "daemon", "scan"}
+	expectedCommands := []string{"version", "daemon", "scan", "aliases"}
 	for _, name := range expectedCommands {
 		cmd, _, err := root.Find([]string{name})
 		assert.NoError(t, err, "command %s should exist", name)
@@ -67,7 +67,7 @@ func TestAddCommands_Count(t *testing.T) {
 	AddCommands(root)
 
 	assert.True(t, root.HasSubCommands())
-	assert.Len(t, root.Commands(), 3)
+	assert.Len(t, root.Commands(), 4)
 }
 
 func TestNewRootCommand_HasAllPersistentFlags(t *testing.T) {

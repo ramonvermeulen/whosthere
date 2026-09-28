@@ -93,6 +93,13 @@ Run as a daemon with HTTP API:
 whosthere daemon --port=8080
 ```
 
+Import aliases in bulk from a file, or export the current ones:
+
+```bash
+whosthere aliases import ./aliases.yaml
+whosthere aliases export --stdout
+```
+
 Additional command line options can be found by running:
 
 ```bash
@@ -206,6 +213,12 @@ theme:
   # tertiary_text_color: "#ffaa00"
   # inverse_text_color: "#000a1a"
   # contrast_secondary_text_color: "#88ddff"
+
+aliases:
+  # Uncomment to import aliases.yaml into the local database on startup (only when it changed)
+  # auto_import: false
+  # Override the aliases file path - defaults to the app config directory
+  # file: "/path/to/aliases.yaml"
 ```
 
 ## Environment Variables
@@ -233,6 +246,39 @@ Examples:
 - `WHOSTHERE__SCANNERS__MDNS__ENABLED=false` - Disable mDNS scanner, equivalent to `scanners.mdns.enabled: false` in the YAML config
 - `WHOSTHERE__PORT_SCANNER__TCP=80,443,8080` - Set custom TCP ports to scan, equivalent to `port_scanner.tcp: [80, 443, 8080]` in the YAML config
 - `WHOSTHERE__THEME__NAME=cyberpunk` - Set theme to cyberpunk, equivalent to `theme.name: cyberpunk` in the YAML config
+
+## Device aliases
+
+Aliases live in a local [bbolt](https://github.com/etcd-io/bbolt) database in the state directory. To
+set many at once, import them from a YAML file (`aliases.yaml` in the config directory; override with
+the `aliases.file` config key or a path argument).
+
+The file is a **patch, not a mirror**, and is only ever read: importing upserts the MACs it contains
+and leaves others untouched, and TUI edits are **never written back to the file**. Use `export` to
+regenerate it.
+
+```yaml
+version: 1
+aliases:
+  aa:bb:cc:dd:ee:ff: "Living Room TV"
+  de:ad:be:ef:00:01: "Office Printer"
+```
+
+- `version` is the file format version; use `1` (files without it default to 1).
+- MACs are normalized (`AA-BB-CC-DD-EE-FF` = `aabbccddeeff`), an empty alias (`""`) clears one, and
+  invalid MACs are skipped and reported rather than aborting the import.
+
+```bash
+whosthere aliases import            # from the default location
+whosthere aliases import ./aliases.yaml
+whosthere aliases export            # to the default location
+whosthere aliases export --stdout   # to stdout
+```
+
+Opt in to importing on startup with `aliases.auto_import: true`. The file is hash-checked and only
+re-imported when it changed, so an untouched file never clobbers your TUI edits — but a **changed
+file does overwrite** the aliases for every MAC it contains. Keep TUI-only aliases out of the file,
+or `export` after editing to keep it in sync.
 
 ## Daemon mode HTTP API
 

@@ -536,6 +536,41 @@ func GlobalSettings() []GlobalSetting {
 				CommentedOut: true,
 			},
 		},
+
+		// aliases file settings
+		{
+			YAMLKey:  "aliases.auto_import",
+			FlagName: "aliases-auto-import",
+			Usage:    "Import the aliases file into the local database on startup when its content changed (e.g. --aliases-auto-import=true)",
+			Type:     FlagTypeBool,
+			Sources:  all,
+			Set: func(c *Config, v string) error {
+				b, err := parseBool(v)
+				if err != nil {
+					return err
+				}
+				c.Aliases.AutoImport = b
+				return nil
+			},
+			Get: func(c *Config) any { return c.Aliases.AutoImport },
+			Doc: YAMLDoc{
+				Comment:      "Uncomment to import aliases.yaml into the local database on startup (only when it changed)",
+				ExampleValue: "false",
+				CommentedOut: true,
+			},
+		},
+		{
+			YAMLKey: "aliases.file",
+			Type:    FlagTypeString,
+			Sources: yamlEnvOnly,
+			Set:     func(c *Config, v string) error { c.Aliases.File = v; return nil },
+			Get:     func(c *Config) any { return c.Aliases.File },
+			Doc: YAMLDoc{
+				Comment:      "Override the aliases file path - defaults to the app config directory",
+				ExampleValue: "\"/path/to/aliases.yaml\"",
+				CommentedOut: true,
+			},
+		},
 	}
 }
 

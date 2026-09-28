@@ -16,6 +16,7 @@ var ErrInvalidMAC = errors.New("invalid MAC address")
 
 var (
 	deviceMetadataBucket = []byte("device_metadata")
+	metadataStateBucket  = []byte("metadata_state")
 )
 
 type boltStore struct {
@@ -46,6 +47,10 @@ func (s *boltStore) init() error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		if _, err := tx.CreateBucketIfNotExists(deviceMetadataBucket); err != nil {
 			return fmt.Errorf("create device metadata bucket: %w", err)
+		}
+
+		if _, err := tx.CreateBucketIfNotExists(metadataStateBucket); err != nil {
+			return fmt.Errorf("create metadata state bucket: %w", err)
 		}
 
 		return nil
@@ -182,6 +187,82 @@ func (s *boltStore) ResetAliases() error {
 		}
 
 		return nil
+	})
+}
+
+func (s *boltStore) All() (map[string]Record, error) {
+	records := make(map[string]Record)
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		deviceMetadata := tx.Bucket(deviceMetadataBucket)
+		if deviceMetadata == nil {
+			return errors.New("device metadata bucket not initialized")
+		}
+
+		return deviceMetadata.ForEach(func(macKey, rawRecord []byte) error {
+			if len(rawRecord) == 0 {
+				return nil
+			}
+
+			var record Record
+			if err := json.Unmarshal(rawRecord, &record); err != nil {
+				return fmt.Errorf("decode record for %s: %w", string(macKey), err)
+			}
+
+			if record.empty() {
+				return nil
+			}
+
+			records[string(macKey)] = record
+			return nil
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
+func (s *boltStore) GetState(key string) (value string, found bool, err error) {
+	err = s.db.View(func(tx *bolt.Tx) error {
+		state := tx.Bucket(metadataStateBucket)
+		if state == nil {
+			return errors.New("metadata state bucket not initialized")
+		}
+
+		raw := state.Get([]byte(key))
+		if len(raw) == 0 {
+			return nil
+		}
+
+		value = string(raw)
+		found = true
+		return nil
+	})
+	if err != nil {
+		return "", false, err
+	}
+
+	return value, found, nil
+}
+
+func (s *boltStore) SetState(key, value string) error {
+	if strings.TrimSpace(key) == "" {
+		return errors.New("state key must not be empty")
+	}
+
+	return s.db.Update(func(tx *bolt.Tx) error {
+		state := tx.Bucket(metadataStateBucket)
+		if state == nil {
+			return errors.New("metadata state bucket not initialized")
+		}
+
+		if value == "" {
+			return state.Delete([]byte(key))
+		}
+
+		return state.Put([]byte(key), []byte(value))
 	})
 }
 

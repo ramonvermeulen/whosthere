@@ -16,6 +16,7 @@ import (
 	"github.com/dece2183/go-clipboard"
 	"github.com/gdamore/tcell/v2"
 	"github.com/ramonvermeulen/whosthere/internal/core"
+	"github.com/ramonvermeulen/whosthere/internal/core/aliases"
 	"github.com/ramonvermeulen/whosthere/internal/core/config"
 	"github.com/ramonvermeulen/whosthere/internal/core/devicemeta"
 	"github.com/ramonvermeulen/whosthere/internal/core/state"
@@ -82,6 +83,10 @@ func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, erro
 	}
 	a.setupSignalHandler()
 
+	if err := maybeAutoImportAliases(cfg, metaStore, logger); err != nil {
+		logger.Warn("aliases auto-import skipped", "error", err)
+	}
+
 	a.emit = func(e events.Event) {
 		a.events <- e
 	}
@@ -104,6 +109,37 @@ func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, erro
 	app.EnableMouse(true)
 
 	return a, nil
+}
+
+// maybeAutoImportAliases imports the aliases file into the local store on
+// startup when enabled in config. The import only runs when the file content
+// changed since the last successful import, so TUI-side edits survive restarts.
+func maybeAutoImportAliases(cfg *config.Config, store devicemeta.Store, logger *slog.Logger) error {
+	if cfg == nil || store == nil || !cfg.Aliases.AutoImport {
+		return nil
+	}
+
+	path, err := aliases.ResolvePath(cfg.Aliases.File)
+	if err != nil {
+		return err
+	}
+
+	report, imported, err := aliases.NewImporter(store).MaybeImport(path)
+	if err != nil {
+		return err
+	}
+	if !imported {
+		return nil
+	}
+
+	logger.Info("imported device aliases",
+		"path", report.Path,
+		"imported", report.Imported,
+		"cleared", report.Cleared,
+		"skipped", report.Skipped,
+	)
+
+	return nil
 }
 
 func (a *App) setupSignalHandler() {

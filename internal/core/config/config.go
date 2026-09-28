@@ -40,6 +40,17 @@ type Config struct {
 	PortScanner  PortScannerConfig `yaml:"port_scanner"`
 	Splash       SplashConfig      `yaml:"splash"`
 	Theme        ThemeConfig       `yaml:"theme"`
+	Aliases      AliasesConfig     `yaml:"aliases"`
+}
+
+// AliasesConfig controls the optional aliases file import behavior.
+type AliasesConfig struct {
+	// AutoImport imports the aliases file into the local database on startup,
+	// but only when its content changed since the last successful import.
+	AutoImport bool `yaml:"auto_import"`
+	// File overrides the aliases file path. Empty means the default location
+	// in the application config directory.
+	File string `yaml:"file"`
 }
 
 // ScannerToggle lets users enable/disable a scanner.
@@ -121,6 +132,9 @@ func DefaultConfig() *Config {
 		Theme: ThemeConfig{
 			Name:    DefaultThemeName,
 			Enabled: DefaultThemeEnabled,
+		},
+		Aliases: AliasesConfig{
+			AutoImport: false,
 		},
 	}
 }

@@ -325,6 +325,26 @@ func getSettingTestCases() []settingTestCase {
 			yamlValue:    "#aaaaaa",
 			expectedYAML: "#aaaaaa",
 		},
+		{
+			yamlKey:      "aliases.auto_import",
+			envVar:       "WHOSTHERE__ALIASES__AUTO_IMPORT",
+			envValue:     "true",
+			expectedEnv:  true,
+			flagValue:    "true",
+			expectedFlag: true,
+			yamlValue:    "true",
+			expectedYAML: true,
+		},
+		{
+			yamlKey:      "aliases.file",
+			envVar:       "WHOSTHERE__ALIASES__FILE",
+			envValue:     "/tmp/aliases.yaml",
+			expectedEnv:  "/tmp/aliases.yaml",
+			flagValue:    "",
+			expectedFlag: nil,
+			yamlValue:    "/etc/whosthere/aliases.yaml",
+			expectedYAML: "/etc/whosthere/aliases.yaml",
+		},
 	}
 }
 
@@ -514,6 +534,10 @@ theme:
   tertiary_text_color: "#000009"
   inverse_text_color: "#00000a"
   contrast_secondary_text_color: "#00000b"
+
+aliases:
+  auto_import: true
+  file: "/etc/whosthere/aliases.yaml"
 `
 
 	tmpDir := t.TempDir()
@@ -557,6 +581,8 @@ theme:
 		{"theme.tertiary_text_color", cfg.Theme.TertiaryTextColor, "#000009"},
 		{"theme.inverse_text_color", cfg.Theme.InverseTextColor, "#00000a"},
 		{"theme.contrast_secondary_text_color", cfg.Theme.ContrastSecondaryTextColor, "#00000b"},
+		{"aliases.auto_import", cfg.Aliases.AutoImport, true},
+		{"aliases.file", cfg.Aliases.File, "/etc/whosthere/aliases.yaml"},
 	}
 
 	testedKeys := make(map[string]bool)
