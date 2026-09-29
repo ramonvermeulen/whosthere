@@ -39,7 +39,7 @@ func TestMaybeAutoImportAliases_DisabledIsNoOp(t *testing.T) {
 	cfg.Aliases.AutoImport = false
 	cfg.Aliases.File = path
 
-	require.NoError(t, maybeAutoImportAliases(cfg, store, testLogger()), "disabled should be a no-op")
+	require.NoError(t, ImportIfChanged(cfg, store, testLogger()), "disabled should be a no-op")
 
 	_, found, err := store.Get("aa:bb:cc:dd:ee:ff")
 	require.NoError(t, err, "Get()")
@@ -57,7 +57,7 @@ func TestMaybeAutoImportAliases_EnabledImports(t *testing.T) {
 	cfg.Aliases.AutoImport = true
 	cfg.Aliases.File = path
 
-	require.NoError(t, maybeAutoImportAliases(cfg, store, testLogger()), "auto-import")
+	require.NoError(t, ImportIfChanged(cfg, store, testLogger()), "auto-import")
 
 	record, found, err := store.Get("aa:bb:cc:dd:ee:ff")
 	require.NoError(t, err, "Get()")
@@ -74,7 +74,7 @@ func TestMaybeAutoImportAliases_MissingFileIsNotAnError(t *testing.T) {
 	cfg.Aliases.AutoImport = true
 	cfg.Aliases.File = filepath.Join(t.TempDir(), "does-not-exist.yaml")
 
-	require.NoError(t, maybeAutoImportAliases(cfg, store, testLogger()), "missing file should be tolerated")
+	require.NoError(t, ImportIfChanged(cfg, store, testLogger()), "missing file should be tolerated")
 }
 
 func TestMaybeAutoImportAliases_UnchangedFileDoesNotClobberTUIEdit(t *testing.T) {
@@ -88,11 +88,11 @@ func TestMaybeAutoImportAliases_UnchangedFileDoesNotClobberTUIEdit(t *testing.T)
 	cfg.Aliases.AutoImport = true
 	cfg.Aliases.File = path
 
-	require.NoError(t, maybeAutoImportAliases(cfg, store, testLogger()), "first import")
+	require.NoError(t, ImportIfChanged(cfg, store, testLogger()), "first import")
 
 	require.NoError(t, store.SetAlias("aa:bb:cc:dd:ee:ff", "Edited In TUI"), "tui edit")
 
-	require.NoError(t, maybeAutoImportAliases(cfg, store, testLogger()), "second import")
+	require.NoError(t, ImportIfChanged(cfg, store, testLogger()), "second import")
 
 	record, _, err := store.Get("aa:bb:cc:dd:ee:ff")
 	require.NoError(t, err, "Get()")

@@ -83,7 +83,7 @@ func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, erro
 	}
 	a.setupSignalHandler()
 
-	if err := maybeAutoImportAliases(cfg, metaStore, logger); err != nil {
+	if err := ImportIfChanged(cfg, metaStore, logger); err != nil {
 		logger.Warn("aliases auto-import skipped", "error", err)
 	}
 
@@ -111,10 +111,10 @@ func NewApp(cfg *config.Config, logger *slog.Logger, version string) (*App, erro
 	return a, nil
 }
 
-// maybeAutoImportAliases imports the aliases file into the local store on
+// ImportIfChanged imports the aliases file into the local store on
 // startup when enabled in config. The import only runs when the file content
 // changed since the last successful import, so TUI-side edits survive restarts.
-func maybeAutoImportAliases(cfg *config.Config, store devicemeta.Store, logger *slog.Logger) error {
+func ImportIfChanged(cfg *config.Config, store devicemeta.Store, logger *slog.Logger) error {
 	if cfg == nil || store == nil || !cfg.Aliases.AutoImport {
 		return nil
 	}
