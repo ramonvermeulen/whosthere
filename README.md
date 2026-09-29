@@ -265,8 +265,9 @@ aliases:
 ```
 
 - `version` is the file format version; use `1` (files without it default to 1).
-- MACs are normalized (`AA-BB-CC-DD-EE-FF` = `aabbccddeeff`), an empty alias (`""`) clears one, and
-  invalid MACs are skipped and reported rather than aborting the import.
+- MACs are accepted in any common format and normalized, so `AA:BB:CC:DD:EE:FF`, `aa-bb-cc-dd-ee-ff`
+  and `aabbccddeeff` are equivalent. An empty alias (`""`) clears one.
+- Invalid MACs are skipped and reported; the rest of the import still goes through.
 
 ```bash
 whosthere aliases import            # from the default location
