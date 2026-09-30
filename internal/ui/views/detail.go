@@ -176,7 +176,11 @@ func (d *DetailView) Render(s state.ReadOnly) {
 	_, _ = fmt.Fprintln(d.info)
 	writeSection("Open Ports")
 	if len(device.OpenPorts()) == 0 {
-		_, _ = fmt.Fprintln(d.info, "  (no ports scanned yet)")
+		if device.LastPortScan().IsZero() {
+			_, _ = fmt.Fprintln(d.info, "  (no ports scanned yet)")
+		} else {
+			_, _ = fmt.Fprintln(d.info, "  (no open ports found)")
+		}
 	} else {
 		for _, key := range utils.SortedKeys(device.OpenPorts()) {
 			ports := device.OpenPorts()[key]
