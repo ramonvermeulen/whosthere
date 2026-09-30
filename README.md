@@ -95,7 +95,7 @@ whosthere daemon --port=8080
 
 Import aliases in bulk from a file, or export the current ones:
 
-```bash
+```text
 whosthere aliases import ./aliases.yaml
 whosthere aliases export --stdout
 ```
