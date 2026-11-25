@@ -1,5 +1,7 @@
 # Whosthere
 
+<a href="https://hackergit.org/r/ramonvermeulen/whosthere"><img src="https://hackergit.org/badge/ramonvermeulen/whosthere.svg?style=rank&rank=week&scope=show" alt="Hacker News rank via HackerGit" width="250" height="55"></a>
+
 [![Go Version](https://img.shields.io/github/go-mod/go-version/ramonvermeulen/whosthere)](https://go.dev/doc/devel/release)
 [![License](https://img.shields.io/github/license/ramonvermeulen/whosthere)](LICENSE)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ramonvermeulen/whosthere/total)](https://github.com/ramonvermeulen/whosthere/releases)
